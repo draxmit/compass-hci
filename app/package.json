@@ -16,6 +16,7 @@
     "@compass/shared-types": "workspace:*",
     "@expo-google-fonts/barlow": "^0.4.0",
     "@expo-google-fonts/instrument-serif": "^0.4.0",
+    "@expo/metro-runtime": "~6.1.0",
     "expo": "~54.0.0",
     "expo-blur": "~15.0.0",
     "expo-constants": "~18.0.0",
