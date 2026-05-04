@@ -1,0 +1,24 @@
+{
+  "name": "compass",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "app:web": "pnpm --filter ./app web",
+    "app:android": "pnpm --filter ./app android",
+    "app:ios": "pnpm --filter ./app ios",
+    "app:dev": "pnpm --filter ./app start",
+    "app:test": "pnpm --filter ./app test",
+    "app:lint": "pnpm --filter ./app lint",
+    "app:typecheck": "pnpm --filter ./app typecheck",
+    "types:build": "pnpm --filter ./packages/shared-types build",
+    "clean": "pnpm -r exec rimraf node_modules dist .expo"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.5"
+  }
+}

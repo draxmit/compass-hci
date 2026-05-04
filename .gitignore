@@ -22,3 +22,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Compass setup scratch (NEVER commit — contains config values during Phase 0 setup)
+.compass-setup-scratch.md
+.env
+.env.local
+.env.*.local
+google-services.json
+GoogleService-Info.plist
+*-firebase-adminsdk-*.json
+
+# Monorepo
+app/node_modules
+app/.expo
+app/dist
+app/web-build
+app/.env.local
+app/ios
+app/android
+packages/*/node_modules
+packages/*/dist
