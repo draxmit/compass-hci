@@ -57,14 +57,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [mode, setMode, resolvedScheme],
   );
 
+  // On web, sync the `dark` class to <html> so global.css body background
+  // tracks the theme. The wrapper View itself stays transparent so the
+  // AuroraBackdrop (z-index: -1) is visible above the body background but
+  // below content.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    if (resolvedScheme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [resolvedScheme]);
+
   // NativeWind reads the `dark` className at the root to flip dark: variants
-  // throughout the tree. We also set the absolute-fill background here so the
-  // root has a defined surface color even before children render.
+  // throughout the tree. The wrapper View has no solid background — the body
+  // (web) or root layout (native) provides the surface color, leaving room
+  // for the AuroraBackdrop layer to be visible.
   return (
     <ThemeContext.Provider value={value}>
-      <View
-        className={`flex-1 ${resolvedScheme === 'dark' ? 'dark bg-surface-dark-bg' : 'bg-surface-light-bg'}`}
-      >
+      <View className={`flex-1 ${resolvedScheme === 'dark' ? 'dark' : ''}`}>
         {children}
       </View>
     </ThemeContext.Provider>

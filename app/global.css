@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Surface backgrounds applied at the document root so the AuroraBackdrop
+ * (z-index: -1) sits ABOVE the surface paint but BELOW content. ThemeProvider
+ * toggles the `dark` class on <html> to switch between modes.
+ */
+html, body {
+  background-color: #fafafa; /* surface.light-bg */
+}
+html.dark, html.dark body {
+  background-color: #000000; /* surface.dark-bg */
+}
+
+/* Ensure the body and #root fill the viewport so flex-1 children expand. */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}

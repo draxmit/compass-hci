@@ -19,4 +19,11 @@ config.resolver.nodeModulesPaths = [
 // 3. Force a single React instance (pnpm hoisting can produce dupes)
 config.resolver.disableHierarchicalLookup = true;
 
+// 4. Disable package.json `exports` field resolution for now.
+// Zustand 4.5+'s ESM build uses `import.meta.env.MODE` for dev warnings; with
+// exports enabled, Metro picks the ESM path and ships untransformed `import.meta`
+// to the web dev runtime, which loads bundles as classic scripts → SyntaxError.
+// Falling back to CJS resolution avoids this without per-package shims.
+config.resolver.unstable_enablePackageExports = false;
+
 module.exports = withNativeWind(config, { input: './global.css' });
