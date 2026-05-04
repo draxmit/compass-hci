@@ -7,7 +7,7 @@ cross-platform (Web + Android APK + iOS PWA), zero-cost stack.
 
 ```
 compass/
-  app/                   # Expo Universal app (SDK 54, Router 4, RN Web)
+  app/                   # Expo Universal app (SDK 54, Router 6, RN 0.81, RN Web)
   packages/shared-types/ # Cross-package TypeScript models
   legacy/                # Archived Vite prototype (read-only reference)
   docs/                  # ADRs, change logs, HCI artifacts, design system
