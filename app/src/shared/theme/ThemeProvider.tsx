@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useColorScheme as useDeviceColorScheme, View } from 'react-native';
+import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
 
 import { themeStorage } from './storage';
 
@@ -31,6 +32,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // async load below and update state if a saved value differs from the
   // default. Worst-case flash: ~100ms.
   const [mode, setModeState] = useState<ThemeMode>(() => readInitialMode());
+
+  // NativeWind 4 with `darkMode: 'class'` requires its own setColorScheme()
+  // to flip dark: variants on native (the React-tree `dark` className alone
+  // isn't enough — that's a web-only CSS thing). We push the resolved theme
+  // into NativeWind's color-scheme store so dark: utilities resolve
+  // correctly across native + web.
+  const { setColorScheme } = useNativeWindColorScheme();
 
   // Native: hydrate from AsyncStorage on mount.
   useEffect(() => {
@@ -68,15 +76,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     themeStorage.setString(STORAGE_KEY, mode);
   }, [mode]);
 
+  // Sync NativeWind's color scheme on every resolvedScheme change — drives
+  // dark: utility resolution on BOTH web and native. (On web NativeWind also
+  // honors the html.dark class we set below, but using setColorScheme here
+  // is the canonical path.)
+  useEffect(() => {
+    setColorScheme(resolvedScheme);
+  }, [resolvedScheme, setColorScheme]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({ mode, setMode, resolvedScheme }),
     [mode, setMode, resolvedScheme],
   );
 
-  // On web, sync the `dark` class to <html> so global.css body background
-  // tracks the theme. The wrapper View itself stays transparent so the
-  // AuroraBackdrop (z-index: -1) is visible above the body background but
-  // below content.
+  // On web only, also toggle the `dark` class on <html> so global.css body
+  // backgrounds track the theme (those are plain CSS, not NativeWind).
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
@@ -87,15 +101,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [resolvedScheme]);
 
-  // NativeWind reads the `dark` className at the root to flip dark: variants
-  // throughout the tree. The wrapper View has no solid background — the body
-  // (web) or root layout (native) provides the surface color, leaving room
-  // for the AuroraBackdrop layer to be visible.
   return (
     <ThemeContext.Provider value={value}>
-      <View className={`flex-1 ${resolvedScheme === 'dark' ? 'dark' : ''}`}>
-        {children}
-      </View>
+      <View className="flex-1">{children}</View>
     </ThemeContext.Provider>
   );
 }
