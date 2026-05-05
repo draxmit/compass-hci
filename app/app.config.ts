@@ -1,7 +1,7 @@
 import type { ExpoConfig } from 'expo/config';
 
-// TODO(T2): wire EXPO_PUBLIC_FIREBASE_* env into extra
-// TODO(T2): add googleServicesFile pointing at app/google-services.json
+// EXPO_PUBLIC_* env vars are inlined automatically by Metro at build time —
+// no need to thread them through `extra`. See app/.env.local (gitignored).
 const config: ExpoConfig = {
   name: 'Compass',
   slug: 'compass',
@@ -19,10 +19,11 @@ const config: ExpoConfig = {
     bundleIdentifier: 'com.compass.app',
   },
   android: {
+    package: 'com.compass.app',
     adaptiveIcon: {
       backgroundColor: '#000000',
     },
-    package: 'com.compass.app',
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
   },
   web: {
     bundler: 'metro',

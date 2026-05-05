@@ -29,6 +29,7 @@ dist-ssr
 .env.local
 .env.*.local
 google-services.json
+app/google-services.json
 GoogleService-Info.plist
 *-firebase-adminsdk-*.json
 
