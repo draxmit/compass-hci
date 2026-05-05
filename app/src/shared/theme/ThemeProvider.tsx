@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useColorScheme as useDeviceColorScheme, View } from 'react-native';
+import { Platform, useColorScheme as useDeviceColorScheme, View } from 'react-native';
 import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
 
 import { themeStorage } from './storage';
@@ -101,9 +101,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [resolvedScheme]);
 
+  // Web bg comes from global.css on html/body so the AuroraBackdrop can sit
+  // at z-index: -1 behind content. Native has no html/body — apply bg on
+  // the wrapper. PageBackdrop is rendered as absoluteFill child INSIDE
+  // ThemeProvider, so the wrapper bg shows through the low-opacity gradient.
+  const wrapperBgClass =
+    Platform.OS === 'web' ? '' : 'bg-surface-light-bg dark:bg-surface-dark-bg';
+
   return (
     <ThemeContext.Provider value={value}>
-      <View className="flex-1">{children}</View>
+      <View className={`flex-1 ${wrapperBgClass}`.trim()}>{children}</View>
     </ThemeContext.Provider>
   );
 }
