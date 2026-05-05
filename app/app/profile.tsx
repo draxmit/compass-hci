@@ -2,6 +2,7 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { auth, updateDisplayName } from '@/services/firebase';
 import { useAuthUser } from '@/stores/authStore';
@@ -21,6 +22,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const isDesktop = useIsDesktop();
   const user = useAuthUser();
+  const insets = useSafeAreaInsets();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
@@ -67,12 +69,18 @@ export default function ProfileScreen() {
     setEditing(false);
   };
 
+  // Opaque wrapper so the underlying (tabs) screen doesn't bleed through during
+  // the card-presentation animation — the root Stack uses a transparent
+  // contentStyle globally so PageBackdrop shows on tab routes, but routes
+  // pushed on top of tabs need their own surface bg. Bottom safe-area inset
+  // keeps content clear of the Android system nav bar.
   return (
-    <ScrollView
-      contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View className="self-center w-full max-w-md">
+    <View className="flex-1 bg-surface-light-bg dark:bg-surface-dark-bg">
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48, paddingBottom: 24 + insets.bottom }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="self-center w-full max-w-md">
         {!isDesktop && (
           <Pressable
             accessibilityRole="button"
@@ -279,8 +287,9 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color={mutedColor} />
         </Pressable>
       </Card>
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 

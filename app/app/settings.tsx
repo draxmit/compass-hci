@@ -2,6 +2,7 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, LogOut } from 'lucide-react-native';
 import { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { signOut } from '@/services/firebase';
 import { tokens } from '@/shared/theme/tokens';
@@ -19,6 +20,7 @@ import { Text } from '@/shared/ui/Text';
 export default function SettingsScreen() {
   const { mode, setMode, resolvedScheme } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [signingOut, setSigningOut] = useState(false);
   const isDark = resolvedScheme === 'dark';
 
@@ -46,12 +48,16 @@ export default function SettingsScreen() {
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const sectionLabelClass = 'font-sans-medium text-xs uppercase tracking-wider mb-3';
 
+  // Same wrapper pattern as /profile — see comment there. Opaque bg blocks the
+  // (tabs) screen from bleeding through during card-presentation; bottom inset
+  // keeps Sign out clear of the Android system nav bar.
   return (
-    <ScrollView
-      contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View className="self-center w-full max-w-md">
+    <View className="flex-1 bg-surface-light-bg dark:bg-surface-dark-bg">
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48, paddingBottom: 24 + insets.bottom }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="self-center w-full max-w-md">
         {/* Back-to-Profile link visible on all platforms — Settings is always
             a sub-route of /profile so the back action is unambiguous. */}
         <Pressable
@@ -138,7 +144,8 @@ export default function SettingsScreen() {
           </Text>
         </Pressable>
       </Card>
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
