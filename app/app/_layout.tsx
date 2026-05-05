@@ -111,7 +111,7 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(onboarding)" />
               <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="insights" options={{ presentation: 'card' }} />
+              <Stack.Screen name="more" options={{ presentation: 'card' }} />
             </Stack>
           </AuthGate>
         </AppShell>

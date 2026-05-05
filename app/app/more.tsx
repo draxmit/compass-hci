@@ -1,18 +1,20 @@
 import { Alert, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Lightbulb, ChevronRight, LogOut } from 'lucide-react-native';
+import { ChevronLeft, LogOut } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { signOut } from '@/services/firebase';
 import { useAuthUser } from '@/stores/authStore';
+import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import type { ThemeMode } from '@/shared/theme/useTheme';
 import { Card } from '@/shared/ui/Card';
 import { Text } from '@/shared/ui/Text';
-import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 
 // TODO(T11): full settings (language toggle, biometric, account deletion).
+// /more is a root stack route (not under tabs). Mobile reaches it via the
+// gear icon in Dashboard's top-right; desktop via the Sidebar's More item.
 export default function MoreScreen() {
   const { mode, setMode, resolvedScheme } = useTheme();
   const router = useRouter();
@@ -43,9 +45,26 @@ export default function MoreScreen() {
   const mutedColor = isDark
     ? tokens.surface['dark-fg-muted']
     : tokens.surface['light-fg-muted'];
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
 
   return (
     <View className="flex-1 px-6 pt-12">
+      {/* Mobile back button — desktop has Sidebar so doesn't need it */}
+      {!isDesktop && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          hitSlop={8}
+          className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
+        >
+          <ChevronLeft size={22} color={fgColor} />
+          <Text className="font-sans-medium ml-1" style={{ color: fgColor }}>
+            Back
+          </Text>
+        </Pressable>
+      )}
+
       <Text className="font-sans-bold text-3xl mb-1">More</Text>
       <Text className="font-sans text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
         Settings — full version in T11.
@@ -109,22 +128,6 @@ export default function MoreScreen() {
           })}
         </View>
       </Card>
-
-      {/* Insights link — moved out of bottom tabs in ADR-02 */}
-      {!isDesktop && (
-        <Card padding="none" className="mb-4 w-full max-w-md">
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="Open Insights"
-            onPress={() => router.push('/insights')}
-            className="flex-row items-center px-5 py-4 min-h-[44px]"
-          >
-            <Lightbulb size={20} color={tokens.accent.insights} />
-            <Text className="font-sans-medium ml-3 flex-1">Insights</Text>
-            <ChevronRight size={18} color={mutedColor} />
-          </Pressable>
-        </Card>
-      )}
 
       {/* Sign out */}
       <Card padding="none" className="w-full max-w-md">

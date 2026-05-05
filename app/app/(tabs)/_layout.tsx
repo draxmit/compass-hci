@@ -1,5 +1,5 @@
 import { Slot, Tabs } from 'expo-router';
-import { ArrowLeftRight, Home, Menu, PieChart } from 'lucide-react-native';
+import { ArrowLeftRight, Home, Lightbulb, PieChart } from 'lucide-react-native';
 
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
@@ -10,15 +10,16 @@ import { Fab } from '@/shared/ui/Fab';
 /**
  * Adaptive tabs layout.
  *
- * On mobile: bottom tabs (4 items) + center FAB above the bar.
+ * On mobile: bottom tabs (4 items: Dashboard / Transactions / Budgets /
+ * Insights) + center FAB above the bar. More (settings + sign-out) is
+ * accessed via the gear icon in the top-right of Dashboard, which
+ * pushes the root /more stack route.
+ *
  * On desktop: <Slot/> renders the active child route directly with no
  * Tabs navigator chrome — Sidebar provides navigation. Without this, the
  * Tabs scene container would stack visited screens on top of each other
  * when the bottom tab bar is hidden via `display: 'none'` (React
  * Navigation v7 has no `unmountOnBlur` option for Bottom Tabs).
- *
- * Insights moved to root /insights stack route, reachable from sidebar
- * on desktop or More menu on mobile.
  */
 export default function TabsLayout() {
   const { resolvedScheme } = useTheme();
@@ -27,8 +28,6 @@ export default function TabsLayout() {
   const isDark = resolvedScheme === 'dark';
 
   if (isDesktop) {
-    // Desktop: no Tabs navigator. Sidebar handles nav, Slot renders the
-    // matched child route. Eliminates the screen-overlap bug entirely.
     return <Slot />;
   }
 
@@ -70,10 +69,10 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="more"
+          name="insights"
           options={{
-            title: 'More',
-            tabBarIcon: ({ color, size }) => <Menu color={color} size={size} />,
+            title: 'Insights',
+            tabBarIcon: ({ color, size }) => <Lightbulb color={color} size={size} />,
           }}
         />
       </Tabs>
