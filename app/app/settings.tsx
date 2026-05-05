@@ -1,6 +1,6 @@
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, LogOut } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, LogOut, Tag } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +20,7 @@ import { Text } from '@/shared/ui/Text';
 //
 // TODO(T11): biometric toggle, account deletion, encrypted cache toggle.
 export default function SettingsScreen() {
-  const { t, i18n } = useTranslation(['settings', 'common']);
+  const { t, i18n } = useTranslation(['settings', 'common', 'categories']);
   const { mode, setMode, resolvedScheme } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -187,6 +187,25 @@ export default function SettingsScreen() {
             );
           })}
         </View>
+      </Card>
+
+      {/* Categories link */}
+      <Card padding="none" className="mb-4 w-full max-w-md">
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('categories:title')}
+          onPress={() => router.push('/categories')}
+          className="flex-row items-center px-5 py-4 min-h-[44px]"
+        >
+          <Tag size={20} color={mutedColor} />
+          <View className="ml-3 flex-1">
+            <Text className="font-sans-medium">{t('categories:title')}</Text>
+            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+              {t('categories:tagline')}
+            </Text>
+          </View>
+          <ChevronRight size={18} color={mutedColor} />
+        </Pressable>
       </Card>
 
       {/* Sign out */}

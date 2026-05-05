@@ -3,6 +3,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 
 import { db } from './client';
+import { seedPresets } from '../firestore/categoriesService';
 
 /**
  * Read a user document by uid. Returns `null` if it doesn't exist (e.g. on
@@ -60,6 +61,10 @@ export async function ensureUserDoc(user: FirebaseUser): Promise<UserDoc> {
   const batch = writeBatch(db);
   batch.set(doc(db, 'users', user.uid), newUser);
   batch.set(doc(db, 'workspaces', workspaceId), newWorkspace);
+  // Seed Indonesian preset categories into the same batch so workspace +
+  // categories land atomically (ADR-05 §2). ~45 docs; well under Firestore's
+  // 500-write batch limit.
+  seedPresets(batch, workspaceId);
   await batch.commit();
 
   return newUser;

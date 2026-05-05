@@ -1,0 +1,39 @@
+{
+  "title": "Kategori",
+  "tagline": "Atur kategori untuk transaksimu.",
+  "add": "Tambah kategori",
+  "edit": "Ubah kategori",
+  "addNew": "Tambah",
+  "addCustom": "Buat kategori baru",
+  "preset": "Preset",
+  "custom": "Buatan kamu",
+  "section": {
+    "topLevel": "Grup utama",
+    "noChildren": "Belum ada sub-kategori"
+  },
+  "fields": {
+    "name": "Nama",
+    "namePlaceholder": "Misal: Bensin Motor",
+    "icon": "Ikon",
+    "color": "Warna",
+    "parent": "Grup",
+    "noParent": "Tidak ada (jadikan grup utama)"
+  },
+  "actions": {
+    "save": "Simpan",
+    "saving": "Menyimpan…",
+    "cancel": "Batal",
+    "archive": "Arsipkan",
+    "archiveConfirmTitle": "Arsipkan kategori?",
+    "archiveConfirmBody": "Kategori ini akan disembunyikan, tapi transaksi yang sudah ada tetap aman."
+  },
+  "errors": {
+    "loadFailed": "Gagal memuat kategori.",
+    "createFailed": "Gagal membuat kategori.",
+    "updateFailed": "Gagal mengubah kategori.",
+    "archiveFailed": "Gagal mengarsipkan kategori.",
+    "missingName": "Nama kategori belum diisi."
+  },
+  "empty": "Belum ada kategori.",
+  "presetLockedHint": "Nama preset tidak bisa diubah, tapi ikon & warna bisa."
+}

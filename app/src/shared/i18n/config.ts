@@ -4,12 +4,14 @@ import { initReactI18next } from 'react-i18next';
 
 import authEn from '../../../locales/en/auth.json';
 import budgetsEn from '../../../locales/en/budgets.json';
+import categoriesEn from '../../../locales/en/categories.json';
 import commonEn from '../../../locales/en/common.json';
 import dashboardEn from '../../../locales/en/dashboard.json';
 import settingsEn from '../../../locales/en/settings.json';
 import transactionsEn from '../../../locales/en/transactions.json';
 import authId from '../../../locales/id/auth.json';
 import budgetsId from '../../../locales/id/budgets.json';
+import categoriesId from '../../../locales/id/categories.json';
 import commonId from '../../../locales/id/common.json';
 import dashboardId from '../../../locales/id/dashboard.json';
 import settingsId from '../../../locales/id/settings.json';
@@ -18,7 +20,15 @@ import transactionsId from '../../../locales/id/transactions.json';
 import { isSupportedLocale, readPersistedLocaleAsync, readPersistedLocaleSync } from './storage';
 import type { Locale } from './storage';
 
-const NAMESPACES = ['common', 'auth', 'dashboard', 'transactions', 'budgets', 'settings'] as const;
+const NAMESPACES = [
+  'common',
+  'auth',
+  'dashboard',
+  'transactions',
+  'budgets',
+  'settings',
+  'categories',
+] as const;
 
 const resources = {
   id: {
@@ -28,6 +38,7 @@ const resources = {
     transactions: transactionsId,
     budgets: budgetsId,
     settings: settingsId,
+    categories: categoriesId,
   },
   en: {
     common: commonEn,
@@ -36,6 +47,7 @@ const resources = {
     transactions: transactionsEn,
     budgets: budgetsEn,
     settings: settingsEn,
+    categories: categoriesEn,
   },
 } as const;
 

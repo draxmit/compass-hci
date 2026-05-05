@@ -1,0 +1,39 @@
+{
+  "title": "Categories",
+  "tagline": "Organise the categories used by your transactions.",
+  "add": "Add category",
+  "edit": "Edit category",
+  "addNew": "Add",
+  "addCustom": "Create a new category",
+  "preset": "Preset",
+  "custom": "Custom",
+  "section": {
+    "topLevel": "Top-level groups",
+    "noChildren": "No sub-categories yet"
+  },
+  "fields": {
+    "name": "Name",
+    "namePlaceholder": "e.g. Coffee",
+    "icon": "Icon",
+    "color": "Colour",
+    "parent": "Group",
+    "noParent": "None (make this a top-level group)"
+  },
+  "actions": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "archive": "Archive",
+    "archiveConfirmTitle": "Archive this category?",
+    "archiveConfirmBody": "It'll be hidden from the list, but existing transactions stay intact."
+  },
+  "errors": {
+    "loadFailed": "Failed to load categories.",
+    "createFailed": "Failed to create category.",
+    "updateFailed": "Failed to update category.",
+    "archiveFailed": "Failed to archive category.",
+    "missingName": "Category name is required."
+  },
+  "empty": "No categories yet.",
+  "presetLockedHint": "Preset names can't be changed, but icon and colour are editable."
+}
