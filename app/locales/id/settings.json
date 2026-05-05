@@ -1,0 +1,58 @@
+{
+  "profile": {
+    "title": "Profil",
+    "tagline": "Akunmu di Compass.",
+    "section": {
+      "identity": "IDENTITAS",
+      "activity": "AKTIVITAS",
+      "achievements": "PENCAPAIAN"
+    },
+    "memberSince": "Bergabung sejak",
+    "daysUsing": "Hari pakai Compass",
+    "daysUsing_one": "{{count}} hari",
+    "daysUsing_other": "{{count}} hari",
+    "transactionsLogged": "Transaksi tercatat",
+    "noTransactionsYet": "Belum ada transaksi. Tap + Transaksi baru untuk mulai.",
+    "achievementsBlurb": "Dapatkan badge saat kamu mencatat. Hadir di v2.",
+    "settingsLink": "Pengaturan",
+    "settingsLinkDescription": "Tema, bahasa, keluar",
+    "you": "Kamu",
+    "errors": {
+      "updateNameTitle": "Tidak bisa update nama",
+      "updateNameFallback": "Update gagal."
+    },
+    "actions": {
+      "editName": "Ubah nama tampilan",
+      "saveName": "Simpan nama",
+      "cancelEdit": "Batal ubah"
+    }
+  },
+  "settings": {
+    "title": "Pengaturan",
+    "tagline": "Tema, bahasa, keluar — versi lengkap di T11.",
+    "section": {
+      "theme": "TEMA",
+      "language": "BAHASA"
+    },
+    "theme": {
+      "light": "Terang",
+      "dark": "Gelap",
+      "system": "Sistem",
+      "setTo": "Atur tema ke {{label}}"
+    },
+    "language": {
+      "id": "Bahasa",
+      "en": "English",
+      "setTo": "Atur bahasa ke {{label}}"
+    },
+    "signOut": "Keluar",
+    "signingOut": "Keluar…",
+    "errors": {
+      "signOutTitle": "Gagal keluar",
+      "signOutFallback": "Gagal keluar."
+    },
+    "actions": {
+      "backToProfile": "Kembali ke Profil"
+    }
+  }
+}

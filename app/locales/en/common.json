@@ -1,0 +1,35 @@
+{
+  "appName": "Compass",
+  "actions": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "back": "Back",
+    "edit": "Edit",
+    "ok": "OK",
+    "retry": "Retry",
+    "close": "Close"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "transactions": "Transactions",
+    "budgets": "Budgets",
+    "insights": "Insights",
+    "newTransaction": "New transaction",
+    "openProfile": "Open profile",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar"
+  },
+  "placeholders": {
+    "comingSoonInsights": "Coming in T8 / v2.",
+    "comingSoonGeneric": "Coming soon.",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "This screen doesn't exist in Compass yet.",
+    "notFoundLink": "Back to Dashboard",
+    "onboardingComingSoon": "Onboarding lands in T10."
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again in a moment.",
+    "network": "Couldn't connect to the server. Check your internet."
+  }
+}

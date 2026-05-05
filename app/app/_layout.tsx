@@ -14,6 +14,7 @@ import type { ReactNode } from 'react';
 
 import '../global.css';
 import { useAuthSubscription } from '@/services/firebase';
+import { hydratePersistedLocale, initI18n } from '@/shared/i18n';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
@@ -22,6 +23,10 @@ import { PageBackdrop } from '@/shared/ui/PageBackdrop';
 import { Splash } from '@/shared/ui/Splash';
 import { useAuthLoading, useIsAuthed } from '@/stores/authStore';
 import { detectLowEndMode, useUiStore } from '@/stores/uiStore';
+
+// Synchronous init at module load so the first render already has translations.
+// Native first-launch hydrates the persisted choice asynchronously below.
+initI18n();
 
 /**
  * Wraps React Navigation's theme so its built-in containers render
@@ -132,6 +137,12 @@ export default function RootLayout() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    // AsyncStorage hydration only matters on native first launch — web's sync
+    // localStorage read in initI18n() already returned the persisted choice.
+    void hydratePersistedLocale();
   }, []);
 
   // Surface font load errors in dev — `null` would leave a permanently blank

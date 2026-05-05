@@ -1,0 +1,58 @@
+{
+  "profile": {
+    "title": "Profile",
+    "tagline": "Your account on Compass.",
+    "section": {
+      "identity": "IDENTITY",
+      "activity": "ACTIVITY",
+      "achievements": "ACHIEVEMENTS"
+    },
+    "memberSince": "Member since",
+    "daysUsing": "Days using Compass",
+    "daysUsing_one": "{{count}} day",
+    "daysUsing_other": "{{count}} days",
+    "transactionsLogged": "Transactions logged",
+    "noTransactionsYet": "No transactions yet. Tap + New transaction to start.",
+    "achievementsBlurb": "Earn badges as you track. Coming in v2.",
+    "settingsLink": "Settings",
+    "settingsLinkDescription": "Theme, language, sign out",
+    "you": "You",
+    "errors": {
+      "updateNameTitle": "Could not update name",
+      "updateNameFallback": "Update failed."
+    },
+    "actions": {
+      "editName": "Edit display name",
+      "saveName": "Save name",
+      "cancelEdit": "Cancel edit"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "tagline": "Theme, language, sign out — full version in T11.",
+    "section": {
+      "theme": "THEME",
+      "language": "LANGUAGE"
+    },
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "setTo": "Set theme to {{label}}"
+    },
+    "language": {
+      "id": "Bahasa",
+      "en": "English",
+      "setTo": "Set language to {{label}}"
+    },
+    "signOut": "Sign out",
+    "signingOut": "Signing out…",
+    "errors": {
+      "signOutTitle": "Sign out failed",
+      "signOutFallback": "Sign out failed."
+    },
+    "actions": {
+      "backToProfile": "Back to Profile"
+    }
+  }
+}

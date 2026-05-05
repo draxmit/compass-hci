@@ -1,0 +1,35 @@
+{
+  "appName": "Compass",
+  "actions": {
+    "save": "Simpan",
+    "saving": "Menyimpan…",
+    "cancel": "Batal",
+    "back": "Kembali",
+    "edit": "Ubah",
+    "ok": "OK",
+    "retry": "Coba lagi",
+    "close": "Tutup"
+  },
+  "nav": {
+    "dashboard": "Beranda",
+    "transactions": "Transaksi",
+    "budgets": "Anggaran",
+    "insights": "Insight",
+    "newTransaction": "Transaksi baru",
+    "openProfile": "Buka profil",
+    "expandSidebar": "Buka sidebar",
+    "collapseSidebar": "Tutup sidebar"
+  },
+  "placeholders": {
+    "comingSoonInsights": "Hadir di T8 / v2.",
+    "comingSoonGeneric": "Akan hadir.",
+    "notFoundTitle": "Halaman tidak ditemukan",
+    "notFoundBody": "Halaman ini belum ada di Compass.",
+    "notFoundLink": "Kembali ke Beranda",
+    "onboardingComingSoon": "Onboarding akan hadir di T10."
+  },
+  "errors": {
+    "generic": "Terjadi kesalahan. Coba lagi sebentar lagi.",
+    "network": "Tidak bisa terhubung ke server. Periksa koneksi internet."
+  }
+}
