@@ -63,16 +63,18 @@ function StackTree() {
       <Stack.Screen
         name="profile"
         options={{
-          presentation: 'modal',
+          presentation: 'fullScreenModal',
           animation: 'none',
+          animationDuration: 0,
           contentStyle: { backgroundColor: overlayBg },
         }}
       />
       <Stack.Screen
         name="settings"
         options={{
-          presentation: 'modal',
+          presentation: 'fullScreenModal',
           animation: 'none',
+          animationDuration: 0,
           contentStyle: { backgroundColor: overlayBg },
         }}
       />

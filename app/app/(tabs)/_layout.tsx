@@ -34,6 +34,11 @@ export default function TabsLayout() {
         headerShown: true,
         header: () => <MobileTopBar />,
         sceneStyle: { backgroundColor: 'transparent' },
+        // Pre-mount all four tabs at app start. Default lazy mount caused a
+        // one-frame flash on first visit to each tab as the screen tree was
+        // built. Eager mount trades a slightly heavier cold-start for instant
+        // tab switches throughout the session.
+        lazy: false,
       }}
     >
       <Tabs.Screen
