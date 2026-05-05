@@ -15,6 +15,7 @@ import type { ReactNode } from 'react';
 import '../global.css';
 import { useAuthSubscription } from '@/services/firebase';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
+import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import { AppShell } from '@/shared/ui/AppShell';
 import { PageBackdrop } from '@/shared/ui/PageBackdrop';
@@ -41,6 +42,42 @@ function NavigationLayer({ children }: { children: ReactNode }) {
     };
   }, [resolvedScheme]);
   return <NavThemeProvider value={navTheme}>{children}</NavThemeProvider>;
+}
+
+/**
+ * Stack tree. Profile and Settings get a theme-aware contentStyle so the
+ * react-native-screens screen wrapper paints opaque immediately on push,
+ * before the inner React tree mounts. Without this the (tabs) screen below
+ * is briefly visible through the new screen even with animation: 'none'.
+ */
+function StackTree() {
+  const { resolvedScheme } = useTheme();
+  const overlayBg =
+    resolvedScheme === 'dark' ? tokens.surface['dark-bg'] : tokens.surface['light-bg'];
+
+  return (
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(onboarding)" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="profile"
+        options={{
+          presentation: 'card',
+          animation: 'none',
+          contentStyle: { backgroundColor: overlayBg },
+        }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{
+          presentation: 'card',
+          animation: 'none',
+          contentStyle: { backgroundColor: overlayBg },
+        }}
+      />
+    </Stack>
+  );
 }
 
 /**
@@ -107,19 +144,7 @@ export default function RootLayout() {
         <PageBackdrop />
         <AppShell>
           <AuthGate>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(onboarding)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="profile"
-                options={{ presentation: 'card', animation: 'none' }}
-              />
-              <Stack.Screen
-                name="settings"
-                options={{ presentation: 'card', animation: 'none' }}
-              />
-            </Stack>
+            <StackTree />
           </AuthGate>
         </AppShell>
       </NavigationLayer>

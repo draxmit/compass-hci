@@ -1,84 +1,69 @@
 import { Slot, Tabs } from 'expo-router';
 import { ArrowLeftRight, Home, Lightbulb, PieChart } from 'lucide-react-native';
 
-import { tokens } from '@/shared/theme/tokens';
-import { useTheme } from '@/shared/theme/useTheme';
 import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
-import { usePageAccent } from '@/shared/hooks/usePageAccent';
-import { Fab } from '@/shared/ui/Fab';
+import { CustomTabBar } from '@/shared/ui/CustomTabBar';
 import { MobileTopBar } from '@/shared/ui/MobileTopBar';
 
 /**
  * Adaptive tabs layout.
  *
- * On mobile: bottom tabs (4 items: Dashboard / Transactions / Budgets /
- * Insights) + center FAB above the bar. More (settings + sign-out) is
- * accessed via the gear icon in the top-right of Dashboard, which
- * pushes the root /more stack route.
+ * On mobile: bottom tabs rendered via <CustomTabBar/> with 5 evenly-spaced
+ * cells — Dashboard / Transactions / [+ FAB] / Budgets / Insights. The FAB
+ * occupies a real cell instead of floating between two tabs, so the
+ * neighbour icons sit a full cell-width away. Settings + sign-out live in
+ * /profile → /settings, reachable from the avatar in <MobileTopBar/>.
  *
- * On desktop: <Slot/> renders the active child route directly with no
- * Tabs navigator chrome — Sidebar provides navigation. Without this, the
- * Tabs scene container would stack visited screens on top of each other
- * when the bottom tab bar is hidden via `display: 'none'` (React
- * Navigation v7 has no `unmountOnBlur` option for Bottom Tabs).
+ * On desktop: <Slot/> renders the active child route directly with no Tabs
+ * navigator chrome — Sidebar provides navigation. Without this, the Tabs
+ * scene container would stack visited screens on top of each other when the
+ * bottom tab bar is hidden via `display: 'none'` (React Navigation v7 has no
+ * `unmountOnBlur` option for Bottom Tabs).
  */
 export default function TabsLayout() {
-  const { resolvedScheme } = useTheme();
-  const { color: activeColor } = usePageAccent();
   const isDesktop = useIsDesktop();
-  const isDark = resolvedScheme === 'dark';
 
   if (isDesktop) {
     return <Slot />;
   }
 
-  const inactiveColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
-  const tabBarBg = isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'];
-  const tabBarBorder = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
-
   return (
-    <>
-      <Tabs
-        screenOptions={{
-          headerShown: true,
-          header: () => <MobileTopBar />,
-          tabBarActiveTintColor: activeColor,
-          tabBarInactiveTintColor: inactiveColor,
-          tabBarLabelStyle: { fontFamily: 'Inter_500Medium', fontSize: 11 },
-          tabBarStyle: { backgroundColor: tabBarBg, borderTopColor: tabBarBorder },
-          sceneStyle: { backgroundColor: 'transparent' },
+    <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: true,
+        header: () => <MobileTopBar />,
+        sceneStyle: { backgroundColor: 'transparent' },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
         }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Dashboard',
-            tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
-          }}
-        />
-        <Tabs.Screen
-          name="transactions"
-          options={{
-            title: 'Transactions',
-            tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size} />,
-          }}
-        />
-        <Tabs.Screen
-          name="budgets"
-          options={{
-            title: 'Budgets',
-            tabBarIcon: ({ color, size }) => <PieChart color={color} size={size} />,
-          }}
-        />
-        <Tabs.Screen
-          name="insights"
-          options={{
-            title: 'Insights',
-            tabBarIcon: ({ color, size }) => <Lightbulb color={color} size={size} />,
-          }}
-        />
-      </Tabs>
-      <Fab />
-    </>
+      />
+      <Tabs.Screen
+        name="transactions"
+        options={{
+          title: 'Transactions',
+          tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="budgets"
+        options={{
+          title: 'Budgets',
+          tabBarIcon: ({ color, size }) => <PieChart color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="insights"
+        options={{
+          title: 'Insights',
+          tabBarIcon: ({ color, size }) => <Lightbulb color={color} size={size} />,
+        }}
+      />
+    </Tabs>
   );
 }
