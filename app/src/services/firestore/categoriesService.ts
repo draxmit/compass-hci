@@ -62,25 +62,67 @@ export function subscribeCategories(
 }
 
 /**
- * Idempotent first-launch (or one-off backfill) helper. Reads the categories
- * collection for the workspace; if no preset docs exist yet, seeds the
- * presets in a fresh batch.
- *
- * Required for users created before T4 shipped — `ensureUserDoc` runs the
- * seed atomically *only* when it creates the user doc, so existing accounts
- * miss the seed. This function fills that gap idempotently.
- *
- * We check specifically for `isPreset: true` (not "any doc exists") so that
- * a user who added a custom category before this backfill landed still gets
- * the preset list seeded — custom and preset docs coexist independently.
+ * In-flight promise so concurrent callers share one execution. Without
+ * this, React StrictMode's double-mount + Firebase's auth-state replay can
+ * fire the seeder twice in quick succession; both invocations would see
+ * "no presets" and both commit full preset batches, leaving the user with
+ * 2× presets.
  */
-export async function ensureCategoriesSeeded(wid: string): Promise<void> {
-  const snap = await getDocs(categoriesCollection(wid));
-  const hasPresets = snap.docs.some((d) => (d.data() as Category).isPreset === true);
-  if (hasPresets) return;
-  const batch = writeBatch(db);
-  seedPresets(batch, wid);
-  await batch.commit();
+let seedInFlight: Promise<void> | null = null;
+
+/**
+ * Idempotent first-launch / backfill / self-heal helper. Three states:
+ *
+ *   - **Healthy:** ~45 preset docs, no duplicates → no-op.
+ *   - **Fresh user:** 0 preset docs → seed the full list.
+ *   - **Corrupted (duplicated):** seed previously raced and produced 2×+
+ *     copies of each preset → wipe ALL `isPreset:true` docs and reseed.
+ *
+ * Custom user categories (`isPreset:false`) are never touched — they
+ * survive both fresh and self-heal paths.
+ *
+ * Concurrency-safe via a module-level in-flight promise.
+ */
+export function ensureCategoriesSeeded(wid: string): Promise<void> {
+  if (seedInFlight) return seedInFlight;
+  seedInFlight = (async () => {
+    try {
+      const snap = await getDocs(categoriesCollection(wid));
+      const presets = snap.docs.filter((d) => (d.data() as Category).isPreset === true);
+
+      // Detect duplicates by `name.id` (preset names are deterministic;
+      // any repeat means we got duplicated by an earlier race).
+      const seen = new Set<string>();
+      let hasDuplicates = false;
+      for (const d of presets) {
+        const key = (d.data() as Category).name.id;
+        if (seen.has(key)) {
+          hasDuplicates = true;
+          break;
+        }
+        seen.add(key);
+      }
+
+      // Healthy state: presets exist and are unique. Nothing to do.
+      if (presets.length > 0 && !hasDuplicates) return;
+
+      // Self-heal: wipe all preset docs first if any exist (corrupted
+      // state). Custom user docs are left intact.
+      if (presets.length > 0) {
+        const wipeBatch = writeBatch(db);
+        for (const d of presets) wipeBatch.delete(d.ref);
+        await wipeBatch.commit();
+      }
+
+      // Seed fresh.
+      const seedBatch = writeBatch(db);
+      seedPresets(seedBatch, wid);
+      await seedBatch.commit();
+    } finally {
+      seedInFlight = null;
+    }
+  })();
+  return seedInFlight;
 }
 
 /**
