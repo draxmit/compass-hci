@@ -11,23 +11,26 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ['InstrumentSerif_400Regular_Italic', 'serif'],
-        sans: ['Barlow_400Regular', 'sans-serif'],
-        'sans-light': ['Barlow_300Light', 'sans-serif'],
-        'sans-medium': ['Barlow_500Medium', 'sans-serif'],
-        'sans-semibold': ['Barlow_600SemiBold', 'sans-serif'],
-        'sans-bold': ['Barlow_700Bold', 'sans-serif'],
+        // Inter — body, UI, labels. Loaded via @expo-google-fonts/inter.
+        sans: ['Inter_400Regular', 'sans-serif'],
+        'sans-light': ['Inter_300Light', 'sans-serif'],
+        'sans-medium': ['Inter_500Medium', 'sans-serif'],
+        'sans-semibold': ['Inter_600SemiBold', 'sans-serif'],
+        'sans-bold': ['Inter_700Bold', 'sans-serif'],
+        // Geist Mono — display numbers (tabular-nums always on). Loaded via @expo-google-fonts/geist-mono.
+        mono: ['GeistMono_700Bold', 'monospace'],
+        'mono-medium': ['GeistMono_500Medium', 'monospace'],
+        'mono-regular': ['GeistMono_400Regular', 'monospace'],
       },
       colors: {
-        aurora: tokens.aurora,
+        accent: tokens.accent,
         surface: tokens.surface,
         warning:  tokens.semantic.warning,
         danger:   tokens.semantic.danger,
         positive: tokens.semantic.positive,
-        glass: tokens.glass,
       },
       borderRadius: tokens.radius,
-      boxShadow: tokens.shadow,
+      spacing: tokens.spacing,
     },
   },
   plugins: [],

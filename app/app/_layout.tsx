@@ -1,31 +1,27 @@
+import { GeistMono_400Regular, GeistMono_500Medium, GeistMono_700Bold } from '@expo-google-fonts/geist-mono';
 import {
-  Barlow_300Light,
-  Barlow_400Regular,
-  Barlow_500Medium,
-  Barlow_600SemiBold,
-  Barlow_700Bold,
-  useFonts as useBarlow,
-} from '@expo-google-fonts/barlow';
-import {
-  InstrumentSerif_400Regular_Italic,
-  useFonts as useInstrumentSerif,
-} from '@expo-google-fonts/instrument-serif';
+  Inter_300Light,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 
 import '../global.css';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 import { useTheme } from '@/shared/theme/useTheme';
-import { AuroraBackdrop } from '@/shared/ui/AuroraBackdrop';
+import { AppShell } from '@/shared/ui/AppShell';
+import { PageBackdrop } from '@/shared/ui/PageBackdrop';
 import { detectLowEndMode, useUiStore } from '@/stores/uiStore';
 
 /**
- * Wrap React Navigation's theme so its built-in containers (Stack background,
- * Tabs scene background, etc.) render transparent. This lets the AuroraBackdrop
- * (rendered in the same tree at z-index: -1 on web, behind everything on
- * native) show through every screen instead of being covered by the default
- * `colors.background` paint.
+ * Wraps React Navigation's theme so its built-in containers render
+ * transparent. PageBackdrop sits behind everything providing the page-accent
+ * radial gradient.
  */
 function NavigationLayer({ children }: { children: React.ReactNode }) {
   const { resolvedScheme } = useTheme();
@@ -44,15 +40,17 @@ function NavigationLayer({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
-  const [serifLoaded] = useInstrumentSerif({
-    InstrumentSerif_400Regular_Italic,
-  });
-  const [sansLoaded] = useBarlow({
-    Barlow_300Light,
-    Barlow_400Regular,
-    Barlow_500Medium,
-    Barlow_600SemiBold,
-    Barlow_700Bold,
+  // Single useFonts call — combining both families. Two parallel useFonts
+  // hooks have shown races on React 19; one map is more reliable.
+  const [fontsLoaded, fontsError] = useFonts({
+    Inter_300Light,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    GeistMono_400Regular,
+    GeistMono_500Medium,
+    GeistMono_700Bold,
   });
 
   useEffect(() => {
@@ -65,19 +63,24 @@ export default function RootLayout() {
     };
   }, []);
 
-  if (!serifLoaded || !sansLoaded) {
+  // Surface font load errors in dev — `null` would leave a permanently blank
+  // screen. Render fallback children once we've either loaded or errored.
+  if (!fontsLoaded && !fontsError) {
     return null;
   }
 
   return (
     <ThemeProvider>
       <NavigationLayer>
-        <AuroraBackdrop variant="standard" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
+        <PageBackdrop />
+        <AppShell>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="insights" options={{ presentation: 'card' }} />
+          </Stack>
+        </AppShell>
       </NavigationLayer>
     </ThemeProvider>
   );

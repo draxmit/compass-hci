@@ -3,19 +3,36 @@
 @tailwind utilities;
 
 /*
- * Surface backgrounds applied at the document root so the AuroraBackdrop
- * (z-index: -1) sits ABOVE the surface paint but BELOW content. ThemeProvider
- * toggles the `dark` class on <html> to switch between modes.
+ * Surface backgrounds applied at the document root. ThemeProvider toggles the
+ * `dark` class on <html>. PageBackdrop layers radial-gradient page accents on
+ * top of these base surfaces.
  */
 html, body {
   background-color: #fafafa; /* surface.light-bg */
+  color: #0a0a0a;            /* surface.light-fg */
 }
 html.dark, html.dark body {
-  background-color: #000000; /* surface.dark-bg */
+  background-color: #0a0a0a; /* surface.dark-bg */
+  color: #ffffff;            /* surface.dark-fg */
 }
 
-/* Ensure the body and #root fill the viewport so flex-1 children expand. */
 html, body, #root {
   height: 100%;
   margin: 0;
+}
+
+/* Disable text-size auto-adjust on iOS Safari (otherwise headlines bloat in landscape) */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Tabular-nums utility — ensures Geist Mono digits align perfectly in tables/grids */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Subtle scrollbar to match the dark aesthetic without being intrusive */
+@media (pointer: fine) {
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.10); border-radius: 8px; }
+  html:not(.dark) ::-webkit-scrollbar-thumb { background-color: rgba(10,10,10,0.10); }
 }

@@ -6,8 +6,9 @@ export type TextProps = RNTextProps & {
 };
 
 /**
- * Themed Text primitive. Defaults to Barlow body + theme-aware foreground color.
- * Override via `className` (e.g. `font-serif text-2xl`).
+ * Themed Text primitive. Defaults to Inter body + theme-aware foreground color.
+ * For display numbers (Geist Mono Bold + tabular-nums) use `font-mono tabular-nums`.
+ * For headings use `font-sans-bold text-{size}`.
  */
 export function Text({ className, ...rest }: TextProps) {
   const base = 'font-sans text-surface-light-fg dark:text-surface-dark-fg';
