@@ -37,8 +37,11 @@ export default function TabsLayout() {
         // Pre-mount all four tabs at app start. Default lazy mount caused a
         // one-frame flash on first visit to each tab as the screen tree was
         // built. Eager mount trades a slightly heavier cold-start for instant
-        // tab switches throughout the session.
+        // tab switches throughout the session. We also set lazy:false per
+        // Tabs.Screen because expo-router 4 has historically been finicky
+        // about which level of options is honoured for native-stack tabs.
         lazy: false,
+        freezeOnBlur: false,
       }}
     >
       <Tabs.Screen
@@ -46,6 +49,7 @@ export default function TabsLayout() {
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+          lazy: false,
         }}
       />
       <Tabs.Screen
@@ -53,6 +57,7 @@ export default function TabsLayout() {
         options={{
           title: 'Transactions',
           tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size} />,
+          lazy: false,
         }}
       />
       <Tabs.Screen
@@ -60,6 +65,7 @@ export default function TabsLayout() {
         options={{
           title: 'Budgets',
           tabBarIcon: ({ color, size }) => <PieChart color={color} size={size} />,
+          lazy: false,
         }}
       />
       <Tabs.Screen
@@ -67,6 +73,7 @@ export default function TabsLayout() {
         options={{
           title: 'Insights',
           tabBarIcon: ({ color, size }) => <Lightbulb color={color} size={size} />,
+          lazy: false,
         }}
       />
     </Tabs>
