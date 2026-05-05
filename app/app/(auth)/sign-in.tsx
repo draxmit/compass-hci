@@ -2,7 +2,7 @@
 import { Link } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Alert, Platform, ScrollView, View } from 'react-native';
 
 import { signInWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
@@ -39,8 +39,19 @@ export default function SignInScreen() {
     }
   };
 
+  // Expo Go can't authorize the LAN redirect URI used by expo-auth-session, so
+  // Google sign-in only works on web until we ship an EAS dev client. The
+  // button stays visible to keep the layout stable across builds — tapping it
+  // on native explains the gap rather than silently failing.
   const onGoogle = async () => {
     setError(null);
+    if (Platform.OS !== 'web') {
+      Alert.alert(
+        'Coming soon on Android',
+        'Google sign-in will land with our next build. For now, please sign in with email & password.',
+      );
+      return;
+    }
     const result = await googlePromptAsync();
     if (result.type === 'error') setError(result.message);
     // 'dismiss' is silent — user backed out intentionally.

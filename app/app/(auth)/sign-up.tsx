@@ -2,7 +2,7 @@
 import { Link } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Alert, Platform, ScrollView, View } from 'react-native';
 
 import { signUpWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
@@ -48,8 +48,18 @@ export default function SignUpScreen() {
     }
   };
 
+  // See sign-in.tsx — Google sign-in only works on web until we ship an EAS
+  // dev client; tapping on native shows a "coming soon" alert instead of
+  // failing on the unauthorized LAN redirect URI.
   const onGoogle = async () => {
     setError(null);
+    if (Platform.OS !== 'web') {
+      Alert.alert(
+        'Coming soon on Android',
+        'Google sign-in will land with our next build. For now, please create your account with email & password.',
+      );
+      return;
+    }
     const result = await googlePromptAsync();
     if (result.type === 'error') setError(result.message);
   };
