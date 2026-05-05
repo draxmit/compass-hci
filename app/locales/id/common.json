@@ -11,9 +11,9 @@
     "close": "Tutup"
   },
   "nav": {
-    "dashboard": "Beranda",
+    "dashboard": "Dashboard",
     "transactions": "Transaksi",
-    "budgets": "Anggaran",
+    "budgets": "Bujet",
     "insights": "Insight",
     "newTransaction": "Transaksi baru",
     "openProfile": "Buka profil",
@@ -25,7 +25,7 @@
     "comingSoonGeneric": "Akan hadir.",
     "notFoundTitle": "Halaman tidak ditemukan",
     "notFoundBody": "Halaman ini belum ada di Compass.",
-    "notFoundLink": "Kembali ke Beranda",
+    "notFoundLink": "Kembali ke Dashboard",
     "onboardingTitle": "Onboarding",
     "onboardingComingSoon": "Onboarding akan hadir di T10 (wizard goal-first)."
   },
