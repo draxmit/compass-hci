@@ -1,10 +1,9 @@
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, LogOut } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { signOut } from '@/services/firebase';
-import { useAuthUser } from '@/stores/authStore';
 import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
@@ -12,18 +11,20 @@ import type { ThemeMode } from '@/shared/theme/useTheme';
 import { Card } from '@/shared/ui/Card';
 import { Text } from '@/shared/ui/Text';
 
-// TODO(T11): full settings (language toggle, biometric, account deletion).
-// /more is a root stack route (not under tabs). Mobile reaches it via the
-// gear icon in Dashboard's top-right; desktop via the Sidebar's More item.
-export default function MoreScreen() {
+// /settings is a config screen — slim and config-only. Profile/identity
+// lives at /profile. Reached from a link in /profile, or via Settings
+// footer on desktop sidebar.
+//
+// TODO(T11): language toggle, biometric toggle, account deletion, encrypted
+// cache toggle.
+export default function SettingsScreen() {
   const { mode, setMode, resolvedScheme } = useTheme();
   const router = useRouter();
   const isDesktop = useIsDesktop();
-  const user = useAuthUser();
   const [signingOut, setSigningOut] = useState(false);
   const isDark = resolvedScheme === 'dark';
 
-  const buttons: { label: string; value: ThemeMode }[] = [
+  const themeButtons: { label: string; value: ThemeMode }[] = [
     { label: 'Light', value: 'light' },
     { label: 'Dark', value: 'dark' },
     { label: 'System', value: 'system' },
@@ -34,7 +35,6 @@ export default function MoreScreen() {
     setSigningOut(true);
     try {
       await signOut();
-      // AuthGate redirects to (auth)/sign-in once auth state propagates.
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Sign out failed.';
       Alert.alert('Sign out failed', msg);
@@ -46,15 +46,18 @@ export default function MoreScreen() {
     ? tokens.surface['dark-fg-muted']
     : tokens.surface['light-fg-muted'];
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const sectionLabelClass = 'font-sans-medium text-xs uppercase tracking-wider mb-3';
 
   return (
-    <View className="flex-1 px-6 pt-12">
-      {/* Mobile back button — desktop has Sidebar so doesn't need it */}
+    <ScrollView
+      contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48 }}
+      keyboardShouldPersistTaps="handled"
+    >
       {!isDesktop && (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile'))}
           hitSlop={8}
           className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
         >
@@ -65,31 +68,18 @@ export default function MoreScreen() {
         </Pressable>
       )}
 
-      <Text className="font-sans-bold text-3xl mb-1">More</Text>
+      <Text className="font-sans-bold text-3xl mb-1">Settings</Text>
       <Text className="font-sans text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
-        Settings — full version in T11.
+        Theme, sign out — full version in T11.
       </Text>
-
-      {/* Account info */}
-      {user?.email ? (
-        <Card padding="lg" className="mb-4 w-full max-w-md">
-          <Text className="font-sans-semibold text-base mb-1">Signed in as</Text>
-          <Text
-            className="font-sans text-sm"
-            style={{ color: mutedColor }}
-            numberOfLines={1}
-          >
-            {user.displayName ? `${user.displayName} · ` : ''}
-            {user.email}
-          </Text>
-        </Card>
-      ) : null}
 
       {/* Theme picker */}
       <Card padding="lg" className="mb-4 w-full max-w-md">
-        <Text className="font-sans-semibold text-base mb-4">Theme</Text>
+        <Text className={sectionLabelClass} style={{ color: mutedColor }}>
+          Theme
+        </Text>
         <View className="flex-row gap-2">
-          {buttons.map((b) => {
+          {themeButtons.map((b) => {
             const active = mode === b.value;
             return (
               <Pressable
@@ -149,6 +139,6 @@ export default function MoreScreen() {
           </Text>
         </Pressable>
       </Card>
-    </View>
+    </ScrollView>
   );
 }

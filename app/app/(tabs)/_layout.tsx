@@ -6,6 +6,7 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { Fab } from '@/shared/ui/Fab';
+import { MobileTopBar } from '@/shared/ui/MobileTopBar';
 
 /**
  * Adaptive tabs layout.
@@ -39,7 +40,8 @@ export default function TabsLayout() {
     <>
       <Tabs
         screenOptions={{
-          headerShown: false,
+          headerShown: true,
+          header: () => <MobileTopBar />,
           tabBarActiveTintColor: activeColor,
           tabBarInactiveTintColor: inactiveColor,
           tabBarLabelStyle: { fontFamily: 'Inter_500Medium', fontSize: 11 },

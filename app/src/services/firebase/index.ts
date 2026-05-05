@@ -9,6 +9,7 @@ export {
   signUpWithEmailPassword,
   sendPasswordReset,
   signOut,
+  updateDisplayName,
   useAuthSubscription,
   useGoogleSignIn,
 } from './auth';

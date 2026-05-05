@@ -71,6 +71,39 @@ export async function signOut(): Promise<void> {
 }
 
 /**
+ * Update the current user's display name on both Firebase Auth (so future
+ * sessions read the new name) and the Firestore user doc (so other clients
+ * and queries stay consistent). Also pushes the change into the local auth
+ * store immediately for instant UI feedback.
+ */
+export async function updateDisplayName(name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('Display name cannot be empty');
+  const current = auth.currentUser;
+  if (!current) throw new Error('Not signed in');
+  await updateProfile(current, { displayName: trimmed });
+  // Mirror to Firestore user doc — non-fatal on failure.
+  try {
+    const { setDoc, doc } = await import('firebase/firestore');
+    const { db } = await import('./client');
+    await setDoc(
+      doc(db, 'users', current.uid),
+      { displayName: trimmed },
+      { merge: true },
+    );
+  } catch (err) {
+    console.warn('[firebase] updateDisplayName: firestore mirror failed', err);
+  }
+  // Push to local store immediately (avoids waiting for next onAuthStateChanged tick).
+  useAuthStore.getState().setUser({
+    uid: current.uid,
+    email: current.email,
+    displayName: trimmed,
+    photoURL: current.photoURL,
+  });
+}
+
+/**
  * Subscribe to Firebase auth state, mirroring it into Zustand and calling
  * `ensureUserDoc` on first sign-in. The unsubscribe is returned from the
  * effect cleanup so React 19 Strict Mode (or HMR) re-subscriptions don't

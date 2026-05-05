@@ -25,7 +25,8 @@ export function usePageAccent(): { key: AccentKey; color: string } {
     'transactions': 'transactions',
     'budgets': 'budgets',
     'insights': 'insights',
-    'more': 'neutral',
+    'profile': 'neutral',
+    'settings': 'neutral',
   };
 
   let key: AccentKey = 'dashboard';
