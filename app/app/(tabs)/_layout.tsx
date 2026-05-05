@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Slot, Tabs } from 'expo-router';
 import { ArrowLeftRight, Home, Menu, PieChart } from 'lucide-react-native';
 
 import { tokens } from '@/shared/theme/tokens';
@@ -8,17 +8,29 @@ import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { Fab } from '@/shared/ui/Fab';
 
 /**
- * Bottom-tabs layout for mobile. 4 tabs (Insights moved to root /insights
- * stack route, reachable from sidebar on desktop or More menu on mobile),
- * with a center FAB for quick transaction entry above the tab bar.
+ * Adaptive tabs layout.
  *
- * Hidden on desktop — sidebar provides nav there.
+ * On mobile: bottom tabs (4 items) + center FAB above the bar.
+ * On desktop: <Slot/> renders the active child route directly with no
+ * Tabs navigator chrome — Sidebar provides navigation. Without this, the
+ * Tabs scene container would stack visited screens on top of each other
+ * when the bottom tab bar is hidden via `display: 'none'` (React
+ * Navigation v7 has no `unmountOnBlur` option for Bottom Tabs).
+ *
+ * Insights moved to root /insights stack route, reachable from sidebar
+ * on desktop or More menu on mobile.
  */
 export default function TabsLayout() {
   const { resolvedScheme } = useTheme();
   const { color: activeColor } = usePageAccent();
   const isDesktop = useIsDesktop();
   const isDark = resolvedScheme === 'dark';
+
+  if (isDesktop) {
+    // Desktop: no Tabs navigator. Sidebar handles nav, Slot renders the
+    // matched child route. Eliminates the screen-overlap bug entirely.
+    return <Slot />;
+  }
 
   const inactiveColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
   const tabBarBg = isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'];
@@ -32,9 +44,7 @@ export default function TabsLayout() {
           tabBarActiveTintColor: activeColor,
           tabBarInactiveTintColor: inactiveColor,
           tabBarLabelStyle: { fontFamily: 'Inter_500Medium', fontSize: 11 },
-          tabBarStyle: isDesktop
-            ? { display: 'none' }
-            : { backgroundColor: tabBarBg, borderTopColor: tabBarBorder },
+          tabBarStyle: { backgroundColor: tabBarBg, borderTopColor: tabBarBorder },
           sceneStyle: { backgroundColor: 'transparent' },
         }}
       >
@@ -66,10 +76,8 @@ export default function TabsLayout() {
             tabBarIcon: ({ color, size }) => <Menu color={color} size={size} />,
           }}
         />
-        {/* Insights moved out of bottom tabs — reachable via Sidebar on desktop
-            or via More tab → Insights link on mobile. */}
       </Tabs>
-      {!isDesktop && <Fab />}
+      <Fab />
     </>
   );
 }

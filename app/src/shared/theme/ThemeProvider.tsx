@@ -26,9 +26,25 @@ function readInitialMode(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // MMKV is synchronous, so we can read on first render — no flash of wrong theme.
-  // On web, localStorage.getItem is also sync.
+  // Sync read works on web (localStorage) and from in-memory cache once
+  // populated. On native first launch the cache is empty — we kick off an
+  // async load below and update state if a saved value differs from the
+  // default. Worst-case flash: ~100ms.
   const [mode, setModeState] = useState<ThemeMode>(() => readInitialMode());
+
+  // Native: hydrate from AsyncStorage on mount.
+  useEffect(() => {
+    if (typeof document !== 'undefined') return; // web is sync, no preload needed
+    void (async () => {
+      const { themeStorage: store } = await import('./storage');
+      if (typeof store.loadAsync === 'function') {
+        const value = await store.loadAsync(STORAGE_KEY);
+        if (value === 'light' || value === 'dark' || value === 'system') {
+          setModeState(value);
+        }
+      }
+    })();
+  }, []);
 
   const deviceScheme = useDeviceColorScheme();
 
