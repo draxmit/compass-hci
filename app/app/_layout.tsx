@@ -113,19 +113,11 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
                 name="profile"
-                options={{
-                  presentation: 'card',
-                  animation: 'slide_from_right',
-                  animationDuration: 200,
-                }}
+                options={{ presentation: 'card', animation: 'none' }}
               />
               <Stack.Screen
                 name="settings"
-                options={{
-                  presentation: 'card',
-                  animation: 'slide_from_right',
-                  animationDuration: 200,
-                }}
+                options={{ presentation: 'card', animation: 'none' }}
               />
             </Stack>
           </AuthGate>

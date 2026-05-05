@@ -9,20 +9,20 @@ export type FabProps = {
   onPress?: () => void;
 };
 
-// Default Android bottom-tab bar height. RN Bottom Tabs doesn't expose this
-// statically, so we hardcode a sensible value — enough lift to keep the FAB
-// clear of the Transactions/Budgets cells without floating absurdly high.
-const TAB_BAR_HEIGHT = 56;
-const FAB_GAP_ABOVE_TAB_BAR = 24;
+// FAB sits inside the bottom nav bar visually — small lift above the OS nav
+// inset so it integrates with the tab bar rather than floating above the
+// content. Smaller circle (48px vs Material's 56px) keeps it from crowding
+// the Transactions/Budgets cells when they sit either side.
+const FAB_LIFT_FROM_NAV = 16;
 
 /**
- * Mobile-only FAB ("+ new transaction"). Floats above the bottom tab bar,
+ * Mobile-only FAB ("+ new transaction"). Sits docked in the bottom nav band,
  * tinted with the active page accent. T6 wires the actual quick-entry sheet.
  */
 export function Fab({ onPress }: FabProps) {
   const { color } = usePageAccent();
   const insets = useSafeAreaInsets();
-  const bottomOffset = insets.bottom + TAB_BAR_HEIGHT + FAB_GAP_ABOVE_TAB_BAR;
+  const bottomOffset = insets.bottom + FAB_LIFT_FROM_NAV;
 
   return (
     <View
@@ -34,7 +34,7 @@ export function Fab({ onPress }: FabProps) {
         accessibilityRole="button"
         accessibilityLabel="New transaction"
         onPress={onPress}
-        className="w-14 h-14 rounded-full items-center justify-center"
+        className="w-12 h-12 rounded-full items-center justify-center"
         style={{
           backgroundColor: color,
           shadowColor: color,
@@ -44,7 +44,7 @@ export function Fab({ onPress }: FabProps) {
           elevation: 8,
         }}
       >
-        <Plus size={26} color={tokens.surface['dark-fg']} strokeWidth={2.5} />
+        <Plus size={22} color={tokens.surface['dark-fg']} strokeWidth={2.5} />
       </Pressable>
     </View>
   );
