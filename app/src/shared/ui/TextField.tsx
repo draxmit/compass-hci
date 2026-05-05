@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
 
-import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 
@@ -45,21 +44,25 @@ export function TextField({
   onSubmitEditing,
 }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
-  const { color: accent } = usePageAccent();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
   const placeholderColor = isDark
     ? tokens.surface['dark-fg-faint']
     : tokens.surface['light-fg-faint'];
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const restingBorder = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+  // Focus state uses the muted-fg colour rather than the page accent. The
+  // accent (violet on most routes) read as a heavy dark outline on small
+  // mobile screens; a slightly-darker neutral border is the Mercury × Raycast
+  // affordance — visible enough to know the field is focused, quiet enough
+  // not to draw attention away from the typed value.
+  const focusBorder = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
 
   const borderColor = errorText
     ? tokens.semantic.danger
     : focused
-    ? accent
-    : isDark
-    ? tokens.surface['dark-border']
-    : tokens.surface['light-border'];
+      ? focusBorder
+      : restingBorder;
 
   return (
     <View className="w-full">
@@ -93,6 +96,10 @@ export function TextField({
           onSubmitEditing={onSubmitEditing}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          // Suppress Android's native TextInput underline — it ships a
+          // material-style underline by default that fights our wrapper
+          // border on focus, reading as a heavy second outline.
+          underlineColorAndroid="transparent"
           style={{
             color: fgColor,
             fontFamily: 'Inter_400Regular',
@@ -100,8 +107,8 @@ export function TextField({
             paddingHorizontal: 16,
             paddingVertical: 12,
             minHeight: 44,
-            // RN <TextInput> on web exposes outline; we suppress it since the
-            // ring above provides the focus affordance.
+            // RN <TextInput> on web exposes a default outline on focus; we
+            // suppress it since the wrapper border-colour swap is enough.
             outlineWidth: 0,
           }}
         />

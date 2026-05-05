@@ -63,15 +63,21 @@ export function subscribeCategories(
 
 /**
  * Idempotent first-launch (or one-off backfill) helper. Reads the categories
- * collection for the workspace; if empty, seeds the presets in a fresh batch.
+ * collection for the workspace; if no preset docs exist yet, seeds the
+ * presets in a fresh batch.
  *
  * Required for users created before T4 shipped — `ensureUserDoc` runs the
  * seed atomically *only* when it creates the user doc, so existing accounts
  * miss the seed. This function fills that gap idempotently.
+ *
+ * We check specifically for `isPreset: true` (not "any doc exists") so that
+ * a user who added a custom category before this backfill landed still gets
+ * the preset list seeded — custom and preset docs coexist independently.
  */
 export async function ensureCategoriesSeeded(wid: string): Promise<void> {
   const snap = await getDocs(categoriesCollection(wid));
-  if (snap.size > 0) return;
+  const hasPresets = snap.docs.some((d) => (d.data() as Category).isPreset === true);
+  if (hasPresets) return;
   const batch = writeBatch(db);
   seedPresets(batch, wid);
   await batch.commit();
