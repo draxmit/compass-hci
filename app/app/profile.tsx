@@ -72,25 +72,26 @@ export default function ProfileScreen() {
       contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48 }}
       keyboardShouldPersistTaps="handled"
     >
-      {!isDesktop && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-          hitSlop={8}
-          className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
-        >
-          <ChevronLeft size={22} color={fgColor} />
-          <Text className="font-sans-medium ml-1" style={{ color: fgColor }}>
-            Back
-          </Text>
-        </Pressable>
-      )}
+      <View className="self-center w-full max-w-md">
+        {!isDesktop && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            hitSlop={8}
+            className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
+          >
+            <ChevronLeft size={22} color={fgColor} />
+            <Text className="font-sans-medium ml-1" style={{ color: fgColor }}>
+              Back
+            </Text>
+          </Pressable>
+        )}
 
-      <Text className="font-sans-bold text-3xl mb-1">Profile</Text>
-      <Text className="font-sans text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
-        Your account on Compass.
-      </Text>
+        <Text className="font-sans-bold text-3xl mb-1">Profile</Text>
+        <Text className="font-sans text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
+          Your account on Compass.
+        </Text>
 
       {/* Identity card */}
       {user ? (
@@ -278,6 +279,7 @@ export default function ProfileScreen() {
           <ChevronRight size={18} color={mutedColor} />
         </Pressable>
       </Card>
+      </View>
     </ScrollView>
   );
 }

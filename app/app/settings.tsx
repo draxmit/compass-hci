@@ -4,7 +4,6 @@ import { ChevronLeft, LogOut } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { signOut } from '@/services/firebase';
-import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import type { ThemeMode } from '@/shared/theme/useTheme';
@@ -20,7 +19,6 @@ import { Text } from '@/shared/ui/Text';
 export default function SettingsScreen() {
   const { mode, setMode, resolvedScheme } = useTheme();
   const router = useRouter();
-  const isDesktop = useIsDesktop();
   const [signingOut, setSigningOut] = useState(false);
   const isDark = resolvedScheme === 'dark';
 
@@ -53,25 +51,26 @@ export default function SettingsScreen() {
       contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48 }}
       keyboardShouldPersistTaps="handled"
     >
-      {!isDesktop && (
+      <View className="self-center w-full max-w-md">
+        {/* Back-to-Profile link visible on all platforms — Settings is always
+            a sub-route of /profile so the back action is unambiguous. */}
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityRole="link"
+          accessibilityLabel="Back to Profile"
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile'))}
           hitSlop={8}
           className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
         >
           <ChevronLeft size={22} color={fgColor} />
           <Text className="font-sans-medium ml-1" style={{ color: fgColor }}>
-            Back
+            Profile
           </Text>
         </Pressable>
-      )}
 
-      <Text className="font-sans-bold text-3xl mb-1">Settings</Text>
-      <Text className="font-sans text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
-        Theme, sign out — full version in T11.
-      </Text>
+        <Text className="font-sans-bold text-3xl mb-1">Settings</Text>
+        <Text className="font-sans text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
+          Theme, sign out — full version in T11.
+        </Text>
 
       {/* Theme picker */}
       <Card padding="lg" className="mb-4 w-full max-w-md">
@@ -139,6 +138,7 @@ export default function SettingsScreen() {
           </Text>
         </Pressable>
       </Card>
+      </View>
     </ScrollView>
   );
 }
