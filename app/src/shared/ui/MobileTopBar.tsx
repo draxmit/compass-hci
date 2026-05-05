@@ -11,6 +11,12 @@ import { Avatar } from './Avatar';
  *
  * Lives in (tabs)/_layout.tsx via Tabs.screenOptions.header so it's
  * persistent across all tab screens.
+ *
+ * Avatar tap uses `replace` rather than `push`: replacing the (tabs) entry
+ * removes the layered Stack composition that was causing a one-frame
+ * snapshot-reveal flash on Android even with fullScreenModal + animation:
+ * 'none' + opaque contentStyle. Back from /profile lands on Dashboard via
+ * profile.tsx's canGoBack-fallback (no stack remembers which tab we left).
  */
 export function MobileTopBar() {
   const router = useRouter();
@@ -22,7 +28,7 @@ export function MobileTopBar() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open profile"
-          onPress={() => router.push('/profile')}
+          onPress={() => router.replace('/profile')}
           hitSlop={8}
           className="rounded-full"
         >

@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -40,6 +40,19 @@ export default function ProfileScreen() {
     const ts = cur?.metadata?.creationTime;
     if (ts) setCreatedAt(new Date(ts));
   }, [user?.uid]);
+
+  // We reached /profile via router.replace (see MobileTopBar) so the Stack
+  // is empty behind us — Android's hardware back would exit the app. Route
+  // it back to Dashboard instead. No-op on web/iOS where BackHandler is
+  // not active.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (router.canGoBack()) return false;
+      router.replace('/');
+      return true;
+    });
+    return () => sub.remove();
+  }, [router]);
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark
