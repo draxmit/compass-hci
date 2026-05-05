@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
-import { usePageAccent } from '@/shared/hooks/usePageAccent';
+import { resolveAccent, usePageAccent } from '@/shared/hooks/usePageAccent';
 import type { AccentKey } from '@/shared/theme/tokens';
 import { Logo } from './Logo';
 import { Text } from './Text';
@@ -18,11 +18,15 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { href: '/(tabs)',              label: 'Dashboard',    icon: Home,           accentKey: 'dashboard' },
-  { href: '/(tabs)/transactions', label: 'Transactions', icon: ArrowLeftRight, accentKey: 'transactions' },
-  { href: '/(tabs)/budgets',      label: 'Budgets',      icon: PieChart,       accentKey: 'budgets' },
-  { href: '/insights',            label: 'Insights',     icon: Lightbulb,      accentKey: 'insights' },
-  { href: '/(tabs)/more',         label: 'More',         icon: Menu,           accentKey: 'neutral' },
+  // Use clean URLs (no group prefix). Expo Router 6 resolves these through
+  // the (tabs) group's Tabs navigator, which is what triggers a proper
+  // active-screen swap (vs router.replace on a group prefix which can leave
+  // the previous screen mounted on top).
+  { href: '/',             label: 'Dashboard',    icon: Home,           accentKey: 'dashboard' },
+  { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight, accentKey: 'transactions' },
+  { href: '/budgets',      label: 'Budgets',      icon: PieChart,       accentKey: 'budgets' },
+  { href: '/insights',     label: 'Insights',     icon: Lightbulb,      accentKey: 'insights' },
+  { href: '/more',         label: 'More',         icon: Menu,           accentKey: 'neutral' },
 ];
 
 /**
@@ -34,6 +38,7 @@ export function Sidebar() {
   const router = useRouter();
   const { resolvedScheme } = useTheme();
   const { key: activeAccentKey } = usePageAccent();
+  const activeAccentColor = resolveAccent(activeAccentKey, resolvedScheme);
   const [collapsed, setCollapsed] = useState(false);
   const isDark = resolvedScheme === 'dark';
   const fgMutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -47,7 +52,7 @@ export function Sidebar() {
       {/* Top: logo + new-transaction CTA + nav */}
       <View>
         <View className={`flex-row items-center mb-8 ${collapsed ? 'justify-center' : 'gap-3 px-2'}`}>
-          <Logo size={28} color={tokens.accent[activeAccentKey]} />
+          <Logo size={28} color={activeAccentColor} />
           {!collapsed && (
             <Text className="font-sans-bold text-lg text-surface-light-fg dark:text-surface-dark-fg">
               compass
@@ -63,11 +68,11 @@ export function Sidebar() {
             // T6 wires the actual quick-entry sheet
           }}
           className={`flex-row items-center mb-6 rounded-xl border border-surface-light-border dark:border-surface-dark-border ${collapsed ? 'justify-center p-3' : 'gap-2 px-3 py-3'}`}
-          style={{ backgroundColor: tokens.accent[activeAccentKey] + '14' }}
+          style={{ backgroundColor: activeAccentColor + '14' }}
         >
-          <Plus size={18} color={tokens.accent[activeAccentKey]} />
+          <Plus size={18} color={activeAccentColor} />
           {!collapsed && (
-            <Text className="font-sans-medium text-sm" style={{ color: tokens.accent[activeAccentKey] }}>
+            <Text className="font-sans-medium text-sm" style={{ color: activeAccentColor }}>
               New transaction
             </Text>
           )}
@@ -77,7 +82,7 @@ export function Sidebar() {
         <View className="gap-1">
           {NAV.map((item) => {
             const isActive = item.accentKey === activeAccentKey;
-            const accent = tokens.accent[item.accentKey];
+            const accent = resolveAccent(item.accentKey, resolvedScheme);
             const iconColor = isActive ? accent : fgMutedColor;
             return (
               <Pressable
@@ -85,7 +90,7 @@ export function Sidebar() {
                 accessibilityRole="link"
                 accessibilityLabel={item.label}
                 accessibilityState={{ selected: isActive }}
-                onPress={() => router.replace(item.href as never)}
+                onPress={() => router.navigate(item.href as never)}
                 className={`flex-row items-center rounded-xl ${collapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'}`}
                 style={{ backgroundColor: isActive ? accent + '1f' : 'transparent' }}
               >
