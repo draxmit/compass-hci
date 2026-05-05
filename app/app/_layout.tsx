@@ -8,14 +8,18 @@ import {
 } from '@expo-google-fonts/inter';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Redirect, Stack, useSegments } from 'expo-router';
 import { useEffect, useMemo } from 'react';
+import type { ReactNode } from 'react';
 
 import '../global.css';
+import { useAuthSubscription } from '@/services/firebase';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 import { useTheme } from '@/shared/theme/useTheme';
 import { AppShell } from '@/shared/ui/AppShell';
 import { PageBackdrop } from '@/shared/ui/PageBackdrop';
+import { Splash } from '@/shared/ui/Splash';
+import { useAuthLoading, useIsAuthed } from '@/stores/authStore';
 import { detectLowEndMode, useUiStore } from '@/stores/uiStore';
 
 /**
@@ -23,7 +27,7 @@ import { detectLowEndMode, useUiStore } from '@/stores/uiStore';
  * transparent. PageBackdrop sits behind everything providing the page-accent
  * radial gradient.
  */
-function NavigationLayer({ children }: { children: React.ReactNode }) {
+function NavigationLayer({ children }: { children: ReactNode }) {
   const { resolvedScheme } = useTheme();
   const navTheme = useMemo(() => {
     const base = resolvedScheme === 'dark' ? DarkTheme : DefaultTheme;
@@ -37,6 +41,34 @@ function NavigationLayer({ children }: { children: React.ReactNode }) {
     };
   }, [resolvedScheme]);
   return <NavThemeProvider value={navTheme}>{children}</NavThemeProvider>;
+}
+
+/**
+ * Global auth gate. Subscribes once to Firebase auth state, then redirects
+ * unauthed users out of authed routes (and vice-versa). Renders <Splash/>
+ * while we're still resolving the initial auth state to avoid a flash of
+ * sign-in → tabs.
+ *
+ * TODO(T10): also redirect to (onboarding) if !user.onboardingComplete.
+ */
+function AuthGate({ children }: { children: ReactNode }) {
+  useAuthSubscription();
+  const isLoading = useAuthLoading();
+  const isAuthed = useIsAuthed();
+  const segments = useSegments();
+
+  if (isLoading) {
+    return <Splash />;
+  }
+
+  const inAuthGroup = segments[0] === '(auth)';
+  if (!isAuthed && !inAuthGroup) {
+    return <Redirect href="/(auth)/sign-in" />;
+  }
+  if (isAuthed && inAuthGroup) {
+    return <Redirect href="/(tabs)" />;
+  }
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
@@ -74,12 +106,14 @@ export default function RootLayout() {
       <NavigationLayer>
         <PageBackdrop />
         <AppShell>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(onboarding)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="insights" options={{ presentation: 'card' }} />
-          </Stack>
+          <AuthGate>
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}>
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(onboarding)" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="insights" options={{ presentation: 'card' }} />
+            </Stack>
+          </AuthGate>
         </AppShell>
       </NavigationLayer>
     </ThemeProvider>

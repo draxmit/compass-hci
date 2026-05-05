@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function ownsSoloWorkspace(wid) {
+      return request.auth != null && wid == 'solo-' + request.auth.uid;
+    }
+
+    // Per-user profile doc — only the owner reads/writes their own.
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // Solo workspace + everything under it. The workspace doc id pattern
+    // `solo-{uid}` is enforced; future shared workspaces (v2) will use a
+    // memberIds-based rule.
+    match /workspaces/{wid} {
+      allow read, write: if ownsSoloWorkspace(wid);
+      match /{collection=**} {
+        allow read, write: if ownsSoloWorkspace(wid);
+      }
+    }
+  }
+}

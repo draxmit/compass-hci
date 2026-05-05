@@ -4,7 +4,7 @@ import type { Href } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
-import { signInWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
+import { signUpWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { tokens } from '@/shared/theme/tokens';
 import { Button } from '@/shared/ui/Button';
@@ -13,9 +13,10 @@ import { Logo } from '@/shared/ui/Logo';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 
-export default function SignInScreen() {
+export default function SignUpScreen() {
   const { color: accent } = usePageAccent();
   const { promptAsync: googlePromptAsync, isPending: isGooglePending } = useGoogleSignIn();
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -23,16 +24,24 @@ export default function SignInScreen() {
 
   const onSubmit = async () => {
     setError(null);
+    if (!displayName.trim()) {
+      setError('Please enter a display name.');
+      return;
+    }
     if (!email.trim() || !password) {
       setError('Please enter your email and password.');
       return;
     }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await signInWithEmailPassword(email.trim(), password);
-      // AuthGate redirects to (tabs) once auth state propagates.
+      await signUpWithEmailPassword(email.trim(), password, displayName.trim());
+      // Auth state propagates → AuthGate redirects to (tabs).
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Sign-in failed.';
+      const message = err instanceof Error ? err.message : 'Sign-up failed.';
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -43,7 +52,6 @@ export default function SignInScreen() {
     setError(null);
     const result = await googlePromptAsync();
     if (result.type === 'error') setError(result.message);
-    // 'dismiss' is silent — user backed out intentionally.
   };
 
   return (
@@ -55,12 +63,22 @@ export default function SignInScreen() {
         <View className="items-center mb-6">
           <Logo size={48} color={accent} />
         </View>
-        <Text className="font-sans-bold text-2xl text-center mb-2">Sign in to Compass</Text>
+        <Text className="font-sans-bold text-2xl text-center mb-2">Create your account</Text>
         <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
-          Track every rupiah, find what you keep.
+          Start tracking your money in less than a minute.
         </Text>
 
         <View className="gap-4">
+          <TextField
+            label="Display name"
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholder="Your name"
+            autoCapitalize="words"
+            autoComplete="name"
+            textContentType="name"
+            returnKeyType="next"
+          />
           <TextField
             label="Email"
             value={email}
@@ -76,28 +94,14 @@ export default function SignInScreen() {
             label="Password"
             value={password}
             onChangeText={setPassword}
-            placeholder="Your password"
+            placeholder="At least 6 characters"
             secureTextEntry
             autoCapitalize="none"
-            autoComplete="password"
-            textContentType="password"
+            autoComplete="new-password"
+            textContentType="newPassword"
             returnKeyType="go"
             onSubmitEditing={onSubmit}
           />
-
-          <View className="items-end">
-            {/* Typed routes regenerate on `expo start`; cast keeps tsc green
-                until then. Route file exists at app/app/(auth)/forgot-password.tsx. */}
-            <Link href={'/(auth)/forgot-password' as Href} asChild>
-              <Text
-                className="font-sans-medium text-sm"
-                style={{ color: accent }}
-                accessibilityRole="link"
-              >
-                Forgot password?
-              </Text>
-            </Link>
-          </View>
 
           {error ? (
             <Text className="text-sm" style={{ color: tokens.semantic.danger }}>
@@ -106,7 +110,7 @@ export default function SignInScreen() {
           ) : null}
 
           <Button onPress={onSubmit} isPending={isSubmitting}>
-            {isSubmitting ? 'Signing in…' : 'Sign in'}
+            {isSubmitting ? 'Creating account…' : 'Sign up'}
           </Button>
         </View>
 
@@ -124,15 +128,15 @@ export default function SignInScreen() {
 
         <View className="flex-row justify-center mt-8 gap-1">
           <Text className="text-sm text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
-            Don&apos;t have an account?
+            Already have an account?
           </Text>
-          <Link href={'/(auth)/sign-up' as Href} asChild>
+          <Link href={'/(auth)/sign-in' as Href} asChild>
             <Text
               className="font-sans-semibold text-sm"
               style={{ color: accent }}
               accessibilityRole="link"
             >
-              Sign up
+              Sign in
             </Text>
           </Link>
         </View>
