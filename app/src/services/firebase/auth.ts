@@ -132,9 +132,20 @@ export function useAuthSubscription(): void {
       setLoading(false);
 
       if (user) {
-        ensureUserDoc(user).catch((err: unknown) => {
-          console.warn('[firebase] ensureUserDoc failed', err);
-        });
+        const wid = `solo-${user.uid}`;
+        ensureUserDoc(user)
+          .then(() =>
+            // Backfill seed for users created before T4 shipped — idempotent
+            // (early-returns when categories already exist). New users have
+            // them from the ensureUserDoc batch already; this catches the
+            // gap.
+            import('../firestore/categoriesService').then(({ ensureCategoriesSeeded }) =>
+              ensureCategoriesSeeded(wid),
+            ),
+          )
+          .catch((err: unknown) => {
+            console.warn('[firebase] ensureUserDoc / categories seed failed', err);
+          });
       }
     });
 

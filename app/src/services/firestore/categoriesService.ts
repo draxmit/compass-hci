@@ -1,16 +1,12 @@
 import type { Category, CategoryColor, CategoryIcon, CategoryName } from '@compass/shared-types';
 import {
-  collection, deleteDoc as _delete, doc, getDocs, onSnapshot, orderBy, query,
-  serverTimestamp, updateDoc, where, writeBatch,
+  collection, doc, getDocs, onSnapshot,
+  serverTimestamp, updateDoc, writeBatch,
 } from 'firebase/firestore';
 import type { WriteBatch } from 'firebase/firestore';
 
 import { db } from '../firebase/client';
 import { CATEGORY_PRESETS } from '@/shared/data/categoryPresets';
-
-// Suppress unused-imports warning — these are part of the documented service
-// surface even if not yet wired into screens.
-void _delete;
 
 /** Reference helpers — kept inline rather than exported because the path is
  * an internal detail of the service. */
@@ -33,28 +29,52 @@ export type UpdateCategoryInput = Partial<CreateCategoryInput>;
 /**
  * One-shot read. Used for places that don't need realtime updates (e.g. the
  * transaction-entry sheet picking a category once). Excludes archived rows.
+ *
+ * Note: filter + sort run client-side because combining `where(isArchived)` +
+ * `orderBy(order)` on Firestore would require a composite index. Categories
+ * collections stay small (<100 docs even after years), so client-side is fine.
  */
 export async function listCategories(wid: string): Promise<Category[]> {
-  const q = query(categoriesCollection(wid), where('isArchived', '==', false), orderBy('order', 'asc'));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ ...(d.data() as Omit<Category, 'id'>), id: d.id }));
+  const snap = await getDocs(categoriesCollection(wid));
+  return snap.docs
+    .map((d) => ({ ...(d.data() as Omit<Category, 'id'>), id: d.id }))
+    .filter((c) => !c.isArchived)
+    .sort((a, b) => a.order - b.order);
 }
 
 /**
  * Realtime subscription used by the /categories screen. Returns the
  * unsubscribe function. Excludes archived rows from the default view; the
- * "Show archived" toggle (v2) will use a separate subscription with the
- * filter flipped.
+ * "Show archived" toggle (v2) will use a separate subscription path. Filter +
+ * sort run client-side (see `listCategories` for rationale).
  */
 export function subscribeCategories(
   wid: string,
   cb: (categories: Category[]) => void,
 ): () => void {
-  const q = query(categoriesCollection(wid), where('isArchived', '==', false), orderBy('order', 'asc'));
-  return onSnapshot(q, (snap) => {
-    const list = snap.docs.map((d) => ({ ...(d.data() as Omit<Category, 'id'>), id: d.id }));
+  return onSnapshot(categoriesCollection(wid), (snap) => {
+    const list = snap.docs
+      .map((d) => ({ ...(d.data() as Omit<Category, 'id'>), id: d.id }))
+      .filter((c) => !c.isArchived)
+      .sort((a, b) => a.order - b.order);
     cb(list);
   });
+}
+
+/**
+ * Idempotent first-launch (or one-off backfill) helper. Reads the categories
+ * collection for the workspace; if empty, seeds the presets in a fresh batch.
+ *
+ * Required for users created before T4 shipped — `ensureUserDoc` runs the
+ * seed atomically *only* when it creates the user doc, so existing accounts
+ * miss the seed. This function fills that gap idempotently.
+ */
+export async function ensureCategoriesSeeded(wid: string): Promise<void> {
+  const snap = await getDocs(categoriesCollection(wid));
+  if (snap.size > 0) return;
+  const batch = writeBatch(db);
+  seedPresets(batch, wid);
+  await batch.commit();
 }
 
 /**
@@ -63,16 +83,14 @@ export function subscribeCategories(
  */
 export async function createCategory(wid: string, input: CreateCategoryInput): Promise<string> {
   const ref = doc(categoriesCollection(wid));
-  // Compute next order within the sibling group. One round-trip; T6 will
-  // do this differently when transactions land (cached siblings list).
-  const siblingsQuery = query(
-    categoriesCollection(wid),
-    where('parentId', '==', input.parentId),
-  );
-  const siblings = await getDocs(siblingsQuery);
-  const nextOrder = siblings.docs.reduce((max, d) => {
-    const o = (d.data() as Category).order;
-    return typeof o === 'number' && o > max ? o : max;
+  // Compute next order within the sibling group. Filter client-side for the
+  // same reason listCategories does — avoids the where()+orderBy() composite
+  // index requirement.
+  const all = await getDocs(categoriesCollection(wid));
+  const nextOrder = all.docs.reduce((max, d) => {
+    const data = d.data() as Category;
+    if (data.parentId !== input.parentId) return max;
+    return typeof data.order === 'number' && data.order > max ? data.order : max;
   }, -1) + 1;
 
   await writeBatch(db)

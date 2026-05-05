@@ -71,14 +71,11 @@ export function TextField({
         style={{
           borderWidth: 1,
           borderColor,
-          // Faint focus ring outside the border using box-shadow on web; a
-          // subtle inner glow on native via shadow* props is too noisy, so we
-          // rely on the border color swap alone there.
-          ...(focused && !errorText
-            ? ({
-                boxShadow: `0 0 0 3px ${accent}33`,
-              } as Record<string, unknown>)
-            : null),
+          // Focus state: just the accent border swap. We previously added a
+          // 3px box-shadow halo, but on small mobile screens the
+          // border + halo combo on a high-contrast input read as a heavy
+          // black box (issue surfaced in T4 categories edit panel). Border
+          // colour change alone is enough affordance.
         }}
       >
         <TextInput
