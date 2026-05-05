@@ -34,11 +34,11 @@ function TabCell({ iconColor, label, selected, onPress, renderIcon }: TabCellPro
       onPress={onPress}
       style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
     >
-      {renderIcon?.({ focused: selected, color: iconColor, size: 22 })}
+      {renderIcon?.({ focused: selected, color: iconColor, size: 18 })}
       <Text
         style={{
           color: iconColor,
-          fontSize: 11,
+          fontSize: 10,
           fontFamily: 'Inter_500Medium',
           marginTop: 2,
         }}
@@ -91,9 +91,9 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                   // T6 wires the actual quick-entry sheet.
                 }}
                 style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
+                  width: 52,
+                  height: 52,
+                  borderRadius: 26,
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: activeAccent,
@@ -104,7 +104,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                   elevation: 8,
                 }}
               >
-                <Plus size={22} color={tokens.surface['dark-fg']} strokeWidth={2.5} />
+                <Plus size={24} color={tokens.surface['dark-fg']} strokeWidth={2.5} />
               </Pressable>
             </View>
           );

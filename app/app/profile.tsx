@@ -69,13 +69,13 @@ export default function ProfileScreen() {
     setEditing(false);
   };
 
-  // Opaque wrapper so the underlying (tabs) screen doesn't bleed through during
-  // the card-presentation animation — the root Stack uses a transparent
-  // contentStyle globally so PageBackdrop shows on tab routes, but routes
-  // pushed on top of tabs need their own surface bg. Bottom safe-area inset
-  // keeps content clear of the Android system nav bar.
+  // Opaque wrapper using an inline backgroundColor (not NativeWind className) so
+  // the bg paints synchronously on first render — NativeWind's runtime class
+  // compilation can lag a frame, briefly exposing the (tabs) screen below.
+  // Defence-in-depth: the Stack screen wrapper also has contentStyle bg.
+  const overlayBg = isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'];
   return (
-    <View className="flex-1 bg-surface-light-bg dark:bg-surface-dark-bg">
+    <View style={{ flex: 1, backgroundColor: overlayBg }}>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48, paddingBottom: 24 + insets.bottom }}
         keyboardShouldPersistTaps="handled"

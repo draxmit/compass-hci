@@ -48,11 +48,12 @@ export default function SettingsScreen() {
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const sectionLabelClass = 'font-sans-medium text-xs uppercase tracking-wider mb-3';
 
-  // Same wrapper pattern as /profile — see comment there. Opaque bg blocks the
-  // (tabs) screen from bleeding through during card-presentation; bottom inset
-  // keeps Sign out clear of the Android system nav bar.
+  // Same wrapper pattern as /profile — inline backgroundColor (not NativeWind
+  // className) so bg paints synchronously on first frame. Bottom inset keeps
+  // Sign out clear of the Android system nav bar.
+  const overlayBg = isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'];
   return (
-    <View className="flex-1 bg-surface-light-bg dark:bg-surface-dark-bg">
+    <View style={{ flex: 1, backgroundColor: overlayBg }}>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48, paddingBottom: 24 + insets.bottom }}
         keyboardShouldPersistTaps="handled"

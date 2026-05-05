@@ -63,7 +63,7 @@ function StackTree() {
       <Stack.Screen
         name="profile"
         options={{
-          presentation: 'card',
+          presentation: 'modal',
           animation: 'none',
           contentStyle: { backgroundColor: overlayBg },
         }}
@@ -71,7 +71,7 @@ function StackTree() {
       <Stack.Screen
         name="settings"
         options={{
-          presentation: 'card',
+          presentation: 'modal',
           animation: 'none',
           contentStyle: { backgroundColor: overlayBg },
         }}
