@@ -1,8 +1,8 @@
-// TODO(T3): i18n
 import { Link } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, ScrollView, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { signUpWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
@@ -14,6 +14,7 @@ import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 
 export default function SignUpScreen() {
+  const { t } = useTranslation(['auth']);
   const { color: accent } = usePageAccent();
   const { promptAsync: googlePromptAsync, isPending: isGooglePending } = useGoogleSignIn();
   const [displayName, setDisplayName] = useState('');
@@ -25,15 +26,15 @@ export default function SignUpScreen() {
   const onSubmit = async () => {
     setError(null);
     if (!displayName.trim()) {
-      setError('Please enter a display name.');
+      setError(t('auth:validation.missingDisplayName'));
       return;
     }
     if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
+      setError(t('auth:validation.missingEmailOrPassword'));
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError(t('auth:validation.passwordTooShort'));
       return;
     }
     setIsSubmitting(true);
@@ -41,7 +42,7 @@ export default function SignUpScreen() {
       await signUpWithEmailPassword(email.trim(), password, displayName.trim());
       // Auth state propagates → AuthGate redirects to (tabs).
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Sign-up failed.';
+      const message = err instanceof Error ? err.message : t('auth:errors.signUpFailed');
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -54,10 +55,7 @@ export default function SignUpScreen() {
   const onGoogle = async () => {
     setError(null);
     if (Platform.OS !== 'web') {
-      Alert.alert(
-        'Coming soon on Android',
-        'Google sign-in will land with our next build. For now, please create your account with email & password.',
-      );
+      Alert.alert(t('auth:googleAndroid.title'), t('auth:googleAndroid.signUpBody'));
       return;
     }
     const result = await googlePromptAsync();
@@ -73,27 +71,27 @@ export default function SignUpScreen() {
         <View className="items-center mb-6">
           <Logo size={48} color={accent} />
         </View>
-        <Text className="font-sans-bold text-2xl text-center mb-2">Create your account</Text>
+        <Text className="font-sans-bold text-2xl text-center mb-2">{t('auth:signUp.title')}</Text>
         <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
-          Start tracking your money in less than a minute.
+          {t('auth:signUp.tagline')}
         </Text>
 
         <View className="gap-4">
           <TextField
-            label="Display name"
+            label={t('auth:fields.displayName')}
             value={displayName}
             onChangeText={setDisplayName}
-            placeholder="Your name"
+            placeholder={t('auth:fields.displayNamePlaceholder')}
             autoCapitalize="words"
             autoComplete="name"
             textContentType="name"
             returnKeyType="next"
           />
           <TextField
-            label="Email"
+            label={t('auth:fields.email')}
             value={email}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder={t('auth:fields.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
@@ -101,10 +99,10 @@ export default function SignUpScreen() {
             returnKeyType="next"
           />
           <TextField
-            label="Password"
+            label={t('auth:fields.password')}
             value={password}
             onChangeText={setPassword}
-            placeholder="At least 6 characters"
+            placeholder={t('auth:fields.passwordPlaceholderMin')}
             secureTextEntry
             autoCapitalize="none"
             autoComplete="new-password"
@@ -120,25 +118,25 @@ export default function SignUpScreen() {
           ) : null}
 
           <Button onPress={onSubmit} isPending={isSubmitting}>
-            {isSubmitting ? 'Creating account…' : 'Sign up'}
+            {isSubmitting ? t('auth:signUp.submitting') : t('auth:signUp.submit')}
           </Button>
         </View>
 
         <View className="flex-row items-center my-6">
           <View className="flex-1 h-px bg-surface-light-border dark:bg-surface-dark-border" />
           <Text className="px-3 text-xs uppercase tracking-wider text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
-            or
+            {t('common:or', { defaultValue: 'or' })}
           </Text>
           <View className="flex-1 h-px bg-surface-light-border dark:bg-surface-dark-border" />
         </View>
 
         <Button variant="secondary" onPress={onGoogle} isPending={isGooglePending}>
-          Continue with Google
+          {t('auth:signIn.googleButton')}
         </Button>
 
         <View className="flex-row justify-center mt-8 gap-1">
           <Text className="text-sm text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
-            Already have an account?
+            {t('auth:signUp.haveAccount')}
           </Text>
           <Link href={'/(auth)/sign-in' as Href} asChild>
             <Text
@@ -146,7 +144,7 @@ export default function SignUpScreen() {
               style={{ color: accent }}
               accessibilityRole="link"
             >
-              Sign in
+              {t('auth:signUp.signInLink')}
             </Text>
           </Link>
         </View>

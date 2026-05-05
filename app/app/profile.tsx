@@ -2,6 +2,7 @@ import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { auth, updateDisplayName } from '@/services/firebase';
@@ -13,11 +14,13 @@ import { Avatar } from '@/shared/ui/Avatar';
 import { Card } from '@/shared/ui/Card';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
+import { formatDate } from '@/shared/utils/formatDate';
 
 // /profile is the primary identity screen. Reached via Sidebar footer
 // (desktop) or the avatar in MobileTopBar (mobile). Settings is reached
 // from a link card inside this screen.
 export default function ProfileScreen() {
+  const { t } = useTranslation(['settings', 'common']);
   const { resolvedScheme } = useTheme();
   const router = useRouter();
   const isDesktop = useIsDesktop();
@@ -60,7 +63,7 @@ export default function ProfileScreen() {
     : tokens.surface['light-fg-muted'];
   const sectionLabelClass = 'font-sans-medium text-xs uppercase tracking-wider mb-3';
 
-  const memberSinceLabel = createdAt ? formatMemberSince(createdAt) : '—';
+  const memberSinceLabel = createdAt ? formatDate(createdAt, 'long') : '—';
   const daysUsing = createdAt ? Math.max(1, Math.floor((Date.now() - createdAt.getTime()) / 86_400_000) + 1) : null;
 
   const handleSaveName = async () => {
@@ -70,8 +73,8 @@ export default function ProfileScreen() {
       await updateDisplayName(draft);
       setEditing(false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Update failed.';
-      Alert.alert('Could not update name', msg);
+      const msg = err instanceof Error ? err.message : t('settings:profile.errors.updateNameFallback');
+      Alert.alert(t('settings:profile.errors.updateNameTitle'), msg);
     } finally {
       setSaving(false);
     }
@@ -97,28 +100,28 @@ export default function ProfileScreen() {
         {!isDesktop && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common:actions.back')}
             onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
             hitSlop={8}
             className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
           >
             <ChevronLeft size={22} color={fgColor} />
             <Text className="font-sans-medium ml-1" style={{ color: fgColor }}>
-              Back
+              {t('common:actions.back')}
             </Text>
           </Pressable>
         )}
 
-        <Text className="font-sans-bold text-3xl mb-1">Profile</Text>
+        <Text className="font-sans-bold text-3xl mb-1">{t('settings:profile.title')}</Text>
         <Text className="font-sans text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
-          Your account on Compass.
+          {t('settings:profile.tagline')}
         </Text>
 
       {/* Identity card */}
       {user ? (
         <Card padding="lg" className="mb-4 w-full max-w-md">
           <Text className={sectionLabelClass} style={{ color: mutedColor }}>
-            Identity
+            {t('settings:profile.section.identity')}
           </Text>
           <View className="flex-row items-center mb-5">
             <Avatar
@@ -131,10 +134,10 @@ export default function ProfileScreen() {
               {editing ? (
                 <View>
                   <TextField
-                    label="Display name"
+                    label={t('settings:profile.section.identity')}
                     value={draft}
                     onChangeText={setDraft}
-                    placeholder="Your name"
+                    placeholder={user?.displayName ?? ''}
                     autoCapitalize="words"
                     autoComplete="name"
                     returnKeyType="done"
@@ -143,7 +146,7 @@ export default function ProfileScreen() {
                   <View className="flex-row gap-2 mt-3">
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Save name"
+                      accessibilityLabel={t('settings:profile.actions.saveName')}
                       disabled={saving || !draft.trim()}
                       onPress={handleSaveName}
                       style={{
@@ -161,12 +164,12 @@ export default function ProfileScreen() {
                     >
                       <Check size={16} color="#fff" />
                       <Text className="font-sans-medium text-white text-sm">
-                        {saving ? 'Saving…' : 'Save'}
+                        {saving ? t('common:actions.saving') : t('common:actions.save')}
                       </Text>
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Cancel edit"
+                      accessibilityLabel={t('settings:profile.actions.cancelEdit')}
                       onPress={handleCancelEdit}
                       disabled={saving}
                       style={{
@@ -187,7 +190,7 @@ export default function ProfileScreen() {
                     >
                       <X size={16} color={fgColor} />
                       <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
-                        Cancel
+                        {t('common:actions.cancel')}
                       </Text>
                     </Pressable>
                   </View>
@@ -198,11 +201,11 @@ export default function ProfileScreen() {
                     className="font-sans-semibold text-lg flex-shrink"
                     numberOfLines={1}
                   >
-                    {user.displayName ?? user.email?.split('@')[0] ?? 'You'}
+                    {user.displayName ?? user.email?.split('@')[0] ?? t('settings:profile.you')}
                   </Text>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Edit display name"
+                    accessibilityLabel={t('settings:profile.actions.editName')}
                     onPress={() => setEditing(true)}
                     hitSlop={8}
                     className="ml-2 w-9 h-9 items-center justify-center rounded-lg"
@@ -231,16 +234,16 @@ export default function ProfileScreen() {
           >
             <View className="flex-row items-baseline justify-between mb-2">
               <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-                Member since
+                {t('settings:profile.memberSince')}
               </Text>
               <Text className="font-sans-medium text-sm">{memberSinceLabel}</Text>
             </View>
             <View className="flex-row items-baseline justify-between">
               <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-                Days using Compass
+                {t('settings:profile.daysUsing')}
               </Text>
               <Text className="font-sans-medium text-sm">
-                {daysUsing != null ? `${daysUsing} day${daysUsing === 1 ? '' : 's'}` : '—'}
+                {daysUsing != null ? t('settings:profile.daysUsing', { count: daysUsing, context: daysUsing === 1 ? 'one' : 'other' }) : '—'}
               </Text>
             </View>
           </View>
@@ -250,11 +253,11 @@ export default function ProfileScreen() {
       {/* Activity stats card */}
       <Card padding="lg" className="mb-4 w-full max-w-md">
         <Text className={sectionLabelClass} style={{ color: mutedColor }}>
-          Activity
+          {t('settings:profile.section.activity')}
         </Text>
         <View className="flex-row items-baseline justify-between">
           <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-            Transactions logged
+            {t('settings:profile.transactionsLogged')}
           </Text>
           <Text className="font-mono tabular-nums text-base font-sans-semibold">0</Text>
         </View>
@@ -262,7 +265,7 @@ export default function ProfileScreen() {
           className="font-sans text-xs mt-3"
           style={{ color: mutedColor }}
         >
-          No transactions yet. Tap + New transaction to start.
+          {t('settings:profile.noTransactionsYet')}
         </Text>
       </Card>
 
@@ -274,11 +277,11 @@ export default function ProfileScreen() {
             className={`${sectionLabelClass.replace('mb-3', 'mb-0')} ml-2`}
             style={{ color: mutedColor }}
           >
-            Achievements
+            {t('settings:profile.section.achievements')}
           </Text>
         </View>
         <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-          Earn badges as you track. Coming in v2.
+          {t('settings:profile.achievementsBlurb')}
         </Text>
       </Card>
 
@@ -286,15 +289,15 @@ export default function ProfileScreen() {
       <Card padding="none" className="w-full max-w-md">
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel="Open Settings"
+          accessibilityLabel={t('settings:profile.settingsLink')}
           onPress={() => router.push('/settings')}
           className="flex-row items-center px-5 py-4 min-h-[44px]"
         >
           <SettingsIcon size={20} color={mutedColor} />
           <View className="ml-3 flex-1">
-            <Text className="font-sans-medium">Settings</Text>
+            <Text className="font-sans-medium">{t('settings:profile.settingsLink')}</Text>
             <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-              Theme, language, sign out
+              {t('settings:profile.settingsLinkDescription')}
             </Text>
           </View>
           <ChevronRight size={18} color={mutedColor} />
@@ -304,12 +307,4 @@ export default function ProfileScreen() {
       </ScrollView>
     </View>
   );
-}
-
-function formatMemberSince(d: Date): string {
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }

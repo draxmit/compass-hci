@@ -1,8 +1,8 @@
-// TODO(T3): i18n
 import { Link } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, ScrollView, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { signInWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
@@ -14,6 +14,7 @@ import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 
 export default function SignInScreen() {
+  const { t } = useTranslation(['auth']);
   const { color: accent } = usePageAccent();
   const { promptAsync: googlePromptAsync, isPending: isGooglePending } = useGoogleSignIn();
   const [email, setEmail] = useState('');
@@ -24,7 +25,7 @@ export default function SignInScreen() {
   const onSubmit = async () => {
     setError(null);
     if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
+      setError(t('auth:validation.missingEmailOrPassword'));
       return;
     }
     setIsSubmitting(true);
@@ -32,7 +33,7 @@ export default function SignInScreen() {
       await signInWithEmailPassword(email.trim(), password);
       // AuthGate redirects to (tabs) once auth state propagates.
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Sign-in failed.';
+      const message = err instanceof Error ? err.message : t('auth:errors.signInFailed');
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -46,10 +47,7 @@ export default function SignInScreen() {
   const onGoogle = async () => {
     setError(null);
     if (Platform.OS !== 'web') {
-      Alert.alert(
-        'Coming soon on Android',
-        'Google sign-in will land with our next build. For now, please sign in with email & password.',
-      );
+      Alert.alert(t('auth:googleAndroid.title'), t('auth:googleAndroid.signInBody'));
       return;
     }
     const result = await googlePromptAsync();
@@ -66,17 +64,17 @@ export default function SignInScreen() {
         <View className="items-center mb-6">
           <Logo size={48} color={accent} />
         </View>
-        <Text className="font-sans-bold text-2xl text-center mb-2">Sign in to Compass</Text>
+        <Text className="font-sans-bold text-2xl text-center mb-2">{t('auth:signIn.title')}</Text>
         <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
-          Track every rupiah, find what you keep.
+          {t('auth:signIn.tagline')}
         </Text>
 
         <View className="gap-4">
           <TextField
-            label="Email"
+            label={t('auth:fields.email')}
             value={email}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder={t('auth:fields.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
@@ -84,10 +82,10 @@ export default function SignInScreen() {
             returnKeyType="next"
           />
           <TextField
-            label="Password"
+            label={t('auth:fields.password')}
             value={password}
             onChangeText={setPassword}
-            placeholder="Your password"
+            placeholder={t('auth:fields.passwordPlaceholder')}
             secureTextEntry
             autoCapitalize="none"
             autoComplete="password"
@@ -105,7 +103,7 @@ export default function SignInScreen() {
                 style={{ color: accent }}
                 accessibilityRole="link"
               >
-                Forgot password?
+                {t('auth:fields.forgotPasswordLink')}
               </Text>
             </Link>
           </View>
@@ -117,25 +115,25 @@ export default function SignInScreen() {
           ) : null}
 
           <Button onPress={onSubmit} isPending={isSubmitting}>
-            {isSubmitting ? 'Signing in…' : 'Sign in'}
+            {isSubmitting ? t('auth:signIn.submitting') : t('auth:signIn.submit')}
           </Button>
         </View>
 
         <View className="flex-row items-center my-6">
           <View className="flex-1 h-px bg-surface-light-border dark:bg-surface-dark-border" />
           <Text className="px-3 text-xs uppercase tracking-wider text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
-            or
+            {t('common:or', { defaultValue: 'or' })}
           </Text>
           <View className="flex-1 h-px bg-surface-light-border dark:bg-surface-dark-border" />
         </View>
 
         <Button variant="secondary" onPress={onGoogle} isPending={isGooglePending}>
-          Continue with Google
+          {t('auth:signIn.googleButton')}
         </Button>
 
         <View className="flex-row justify-center mt-8 gap-1">
           <Text className="text-sm text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
-            Don&apos;t have an account?
+            {t('auth:signIn.noAccount')}
           </Text>
           <Link href={'/(auth)/sign-up' as Href} asChild>
             <Text
@@ -143,7 +141,7 @@ export default function SignInScreen() {
               style={{ color: accent }}
               accessibilityRole="link"
             >
-              Sign up
+              {t('auth:signIn.createAccount')}
             </Text>
           </Link>
         </View>

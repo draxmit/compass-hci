@@ -26,7 +26,8 @@
     "notFoundTitle": "Page not found",
     "notFoundBody": "This screen doesn't exist in Compass yet.",
     "notFoundLink": "Back to Dashboard",
-    "onboardingComingSoon": "Onboarding lands in T10."
+    "onboardingTitle": "Onboarding",
+    "onboardingComingSoon": "Coming in T10 (goal-first wizard)."
   },
   "errors": {
     "generic": "Something went wrong. Please try again in a moment.",

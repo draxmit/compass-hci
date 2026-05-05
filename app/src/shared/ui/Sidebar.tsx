@@ -2,6 +2,7 @@ import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeftRight, ChevronsLeft, ChevronsRight, Home, Lightbulb, PieChart, Plus } from 'lucide-react-native';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useAuthUser } from '@/stores/authStore';
 import { tokens } from '@/shared/theme/tokens';
@@ -14,18 +15,18 @@ import { Text } from './Text';
 
 type NavItem = {
   href: string;
-  label: string;
+  labelKey: 'dashboard' | 'transactions' | 'budgets' | 'insights';
   icon: React.ComponentType<{ color: string; size: number }>;
   accentKey: AccentKey;
 };
 
-// Primary nav — only the four main views. Settings is a separate footer
-// entry, not part of the main nav (it's config, not content).
+// Primary nav — only the four main views. Profile/Settings live in the
+// footer entry; Settings is reached from inside Profile.
 const NAV: NavItem[] = [
-  { href: '/',             label: 'Dashboard',    icon: Home,           accentKey: 'dashboard' },
-  { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight, accentKey: 'transactions' },
-  { href: '/budgets',      label: 'Budgets',      icon: PieChart,       accentKey: 'budgets' },
-  { href: '/insights',     label: 'Insights',     icon: Lightbulb,      accentKey: 'insights' },
+  { href: '/',             labelKey: 'dashboard',    icon: Home,           accentKey: 'dashboard' },
+  { href: '/transactions', labelKey: 'transactions', icon: ArrowLeftRight, accentKey: 'transactions' },
+  { href: '/budgets',      labelKey: 'budgets',      icon: PieChart,       accentKey: 'budgets' },
+  { href: '/insights',     labelKey: 'insights',     icon: Lightbulb,      accentKey: 'insights' },
 ];
 
 /**
@@ -41,6 +42,7 @@ const NAV: NavItem[] = [
  *    than primary nav.
  */
 export function Sidebar() {
+  const { t } = useTranslation(['common']);
   const router = useRouter();
   const { resolvedScheme } = useTheme();
   const { key: activeAccentKey } = usePageAccent();
@@ -71,7 +73,7 @@ export function Sidebar() {
         )}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          accessibilityLabel={collapsed ? t('common:nav.expandSidebar') : t('common:nav.collapseSidebar')}
           onPress={() => setCollapsed((v) => !v)}
           hitSlop={6}
           className="w-9 h-9 items-center justify-center rounded-lg"
@@ -87,7 +89,7 @@ export function Sidebar() {
       {/* Quick-entry CTA */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="New transaction"
+        accessibilityLabel={t('common:nav.newTransaction')}
         onPress={() => {
           // T6 wires the actual quick-entry sheet
         }}
@@ -97,7 +99,7 @@ export function Sidebar() {
         <Plus size={18} color={activeAccentColor} />
         {!collapsed && (
           <Text className="font-sans-medium text-sm" style={{ color: activeAccentColor }}>
-            New transaction
+            {t('common:nav.newTransaction')}
           </Text>
         )}
       </Pressable>
@@ -108,11 +110,12 @@ export function Sidebar() {
           const isActive = item.accentKey === activeAccentKey;
           const accent = resolveAccent(item.accentKey, resolvedScheme);
           const iconColor = isActive ? accent : fgMutedColor;
+          const label = t(`common:nav.${item.labelKey}`);
           return (
             <Pressable
               key={item.href}
               accessibilityRole="link"
-              accessibilityLabel={item.label}
+              accessibilityLabel={label}
               accessibilityState={{ selected: isActive }}
               onPress={() => router.navigate(item.href as never)}
               className={`flex-row items-center rounded-xl ${collapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'}`}
@@ -124,7 +127,7 @@ export function Sidebar() {
                   className={`font-sans-medium text-sm ${isActive ? '' : 'text-surface-light-fg-muted dark:text-surface-dark-fg-muted'}`}
                   style={isActive ? { color: accent } : undefined}
                 >
-                  {item.label}
+                  {label}
                 </Text>
               )}
             </Pressable>
@@ -139,7 +142,7 @@ export function Sidebar() {
       <View className="border-t border-surface-light-border dark:border-surface-dark-border pt-3">
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel={user?.displayName ? `Open profile for ${user.displayName}` : 'Open profile'}
+          accessibilityLabel={t('common:nav.openProfile')}
           accessibilityState={{ selected: profileActive }}
           onPress={() => router.navigate('/profile' as never)}
           className={`flex-row items-center rounded-xl ${collapsed ? 'justify-center p-2' : 'gap-3 px-2 py-2'}`}

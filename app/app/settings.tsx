@@ -2,9 +2,12 @@ import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, LogOut } from 'lucide-react-native';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { signOut } from '@/services/firebase';
+import { i18next, persistLocale } from '@/shared/i18n';
+import type { Locale } from '@/shared/i18n';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import type { ThemeMode } from '@/shared/theme/useTheme';
@@ -15,20 +18,35 @@ import { Text } from '@/shared/ui/Text';
 // lives at /profile. Reached from a link in /profile, or via Settings
 // footer on desktop sidebar.
 //
-// TODO(T11): language toggle, biometric toggle, account deletion, encrypted
-// cache toggle.
+// TODO(T11): biometric toggle, account deletion, encrypted cache toggle.
 export default function SettingsScreen() {
+  const { t, i18n } = useTranslation(['settings', 'common']);
   const { mode, setMode, resolvedScheme } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [signingOut, setSigningOut] = useState(false);
+  const [activeLocale, setActiveLocale] = useState<Locale>(
+    (i18n.language as Locale) === 'en' ? 'en' : 'id',
+  );
   const isDark = resolvedScheme === 'dark';
 
   const themeButtons: { label: string; value: ThemeMode }[] = [
-    { label: 'Light', value: 'light' },
-    { label: 'Dark', value: 'dark' },
-    { label: 'System', value: 'system' },
+    { label: t('settings:settings.theme.light'), value: 'light' },
+    { label: t('settings:settings.theme.dark'), value: 'dark' },
+    { label: t('settings:settings.theme.system'), value: 'system' },
   ];
+
+  const languageButtons: { label: string; value: Locale }[] = [
+    { label: t('settings:settings.language.id'), value: 'id' },
+    { label: t('settings:settings.language.en'), value: 'en' },
+  ];
+
+  const handleSelectLocale = async (next: Locale) => {
+    if (next === activeLocale) return;
+    setActiveLocale(next);
+    await i18next.changeLanguage(next);
+    void persistLocale(next);
+  };
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -36,8 +54,8 @@ export default function SettingsScreen() {
     try {
       await signOut();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Sign out failed.';
-      Alert.alert('Sign out failed', msg);
+      const msg = err instanceof Error ? err.message : t('settings:settings.errors.signOutFallback');
+      Alert.alert(t('settings:settings.errors.signOutTitle'), msg);
       setSigningOut(false);
     }
   };
@@ -63,26 +81,26 @@ export default function SettingsScreen() {
             a sub-route of /profile so the back action is unambiguous. */}
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel="Back to Profile"
+          accessibilityLabel={t('settings:settings.actions.backToProfile')}
           onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile'))}
           hitSlop={8}
           className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
         >
           <ChevronLeft size={22} color={fgColor} />
           <Text className="font-sans-medium ml-1" style={{ color: fgColor }}>
-            Profile
+            {t('settings:profile.title')}
           </Text>
         </Pressable>
 
-        <Text className="font-sans-bold text-3xl mb-1">Settings</Text>
+        <Text className="font-sans-bold text-3xl mb-1">{t('settings:settings.title')}</Text>
         <Text className="font-sans text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
-          Theme, sign out — full version in T11.
+          {t('settings:settings.tagline')}
         </Text>
 
       {/* Theme picker */}
       <Card padding="lg" className="mb-4 w-full max-w-md">
         <Text className={sectionLabelClass} style={{ color: mutedColor }}>
-          Theme
+          {t('settings:settings.section.theme')}
         </Text>
         <View className="flex-row gap-2">
           {themeButtons.map((b) => {
@@ -92,8 +110,54 @@ export default function SettingsScreen() {
                 key={b.value}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={`Set theme to ${b.label}`}
+                accessibilityLabel={t('settings:settings.theme.setTo', { label: b.label })}
                 onPress={() => setMode(b.value)}
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  borderWidth: 1,
+                  minHeight: 44,
+                  backgroundColor: active ? tokens.accent.dashboard : 'transparent',
+                  borderColor: active
+                    ? tokens.accent.dashboard
+                    : isDark
+                      ? tokens.surface['dark-border']
+                      : tokens.surface['light-border'],
+                }}
+              >
+                <Text
+                  className={
+                    active
+                      ? 'font-sans-medium text-white'
+                      : 'font-sans-medium text-surface-light-fg dark:text-surface-dark-fg'
+                  }
+                >
+                  {b.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Card>
+
+      {/* Language picker */}
+      <Card padding="lg" className="mb-4 w-full max-w-md">
+        <Text className={sectionLabelClass} style={{ color: mutedColor }}>
+          {t('settings:settings.section.language')}
+        </Text>
+        <View className="flex-row gap-2">
+          {languageButtons.map((b) => {
+            const active = activeLocale === b.value;
+            return (
+              <Pressable
+                key={b.value}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={t('settings:settings.language.setTo', { label: b.label })}
+                onPress={() => void handleSelectLocale(b.value)}
                 style={{
                   flex: 1,
                   alignItems: 'center',
@@ -129,7 +193,7 @@ export default function SettingsScreen() {
       <Card padding="none" className="w-full max-w-md">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Sign out"
+          accessibilityLabel={t('settings:settings.signOut')}
           accessibilityState={{ disabled: signingOut }}
           disabled={signingOut}
           onPress={handleSignOut}
@@ -141,7 +205,7 @@ export default function SettingsScreen() {
             className="font-sans-medium ml-3 flex-1"
             style={{ color: tokens.semantic.danger }}
           >
-            {signingOut ? 'Signing out…' : 'Sign out'}
+            {signingOut ? t('settings:settings.signingOut') : t('settings:settings.signOut')}
           </Text>
         </Pressable>
       </Card>

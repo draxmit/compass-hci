@@ -1,5 +1,6 @@
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthUser } from '@/stores/authStore';
@@ -19,6 +20,7 @@ import { Avatar } from './Avatar';
  * profile.tsx's canGoBack-fallback (no stack remembers which tab we left).
  */
 export function MobileTopBar() {
+  const { t } = useTranslation(['common']);
   const router = useRouter();
   const user = useAuthUser();
 
@@ -27,7 +29,7 @@ export function MobileTopBar() {
       <View className="flex-row justify-end px-4 py-2">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Open profile"
+          accessibilityLabel={t('common:nav.openProfile')}
           onPress={() => router.replace('/profile')}
           hitSlop={8}
           className="rounded-full"

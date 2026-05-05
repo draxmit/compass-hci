@@ -1,8 +1,8 @@
-// TODO(T3): i18n
 import { Link } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { sendPasswordReset } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
@@ -19,6 +19,7 @@ import { TextField } from '@/shared/ui/TextField';
  * swallowed too — same UX, no enumeration vector.
  */
 export default function ForgotPasswordScreen() {
+  const { t } = useTranslation(['auth']);
   const { color: accent } = usePageAccent();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,27 +47,26 @@ export default function ForgotPasswordScreen() {
         <View className="items-center mb-6">
           <Logo size={48} color={accent} />
         </View>
-        <Text className="font-sans-bold text-2xl text-center mb-2">Reset your password</Text>
+        <Text className="font-sans-bold text-2xl text-center mb-2">{t('auth:forgotPassword.title')}</Text>
         <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
-          Enter your email and we&apos;ll send a reset link.
+          {t('auth:forgotPassword.body')}
         </Text>
 
         {submitted ? (
           <View className="gap-4">
-            <Text className="text-center">
-              If that email is registered, a reset link has been sent.
-            </Text>
+            <Text className="font-sans-semibold text-center">{t('auth:forgotPassword.successTitle')}</Text>
+            <Text className="text-center">{t('auth:forgotPassword.successBody')}</Text>
             <Link href={'/(auth)/sign-in' as Href} asChild>
-              <Button onPress={() => undefined}>Back to sign in</Button>
+              <Button onPress={() => undefined}>{t('auth:forgotPassword.backToSignIn')}</Button>
             </Link>
           </View>
         ) : (
           <View className="gap-4">
             <TextField
-              label="Email"
+              label={t('auth:fields.email')}
               value={email}
               onChangeText={setEmail}
-              placeholder="you@example.com"
+              placeholder={t('auth:fields.emailPlaceholder')}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -75,19 +75,16 @@ export default function ForgotPasswordScreen() {
               onSubmitEditing={onSubmit}
             />
             <Button onPress={onSubmit} isPending={isSubmitting}>
-              {isSubmitting ? 'Sending…' : 'Send reset link'}
+              {isSubmitting ? t('auth:forgotPassword.submitting') : t('auth:forgotPassword.submit')}
             </Button>
             <View className="flex-row justify-center mt-2 gap-1">
-              <Text className="text-sm text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
-                Remembered it?
-              </Text>
               <Link href={'/(auth)/sign-in' as Href} asChild>
                 <Text
                   className="font-sans-semibold text-sm"
                   style={{ color: accent }}
                   accessibilityRole="link"
                 >
-                  Sign in
+                  {t('auth:forgotPassword.backToSignIn')}
                 </Text>
               </Link>
             </View>

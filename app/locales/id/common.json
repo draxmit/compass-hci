@@ -26,7 +26,8 @@
     "notFoundTitle": "Halaman tidak ditemukan",
     "notFoundBody": "Halaman ini belum ada di Compass.",
     "notFoundLink": "Kembali ke Beranda",
-    "onboardingComingSoon": "Onboarding akan hadir di T10."
+    "onboardingTitle": "Onboarding",
+    "onboardingComingSoon": "Onboarding akan hadir di T10 (wizard goal-first)."
   },
   "errors": {
     "generic": "Terjadi kesalahan. Coba lagi sebentar lagi.",

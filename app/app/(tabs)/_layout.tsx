@@ -1,5 +1,6 @@
 import { Slot, Tabs } from 'expo-router';
 import { ArrowLeftRight, Home, Lightbulb, PieChart } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import { CustomTabBar } from '@/shared/ui/CustomTabBar';
@@ -21,6 +22,7 @@ import { MobileTopBar } from '@/shared/ui/MobileTopBar';
  * `unmountOnBlur` option for Bottom Tabs).
  */
 export default function TabsLayout() {
+  const { t } = useTranslation(['common']);
   const isDesktop = useIsDesktop();
 
   if (isDesktop) {
@@ -47,7 +49,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: t('common:nav.dashboard'),
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
           lazy: false,
         }}
@@ -55,7 +57,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="transactions"
         options={{
-          title: 'Transactions',
+          title: t('common:nav.transactions'),
           tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size} />,
           lazy: false,
         }}
@@ -63,7 +65,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="budgets"
         options={{
-          title: 'Budgets',
+          title: t('common:nav.budgets'),
           tabBarIcon: ({ color, size }) => <PieChart color={color} size={size} />,
           lazy: false,
         }}
@@ -71,7 +73,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="insights"
         options={{
-          title: 'Insights',
+          title: t('common:nav.insights'),
           tabBarIcon: ({ color, size }) => <Lightbulb color={color} size={size} />,
           lazy: false,
         }}
