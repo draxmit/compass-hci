@@ -21,14 +21,31 @@ export function usePageAccent(): { key: AccentKey; color: string } {
   const { resolvedScheme } = useTheme();
 
   const map: Record<string, AccentKey> = {
+    // (tabs) routes
     'index': 'dashboard',
     'transactions': 'transactions',
     'budgets': 'budgets',
     'insights': 'insights',
+    // Transaction CRUD lives at /transaction/* — singular segment, but
+    // belongs to the Transactions section so the sidebar highlights
+    // Transactions while the user is creating/editing one.
+    'transaction': 'transactions',
+    // Profile-area config screens — none have a dedicated tab, they all
+    // hang off Profile. Map to neutral so the sidebar doesn't ghost-
+    // highlight any primary tab; the Profile footer entry lights up
+    // instead via accentKey === 'neutral'.
     'profile': 'neutral',
     'settings': 'neutral',
+    'accounts': 'neutral',
+    'categories': 'neutral',
   };
 
+  // Default: 'dashboard'. The (auth) screens depend on this for brand
+  // accent (Logo color + primary Button color). Auth screens never see
+  // the sidebar (AppShell gates it on isAuthed), so a wrong tab focus
+  // there is impossible — the only risk of an unmapped route would be
+  // the sidebar showing while no entry is highlighted, which is now
+  // avoided by mapping every authed top-level route above.
   let key: AccentKey = 'dashboard';
   for (let i = segments.length - 1; i >= 0; i--) {
     const seg = segments[i];
