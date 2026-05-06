@@ -82,6 +82,8 @@ export async function createAccount(wid: string, input: CreateAccountInput): Pro
       type: input.type,
       subtype: input.subtype,
       currency: 'IDR',
+      // Stored as integer minor units (×100 the displayed rupiah). Caller
+      // (accounts.tsx) uses parseBalanceInput to convert user input.
       currentBalance: input.initialBalance,
       initialBalance: input.initialBalance,
       includedInNetWorth: input.includedInNetWorth,
@@ -91,6 +93,9 @@ export async function createAccount(wid: string, input: CreateAccountInput): Pro
       order: nextOrder,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      // Pre-mark new accounts as already-migrated so the migration helper
+      // doesn't double-multiply them on the next sign-in.
+      [BALANCE_UNITS_MARKER]: true,
     })
     .commit();
   return ref.id;
@@ -151,4 +156,43 @@ export async function restoreAccount(wid: string, id: string): Promise<void> {
     isArchived: false,
     updatedAt: serverTimestamp(),
   });
+}
+
+const BALANCE_UNITS_MARKER = '_balanceUnitsV2' as const;
+
+/**
+ * One-shot migration from "integer rupiah" → "integer minor units" (×100).
+ * Idempotent via the `_balanceUnitsV2: true` doc marker. Required because
+ * accounts created before this change stored the displayed value directly
+ * (e.g. Rp 1.000.000 → 1000000); the new formatIDR + balance helpers
+ * expect minor units (Rp 1.000.000 → 100000000).
+ *
+ * Migration logic:
+ *   - Skip docs where `_balanceUnitsV2 === true`.
+ *   - For un-migrated docs: multiply currentBalance + initialBalance × 100,
+ *     set the marker.
+ *
+ * Called from the auth subscription on every sign-in (alongside
+ * ensureCategoriesSeeded). Self-healing — if the migration fails or only
+ * partially completes, the next sign-in retries.
+ */
+export async function migrateAccountBalancesToMinorUnits(wid: string): Promise<void> {
+  const snap = await getDocs(accountsCollection(wid));
+  const unmigrated = snap.docs.filter((d) => {
+    const data = d.data() as Record<string, unknown>;
+    return data[BALANCE_UNITS_MARKER] !== true;
+  });
+  if (unmigrated.length === 0) return;
+
+  const batch = writeBatch(db);
+  for (const d of unmigrated) {
+    const data = d.data() as Account;
+    batch.update(d.ref, {
+      currentBalance: (data.currentBalance ?? 0) * 100,
+      initialBalance: (data.initialBalance ?? 0) * 100,
+      [BALANCE_UNITS_MARKER]: true,
+      updatedAt: serverTimestamp(),
+    });
+  }
+  await batch.commit();
 }

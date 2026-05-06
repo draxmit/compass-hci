@@ -143,8 +143,15 @@ export function useAuthSubscription(): void {
               ensureCategoriesSeeded(wid),
             ),
           )
+          .then(() =>
+            // Migrate any accounts that pre-date the integer-minor-units
+            // storage shift. Idempotent via the _balanceUnitsV2 doc marker.
+            import('../firestore/accountsService').then(({ migrateAccountBalancesToMinorUnits }) =>
+              migrateAccountBalancesToMinorUnits(wid),
+            ),
+          )
           .catch((err: unknown) => {
-            console.warn('[firebase] ensureUserDoc / categories seed failed', err);
+            console.warn('[firebase] post-auth setup failed', err);
           });
       }
     });

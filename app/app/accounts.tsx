@@ -292,18 +292,66 @@ type AccountEditPanelProps = {
 };
 
 /**
- * Locale-aware live formatter for the balance input. Strips non-digits,
- * formats with the active locale's thousands separator. Empty input → ''.
+ * Locale-aware live formatter for the balance input. Accepts up to 2 decimal
+ * places using the active locale's separator (`,` for id, `.` for en),
+ * formats integer part with thousands separator. Empty → ''.
+ *
+ * @example  ('1000000', 'id') → '1.000.000'
+ *           ('1000000,5', 'id') → '1.000.000,5'
+ *           ('1000000.50', 'en') → '1,000,000.50'
  */
 function formatBalanceInput(raw: string, locale: Locale): string {
-  const digits = raw.replace(/\D/g, '');
-  if (!digits) return '';
-  return new Intl.NumberFormat(locale === 'id' ? 'id-ID' : 'en-US').format(Number(digits));
+  const decimalSep = locale === 'id' ? ',' : '.';
+  const allowedRe = locale === 'id' ? /[^\d,]/g : /[^\d.]/g;
+  let cleaned = raw.replace(allowedRe, '');
+
+  // Allow at most one decimal separator (collapse extras into the integer part).
+  const parts = cleaned.split(decimalSep);
+  let intPart = parts[0] ?? '';
+  let decPart = parts.length > 1 ? parts.slice(1).join('') : null;
+  if (decPart !== null && decPart.length > 2) decPart = decPart.slice(0, 2);
+
+  // Format the integer part with thousands sep (only when non-empty).
+  const formattedInt = intPart
+    ? new Intl.NumberFormat(locale === 'id' ? 'id-ID' : 'en-US').format(Number(intPart))
+    : '';
+
+  if (decPart === null) return formattedInt;
+  return `${formattedInt}${decimalSep}${decPart}`;
 }
 
-function parseBalanceInput(formatted: string): number {
-  const digits = formatted.replace(/\D/g, '');
-  return digits ? Number(digits) : 0;
+/**
+ * Parse a formatted balance string back to integer minor units (×100). Used
+ * on save. Strips locale-specific separators, converts to a float, then
+ * rounds to nearest minor unit.
+ */
+function parseBalanceInput(formatted: string, locale: Locale): number {
+  const decimalSep = locale === 'id' ? ',' : '.';
+  const thousandsSep = locale === 'id' ? '.' : ',';
+  const cleaned = formatted
+    .split(thousandsSep).join('')
+    .replace(decimalSep, '.');
+  const value = Number(cleaned);
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value * 100);
+}
+
+/**
+ * Render a stored minor-units value back into the locale-formatted input
+ * string. Used to seed the balance text field on edit. Mirrors formatIDR's
+ * smart-decimals rule: cents are shown only when non-zero.
+ */
+function minorUnitsToInputText(minorUnits: number, locale: Locale): string {
+  if (!minorUnits) return '';
+  const major = minorUnits / 100;
+  const intPart = Math.trunc(Math.abs(major));
+  const cents = Math.round(Math.abs(minorUnits) - intPart * 100);
+  const formattedInt = new Intl.NumberFormat(locale === 'id' ? 'id-ID' : 'en-US').format(
+    Math.sign(major) * intPart || intPart,
+  );
+  if (cents === 0) return formattedInt;
+  const decimalSep = locale === 'id' ? ',' : '.';
+  return `${formattedInt}${decimalSep}${cents.toString().padStart(2, '0')}`;
 }
 
 function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPanelProps) {
@@ -322,7 +370,7 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
   const [type, setType] = useState<AccountType>(initialType);
   const [subtype, setSubtypeState] = useState<AccountSubtype>(initialSubtype);
   const [balanceText, setBalanceText] = useState(
-    editing ? formatBalanceInput(String(editing.currentBalance), lang) : '',
+    editing ? minorUnitsToInputText(editing.currentBalance, lang) : '',
   );
   const [includedInNetWorth, setIncludedInNetWorth] = useState(
     editing?.includedInNetWorth ?? true,
@@ -365,7 +413,7 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
       Alert.alert(t('accounts:title'), t('accounts:errors.missingName'));
       return;
     }
-    const balance = parseBalanceInput(balanceText);
+    const balance = parseBalanceInput(balanceText, lang);
     if (!Number.isFinite(balance)) {
       Alert.alert(t('accounts:title'), t('accounts:errors.balanceInvalid'));
       return;

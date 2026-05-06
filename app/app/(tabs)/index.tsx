@@ -20,7 +20,7 @@ export default function DashboardScreen() {
           adjustsFontSizeToFit
           numberOfLines={1}
         >
-          {formatIDR(12_400_000)}
+          {formatIDR(12_400_000_00)}
         </Text>
         <Text className="font-sans-medium text-xs text-surface-light-fg-muted dark:text-surface-dark-fg-muted mt-1">
           {t('dashboard:netWorthLabel')}
