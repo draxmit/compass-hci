@@ -1,7 +1,7 @@
 import { i18next } from '@/shared/i18n';
 import type { Locale } from '@/shared/i18n';
 
-type DateStyle = 'long' | 'short';
+type DateStyle = 'long' | 'short' | 'long-month';
 
 const ICU_LOCALE: Record<Locale, string> = {
   id: 'id-ID',
@@ -17,16 +17,20 @@ function activeLocale(): Locale {
  * Format a Date in the active (or explicit) UI locale.
  *
  * @example
- *   formatDate(new Date('2026-05-05'), 'long', 'id')  // '5 Mei 2026'
- *   formatDate(new Date('2026-05-05'), 'long', 'en')  // 'May 5, 2026'
- *   formatDate(new Date('2026-05-05'), 'short', 'id') // '05/05/2026'
+ *   formatDate(new Date('2026-05-05'), 'long', 'id')        // '5 Mei 2026'
+ *   formatDate(new Date('2026-05-05'), 'long', 'en')        // 'May 5, 2026'
+ *   formatDate(new Date('2026-05-05'), 'short', 'id')       // '05/05/2026'
+ *   formatDate(new Date('2026-05-05'), 'long-month', 'id')  // 'Mei 2026'
+ *   formatDate(new Date('2026-05-05'), 'long-month', 'en')  // 'May 2026'
  */
 export function formatDate(d: Date, style: DateStyle = 'long', locale?: Locale): string {
   const lang = locale ?? activeLocale();
   const options: Intl.DateTimeFormatOptions =
     style === 'long'
       ? { year: 'numeric', month: 'long', day: 'numeric' }
-      : { year: 'numeric', month: '2-digit', day: '2-digit' };
+      : style === 'long-month'
+        ? { year: 'numeric', month: 'long' }
+        : { year: 'numeric', month: '2-digit', day: '2-digit' };
   return new Intl.DateTimeFormat(ICU_LOCALE[lang], options).format(d);
 }
 

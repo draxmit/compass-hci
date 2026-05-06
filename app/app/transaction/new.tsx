@@ -20,6 +20,9 @@ import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
+import {
+  formatAmountInput, minorToInputText, parseAmountInput,
+} from '@/shared/utils/amountInput';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { parseTransaction } from '@/shared/utils/nlpParser';
 import type { NlpResult } from '@/shared/utils/nlpParser';
@@ -670,41 +673,5 @@ function CategoryPicker({ categories, selectedId, onSelect, isDark, lang, t }: C
   );
 }
 
-// --- Amount input helpers (mirror accounts.tsx, but local copy keeps the
-//     screen self-contained; can extract to shared utils when a third
-//     screen needs them).
-
-function formatAmountInput(raw: string, locale: Locale): string {
-  const decimalSep = locale === 'id' ? ',' : '.';
-  const allowedRe = locale === 'id' ? /[^\d,]/g : /[^\d.]/g;
-  let cleaned = raw.replace(allowedRe, '');
-  const parts = cleaned.split(decimalSep);
-  let intPart = parts[0] ?? '';
-  let decPart = parts.length > 1 ? parts.slice(1).join('') : null;
-  if (decPart !== null && decPart.length > 2) decPart = decPart.slice(0, 2);
-  const formattedInt = intPart
-    ? new Intl.NumberFormat(locale === 'id' ? 'id-ID' : 'en-US').format(Number(intPart))
-    : '';
-  if (decPart === null) return formattedInt;
-  return `${formattedInt}${decimalSep}${decPart}`;
-}
-
-function parseAmountInput(formatted: string, locale: Locale): number {
-  const decimalSep = locale === 'id' ? ',' : '.';
-  const thousandsSep = locale === 'id' ? '.' : ',';
-  const cleaned = formatted.split(thousandsSep).join('').replace(decimalSep, '.');
-  const value = Number(cleaned);
-  if (!Number.isFinite(value)) return 0;
-  return Math.round(value * 100);
-}
-
-function minorToInputText(minorUnits: number, locale: Locale): string {
-  if (!minorUnits) return '';
-  const major = minorUnits / 100;
-  const intPart = Math.trunc(Math.abs(major));
-  const cents = Math.round(Math.abs(minorUnits) - intPart * 100);
-  const formattedInt = new Intl.NumberFormat(locale === 'id' ? 'id-ID' : 'en-US').format(intPart);
-  if (cents === 0) return formattedInt;
-  const decimalSep = locale === 'id' ? ',' : '.';
-  return `${formattedInt}${decimalSep}${cents.toString().padStart(2, '0')}`;
-}
+// Amount-input helpers were extracted to `shared/utils/amountInput.ts`
+// in T9 / ADR-10 once a third screen (/budgets) needed the same logic.

@@ -1,0 +1,23 @@
+{
+  "title": "Ringkasan {{month}}",
+  "loadingFailed": "Gagal memuat ringkasan.",
+  "summary": {
+    "income": "Pemasukan",
+    "expense": "Pengeluaran",
+    "net": "Bersih"
+  },
+  "delta": {
+    "vsLastMonth": "vs bulan lalu",
+    "up": "↑ {{amount}} lebih banyak",
+    "down": "↓ {{amount}} lebih hemat",
+    "same": "tidak ada perubahan"
+  },
+  "sections": {
+    "breakdown": "Per kategori",
+    "topTransactions": "Pengeluaran terbesar"
+  },
+  "empty": {
+    "noData": "Belum ada transaksi bulan ini.",
+    "noDataCta": "Catat transaksi pertama"
+  }
+}

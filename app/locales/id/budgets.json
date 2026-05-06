@@ -1,4 +1,46 @@
 {
   "title": "Budget",
-  "comingSoon": "Hadir di T9."
+  "subtitleMonth": "{{month}}",
+  "styles": {
+    "label": "Gaya budget",
+    "monthlyLimit": "Batas bulanan",
+    "envelope": "Amplop",
+    "fiftyThirtyTwenty": "50 / 30 / 20",
+    "comingSoon": "Hadir di v2."
+  },
+  "sections": {
+    "budgeted": "Dibatasi",
+    "unbudgeted": "Kategori lain",
+    "budgetedHint": "Lacak pengeluaran kategori ini setiap bulan.",
+    "unbudgetedHint": "Tambahkan batas untuk mulai melacak."
+  },
+  "row": {
+    "spent": "Terpakai",
+    "of": "dari",
+    "addLimit": "Tambah batas",
+    "limitPlaceholder": "0",
+    "overBudget": "Lewat budget {{amount}}"
+  },
+  "actions": {
+    "save": "Simpan",
+    "saving": "Menyimpan…",
+    "cancel": "Batal",
+    "delete": "Hapus",
+    "deleting": "Menghapus…",
+    "edit": "Ubah",
+    "viewReport": "Lihat ringkasan bulan ini →",
+    "deleteConfirmTitle": "Hapus batas?",
+    "deleteConfirmBody": "Pengeluaran tetap tercatat — hanya batas yang dihapus."
+  },
+  "empty": {
+    "noBudgetsYet": "Belum ada budget",
+    "noBudgetsBody": "Pilih kategori di bawah untuk mulai membatasi pengeluaran bulan ini.",
+    "noCategoriesYet": "Belum ada kategori. Tambahkan dulu di Profil."
+  },
+  "errors": {
+    "missingLimit": "Batas belum diisi.",
+    "invalidLimit": "Batas harus lebih dari 0.",
+    "saveFailed": "Gagal menyimpan budget.",
+    "deleteFailed": "Gagal menghapus budget."
+  }
 }

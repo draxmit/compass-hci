@@ -1,4 +1,46 @@
 {
   "title": "Budgets",
-  "comingSoon": "Coming in T9."
+  "subtitleMonth": "{{month}}",
+  "styles": {
+    "label": "Budget style",
+    "monthlyLimit": "Monthly limit",
+    "envelope": "Envelope",
+    "fiftyThirtyTwenty": "50 / 30 / 20",
+    "comingSoon": "Coming in v2."
+  },
+  "sections": {
+    "budgeted": "Budgeted",
+    "unbudgeted": "Other categories",
+    "budgetedHint": "Track spending against these limits each month.",
+    "unbudgetedHint": "Add a limit to start tracking."
+  },
+  "row": {
+    "spent": "Spent",
+    "of": "of",
+    "addLimit": "Add limit",
+    "limitPlaceholder": "0",
+    "overBudget": "Over by {{amount}}"
+  },
+  "actions": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "edit": "Edit",
+    "viewReport": "View this month's report →",
+    "deleteConfirmTitle": "Delete budget?",
+    "deleteConfirmBody": "Spending stays logged — only the limit is removed."
+  },
+  "empty": {
+    "noBudgetsYet": "No budgets yet",
+    "noBudgetsBody": "Pick a category below to start setting monthly limits.",
+    "noCategoriesYet": "No categories yet. Add some from Profile first."
+  },
+  "errors": {
+    "missingLimit": "Limit is required.",
+    "invalidLimit": "Limit must be greater than 0.",
+    "saveFailed": "Failed to save budget.",
+    "deleteFailed": "Failed to delete budget."
+  }
 }

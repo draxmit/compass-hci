@@ -234,3 +234,42 @@ export type CategoryMonthTotal = {
   txCount: number;
   updatedAt: unknown;
 };
+
+/**
+ * Budget style — v1 ships only `monthly_limit`; envelope + 50/30/20 are
+ * schema-forward placeholders so v2 can reuse the Budget doc shape without
+ * a migration.
+ */
+export type BudgetStyle = 'monthly_limit' | 'envelope' | 'fifty_thirty_twenty';
+
+/**
+ * Rollover policy — what happens to an unused or over-spent budget at
+ * month boundary. v1 always 'none' (each month resets fresh). 'carry_over'
+ * + 'reset' are placeholders for v2 envelope.
+ */
+export type RolloverPolicy = 'none' | 'carry_over' | 'reset';
+
+/**
+ * Per-category, per-month budget limit. Doc id mirrors `CategoryMonthTotal`
+ * (`${yearMonth}_${categoryId}`) so the join in the budgets screen is a
+ * trivial Map.get on the same key — no aggregation queries.
+ *
+ * Path: `workspaces/{wid}/budgets/{yearMonth}_{categoryId}`.
+ *
+ * v1 invariants:
+ * - `style === 'monthly_limit'`
+ * - `rolloverPolicy === 'none'`
+ *
+ * Both fields stay on the doc so v2 envelope budgets can land without a
+ * schema migration.
+ */
+export type Budget = {
+  id: string;
+  yearMonth: string;        // 'YYYY-MM'
+  categoryId: string;
+  style: BudgetStyle;       // v1 always 'monthly_limit'
+  limitMinor: number;       // integer minor units (×100)
+  rolloverPolicy: RolloverPolicy;  // v1 always 'none'
+  createdAt: unknown;
+  updatedAt: unknown;
+};

@@ -8,6 +8,7 @@ import budgetsEn from '../../../locales/en/budgets.json';
 import categoriesEn from '../../../locales/en/categories.json';
 import commonEn from '../../../locales/en/common.json';
 import dashboardEn from '../../../locales/en/dashboard.json';
+import reportEn from '../../../locales/en/report.json';
 import settingsEn from '../../../locales/en/settings.json';
 import transactionsEn from '../../../locales/en/transactions.json';
 import accountsId from '../../../locales/id/accounts.json';
@@ -16,6 +17,7 @@ import budgetsId from '../../../locales/id/budgets.json';
 import categoriesId from '../../../locales/id/categories.json';
 import commonId from '../../../locales/id/common.json';
 import dashboardId from '../../../locales/id/dashboard.json';
+import reportId from '../../../locales/id/report.json';
 import settingsId from '../../../locales/id/settings.json';
 import transactionsId from '../../../locales/id/transactions.json';
 
@@ -28,6 +30,7 @@ const NAMESPACES = [
   'dashboard',
   'transactions',
   'budgets',
+  'report',
   'settings',
   'categories',
   'accounts',
@@ -40,6 +43,7 @@ const resources = {
     dashboard: dashboardId,
     transactions: transactionsId,
     budgets: budgetsId,
+    report: reportId,
     settings: settingsId,
     categories: categoriesId,
     accounts: accountsId,
@@ -50,6 +54,7 @@ const resources = {
     dashboard: dashboardEn,
     transactions: transactionsEn,
     budgets: budgetsEn,
+    report: reportEn,
     settings: settingsEn,
     categories: categoriesEn,
     accounts: accountsEn,

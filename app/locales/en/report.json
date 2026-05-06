@@ -1,0 +1,23 @@
+{
+  "title": "{{month}} report",
+  "loadingFailed": "Couldn't load report.",
+  "summary": {
+    "income": "Income",
+    "expense": "Expense",
+    "net": "Net"
+  },
+  "delta": {
+    "vsLastMonth": "vs last month",
+    "up": "↑ {{amount}} more",
+    "down": "↓ {{amount}} less",
+    "same": "no change"
+  },
+  "sections": {
+    "breakdown": "Per category",
+    "topTransactions": "Top expenses"
+  },
+  "empty": {
+    "noData": "No transactions logged this month yet.",
+    "noDataCta": "Log first transaction"
+  }
+}
