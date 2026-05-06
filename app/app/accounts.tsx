@@ -218,23 +218,18 @@ function AccountGroup({ type, accounts, isDark, onEditAccount }: AccountGroupPro
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
   return (
-    <Card padding="none" className="mb-4">
-      {/* paddingLeft 64 = pl-4 (16) + icon-swatch 36 + ml-3 (12) so the
-          section header lines up with where each account row's name starts,
-          not with the icon's left edge. */}
-      <View
-        style={{
-          paddingLeft: 64,
-          paddingRight: 16,
-          paddingVertical: 12,
-          borderBottomWidth: 1,
-          borderBottomColor: borderColor,
-        }}
+    <View className="mb-4">
+      {/* Section label sits OUTSIDE the card as an uppercase label in the
+          page-padding column — iOS Settings / Mercury list-section style.
+          Cleaner than embedding it in the card header where the alignment
+          with the row content was visually awkward. */}
+      <Text
+        className="font-sans-medium text-xs uppercase tracking-wider mb-2 px-4"
+        style={{ color: mutedColor }}
       >
-        <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
-          {t(`accounts:types.${type}`)}
-        </Text>
-      </View>
+        {t(`accounts:types.${type}`)}
+      </Text>
+      <Card padding="none">
       {accounts.map((account, idx) => {
         const tint = resolveCategoryColor(account.color, isDark ? 'dark' : 'light');
         return (
@@ -279,7 +274,8 @@ function AccountGroup({ type, accounts, isDark, onEditAccount }: AccountGroupPro
           </Pressable>
         );
       })}
-    </Card>
+      </Card>
+    </View>
   );
 }
 
