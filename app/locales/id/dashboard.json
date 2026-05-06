@@ -1,5 +1,32 @@
 {
   "title": "Dashboard",
   "comingSoon": "Hadir di T8.",
-  "netWorthLabel": "KEKAYAAN BERSIH · placeholder"
+  "netWorthLabel": "KEKAYAAN BERSIH · placeholder",
+  "cards": {
+    "netWorth": "Kekayaan bersih",
+    "acrossNAccounts_one": "Lewat {{count}} akun",
+    "acrossNAccounts_other": "Lewat {{count}} akun",
+    "thisMonth": "Bulan ini",
+    "spent": "Pengeluaran",
+    "vsLastMonth": "vs bulan lalu",
+    "topCategories": "Kategori teratas",
+    "recent": "Terbaru",
+    "seeAll": "Lihat semua"
+  },
+  "delta": {
+    "up": "↑ {{amount}} lebih banyak",
+    "down": "↓ {{amount}} lebih hemat",
+    "same": "tidak ada perubahan"
+  },
+  "empty": {
+    "netWorth": "Tambah akun dulu untuk lihat kekayaan bersihmu.",
+    "addAccount": "Tambah akun",
+    "thisMonth": "Belum ada pengeluaran bulan ini.",
+    "topCategories": "Catat transaksi pertama untuk lihat kategori teratas.",
+    "recent": "Belum ada transaksi."
+  },
+  "goal": {
+    "placeholder": "Menabung untuk: Lebaran 2027",
+    "fromOnboarding": "Atur di T10"
+  }
 }

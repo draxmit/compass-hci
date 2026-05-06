@@ -1,31 +1,440 @@
-import { View } from 'react-native';
+import type {
+  Account, Category, CategoryMonthTotal, Transaction,
+} from '@compass/shared-types';
+import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
+import type { TFunction } from 'i18next';
+import { Plus } from 'lucide-react-native';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Pressable, ScrollView, View } from 'react-native';
 
-import { formatIDR } from '@/shared/utils/formatIDR';
+import { subscribeAccounts } from '@/services/firestore/accountsService';
+import { subscribeCategories } from '@/services/firestore/categoriesService';
+import {
+  listMonthTotals, subscribeMonthTotals,
+} from '@/services/firestore/categoryMonthTotalsService';
+import { subscribeRecent } from '@/services/firestore/transactionsService';
+import { useAuthUser } from '@/stores/authStore';
+import type { Locale } from '@/shared/i18n';
+import { resolveCategoryColor } from '@/shared/theme/categoryColors';
+import { tokens } from '@/shared/theme/tokens';
+import { useTheme } from '@/shared/theme/useTheme';
 import { Card } from '@/shared/ui/Card';
+import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
+import { formatDate } from '@/shared/utils/formatDate';
+import { formatIDR } from '@/shared/utils/formatIDR';
 
-// TODO(T8): real Dashboard (net worth, this-month spending, top-3 categories, recent strip).
+/**
+ * (tabs)/index.tsx — Dashboard. The visibility surface the whole app is
+ * anchored on (per master plan). Four cards from denormalised reads — no
+ * aggregation queries — so the screen is O(1) per metric:
+ *
+ *   1. Net Worth    → sum accounts.currentBalance where included
+ *   2. This Month   → sum month_totals + delta vs last month
+ *   3. Top 3        → sort month_totals desc, slice 3
+ *   4. Recent       → subscribeRecent(5)
+ *
+ * Plus a Goal placeholder line until T10 onboarding lands the real value.
+ *
+ * No charts library — simple capsule + horizontal bar Views handle v1's
+ * visual needs. victory-native is deferred to v2 polish (per ADR-09 §3).
+ */
 export default function DashboardScreen() {
-  const { t } = useTranslation(['dashboard']);
-  return (
-    <View className="flex-1 items-center justify-center px-6">
-      <Card padding="lg" className="w-full max-w-md">
-        <Text className="font-sans-bold text-2xl mb-1">{t('dashboard:title')}</Text>
-        <Text className="text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
-          {t('dashboard:comingSoon')}
-        </Text>
-        <Text
-          className="font-mono tabular-nums text-3xl lg:text-5xl mt-6"
-          adjustsFontSizeToFit
-          numberOfLines={1}
-        >
-          {formatIDR(12_400_000_00)}
-        </Text>
-        <Text className="font-sans-medium text-xs text-surface-light-fg-muted dark:text-surface-dark-fg-muted mt-1">
-          {t('dashboard:netWorthLabel')}
-        </Text>
-      </Card>
-    </View>
+  const { t, i18n } = useTranslation(['dashboard', 'transactions', 'common']);
+  const router = useRouter();
+  const { resolvedScheme } = useTheme();
+  const isDark = resolvedScheme === 'dark';
+  const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
+  const user = useAuthUser();
+  const wid = user ? `solo-${user.uid}` : null;
+
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [monthTotals, setMonthTotals] = useState<CategoryMonthTotal[]>([]);
+  const [lastMonthTotals, setLastMonthTotals] = useState<CategoryMonthTotal[]>([]);
+  const [recentTxs, setRecentTxs] = useState<Transaction[]>([]);
+
+  const { thisYearMonth, lastYearMonth } = useMemo(() => yearMonths(), []);
+
+  useEffect(() => {
+    if (!wid) return;
+    const unsubA = subscribeAccounts(wid, setAccounts);
+    const unsubC = subscribeCategories(wid, setCategories);
+    const unsubM = subscribeMonthTotals(wid, thisYearMonth, setMonthTotals);
+    const unsubR = subscribeRecent(wid, 5, setRecentTxs);
+    // Last month is one-shot — used only for the delta computation, not
+    // realtime. If it changes between cold opens we tolerate it.
+    listMonthTotals(wid, lastYearMonth)
+      .then(setLastMonthTotals)
+      .catch((err: unknown) => console.warn('[dashboard] listMonthTotals(last) failed', err));
+    return () => { unsubA(); unsubC(); unsubM(); unsubR(); };
+  }, [wid, thisYearMonth, lastYearMonth]);
+
+  // ---- Derived values ----
+  const includedAccounts = useMemo(
+    () => accounts.filter((a) => !a.isArchived && a.includedInNetWorth),
+    [accounts],
   );
+  const netWorth = useMemo(
+    () => includedAccounts.reduce((s, a) => s + a.currentBalance, 0),
+    [includedAccounts],
+  );
+
+  const thisMonthSpent = useMemo(
+    () => monthTotals.reduce((s, m) => s + m.totalIDR, 0),
+    [monthTotals],
+  );
+  const lastMonthSpent = useMemo(
+    () => lastMonthTotals.reduce((s, m) => s + m.totalIDR, 0),
+    [lastMonthTotals],
+  );
+  const monthDelta = thisMonthSpent - lastMonthSpent;
+
+  const top3 = useMemo(
+    () => [...monthTotals].sort((a, b) => b.totalIDR - a.totalIDR).slice(0, 3),
+    [monthTotals],
+  );
+  const top3Max = top3[0]?.totalIDR ?? 0;
+
+  const categoriesById = useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
+  );
+  const accountsById = useMemo(
+    () => new Map(accounts.map((a) => [a.id, a])),
+    [accounts],
+  );
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+      <View className="self-center w-full max-w-md">
+        {/* Net Worth */}
+        <Card padding="lg" className="mb-3">
+          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-1" style={{ color: mutedColor }}>
+            {t('dashboard:cards.netWorth')}
+          </Text>
+          {includedAccounts.length === 0 ? (
+            <View className="mt-2">
+              <Text className="font-sans text-sm mb-3" style={{ color: mutedColor }}>
+                {t('dashboard:empty.netWorth')}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('dashboard:empty.addAccount')}
+                onPress={() => router.push('/accounts')}
+                style={{
+                  flexDirection: 'row',
+                  alignSelf: 'flex-start',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  backgroundColor: tokens.accent.dashboard,
+                  minHeight: 36,
+                }}
+              >
+                <Plus size={14} color="#fff" />
+                <Text className="font-sans-medium text-white text-sm">
+                  {t('dashboard:empty.addAccount')}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <Text
+                className="font-mono tabular-nums text-3xl mt-1"
+                style={{ color: fgColor }}
+                adjustsFontSizeToFit
+                numberOfLines={1}
+              >
+                {formatIDR(netWorth)}
+              </Text>
+              <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
+                {t('dashboard:cards.acrossNAccounts', {
+                  count: includedAccounts.length,
+                  context: includedAccounts.length === 1 ? 'one' : 'other',
+                })}
+              </Text>
+            </>
+          )}
+        </Card>
+
+        {/* This Month */}
+        <Card padding="lg" className="mb-3">
+          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-1" style={{ color: mutedColor }}>
+            {t('dashboard:cards.thisMonth')}
+          </Text>
+          {thisMonthSpent === 0 && lastMonthSpent === 0 ? (
+            <Text className="font-sans text-sm mt-2" style={{ color: mutedColor }}>
+              {t('dashboard:empty.thisMonth')}
+            </Text>
+          ) : (
+            <>
+              <Text
+                className="font-mono tabular-nums text-2xl mt-1"
+                style={{ color: fgColor }}
+                adjustsFontSizeToFit
+                numberOfLines={1}
+              >
+                {formatIDR(thisMonthSpent)}
+              </Text>
+              <DeltaLine
+                delta={monthDelta}
+                lang={lang}
+                mutedColor={mutedColor}
+                t={t}
+              />
+            </>
+          )}
+        </Card>
+
+        {/* Top Categories */}
+        <Card padding="lg" className="mb-3">
+          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+            {t('dashboard:cards.topCategories')}
+          </Text>
+          {top3.length === 0 ? (
+            <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+              {t('dashboard:empty.topCategories')}
+            </Text>
+          ) : (
+            top3.map((row, idx) => {
+              const cat = categoriesById.get(row.categoryId);
+              const tint = cat ? resolveCategoryColor(cat.color, isDark ? 'dark' : 'light') : mutedColor;
+              const widthPct = top3Max > 0 ? (row.totalIDR / top3Max) * 100 : 0;
+              return (
+                <View key={row.categoryId} className={idx === top3.length - 1 ? '' : 'mb-3'}>
+                  <View className="flex-row items-center mb-1">
+                    {cat ? (
+                      <View
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 6,
+                          backgroundColor: tint + '22',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 8,
+                        }}
+                      >
+                        <CategoryIcon name={cat.icon} color={tint} size={12} />
+                      </View>
+                    ) : null}
+                    <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }} numberOfLines={1}>
+                      {cat ? cat.name[lang] : row.categoryId}
+                    </Text>
+                    <Text
+                      className="font-mono tabular-nums text-sm"
+                      style={{ color: fgColor }}
+                    >
+                      {formatIDR(row.totalIDR)}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'],
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${widthPct}%`,
+                        height: '100%',
+                        backgroundColor: tint,
+                      }}
+                    />
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </Card>
+
+        {/* Recent */}
+        <Card padding="none" className="mb-3">
+          <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
+            <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+              {t('dashboard:cards.recent')}
+            </Text>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={t('dashboard:cards.seeAll')}
+              onPress={() => router.push('/transactions')}
+              hitSlop={6}
+            >
+              <Text className="font-sans-medium text-xs" style={{ color: tokens.accent.dashboard }}>
+                {t('dashboard:cards.seeAll')}
+              </Text>
+            </Pressable>
+          </View>
+          {recentTxs.length === 0 ? (
+            <View className="px-4 pb-4">
+              <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+                {t('dashboard:empty.recent')}
+              </Text>
+            </View>
+          ) : (
+            recentTxs.map((tx, idx) => (
+              <RecentRow
+                key={tx.id}
+                tx={tx}
+                accountsById={accountsById}
+                categoriesById={categoriesById}
+                isDark={isDark}
+                lang={lang}
+                fgColor={fgColor}
+                mutedColor={mutedColor}
+                showDivider={idx > 0}
+                onPress={() => router.push(`/transaction/${tx.id}` as Href)}
+                t={t}
+              />
+            ))
+          )}
+        </Card>
+
+        {/* Goal placeholder — T10 fills in the real value. */}
+        <View
+          className="self-center px-3 py-2 rounded-full mt-2"
+          style={{
+            backgroundColor: tokens.accent.dashboard + '14',
+            borderWidth: 1,
+            borderColor: tokens.accent.dashboard + '33',
+          }}
+        >
+          <Text className="font-sans text-xs" style={{ color: tokens.accent.dashboard }}>
+            {t('dashboard:goal.placeholder')}
+          </Text>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+type DeltaLineProps = {
+  delta: number;
+  lang: Locale;
+  mutedColor: string;
+  t: TFunction;
+};
+
+function DeltaLine({ delta, mutedColor, t }: DeltaLineProps) {
+  const abs = Math.abs(delta);
+  if (delta === 0) {
+    return (
+      <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
+        {t('dashboard:delta.same')} · {t('dashboard:cards.vsLastMonth')}
+      </Text>
+    );
+  }
+  const isUp = delta > 0;
+  const color = isUp ? tokens.semantic.danger : tokens.semantic.positive;
+  const key = isUp ? 'dashboard:delta.up' : 'dashboard:delta.down';
+  return (
+    <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
+      <Text style={{ color }}>{t(key, { amount: formatIDR(abs) })}</Text>
+      {' · '}
+      {t('dashboard:cards.vsLastMonth')}
+    </Text>
+  );
+}
+
+type RecentRowProps = {
+  tx: Transaction;
+  accountsById: Map<string, Account>;
+  categoriesById: Map<string, Category>;
+  isDark: boolean;
+  lang: Locale;
+  fgColor: string;
+  mutedColor: string;
+  showDivider: boolean;
+  onPress: () => void;
+  t: TFunction;
+};
+
+function RecentRow({
+  tx, accountsById, categoriesById, isDark, lang, fgColor, mutedColor, showDivider, onPress, t,
+}: RecentRowProps) {
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+  const account = accountsById.get(tx.accountId);
+  const splitCategory = tx.splits[0]?.categoryId
+    ? categoriesById.get(tx.splits[0].categoryId)
+    : null;
+
+  let icon = splitCategory?.icon ?? account?.icon ?? 'tag';
+  let tint = splitCategory?.color ?? account?.color ?? 'slate';
+  if (tx.type === 'transfer' && account) {
+    icon = account.icon;
+    tint = account.color;
+  }
+  const swatch = resolveCategoryColor(tint, isDark ? 'dark' : 'light');
+
+  const primary = tx.description?.trim()
+    || splitCategory?.name[lang]
+    || t(`transactions:entry.types.${tx.type}`);
+
+  let amountColor = fgColor;
+  let amountPrefix = '';
+  if (tx.type === 'expense') {
+    amountColor = tokens.semantic.danger;
+    amountPrefix = '−';
+  } else if (tx.type === 'income') {
+    amountColor = tokens.semantic.positive;
+    amountPrefix = '+';
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={primary}
+      onPress={onPress}
+      className="flex-row items-center px-4 py-3 min-h-[44px]"
+      style={{ borderTopWidth: showDivider ? 1 : 0, borderTopColor: borderColor }}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          backgroundColor: swatch + '22',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 10,
+        }}
+      >
+        <CategoryIcon name={icon} color={swatch} size={16} />
+      </View>
+      <View className="flex-1">
+        <Text className="font-sans-medium text-sm" style={{ color: fgColor }} numberOfLines={1}>
+          {primary}
+        </Text>
+        <Text className="font-sans text-xs" style={{ color: mutedColor }} numberOfLines={1}>
+          {formatDate(new Date(tx.date), 'long', lang)}
+        </Text>
+      </View>
+      <Text
+        className="font-mono tabular-nums text-sm font-sans-semibold"
+        style={{ color: amountColor }}
+      >
+        {amountPrefix}
+        {formatIDR(tx.amount)}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** Compute current + previous yearMonth in the device's local timezone. */
+function yearMonths(): { thisYearMonth: string; lastYearMonth: string } {
+  const now = new Date();
+  const thisYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const lastDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastYearMonth = `${lastDate.getFullYear()}-${String(lastDate.getMonth() + 1).padStart(2, '0')}`;
+  return { thisYearMonth, lastYearMonth };
 }

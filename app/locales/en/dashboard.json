@@ -1,5 +1,32 @@
 {
   "title": "Dashboard",
   "comingSoon": "Coming in T8.",
-  "netWorthLabel": "NET WORTH · placeholder"
+  "netWorthLabel": "NET WORTH · placeholder",
+  "cards": {
+    "netWorth": "Net worth",
+    "acrossNAccounts_one": "Across {{count}} account",
+    "acrossNAccounts_other": "Across {{count}} accounts",
+    "thisMonth": "This month",
+    "spent": "Spent",
+    "vsLastMonth": "vs last month",
+    "topCategories": "Top categories",
+    "recent": "Recent",
+    "seeAll": "See all"
+  },
+  "delta": {
+    "up": "↑ {{amount}} more",
+    "down": "↓ {{amount}} less",
+    "same": "no change"
+  },
+  "empty": {
+    "netWorth": "Add an account to see your net worth.",
+    "addAccount": "Add account",
+    "thisMonth": "No spending yet this month.",
+    "topCategories": "Log a transaction to see top categories.",
+    "recent": "No transactions yet."
+  },
+  "goal": {
+    "placeholder": "Saving for: Lebaran 2027",
+    "fromOnboarding": "Set in T10"
+  }
 }
