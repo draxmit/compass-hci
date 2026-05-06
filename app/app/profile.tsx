@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { auth, updateDisplayName } from '@/services/firebase';
+import { getTransactionCount } from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
 import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import { tokens } from '@/shared/theme/tokens';
@@ -30,7 +31,9 @@ export default function ProfileScreen() {
   const [draft, setDraft] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
   const [createdAt, setCreatedAt] = useState<Date | null>(null);
+  const [txCount, setTxCount] = useState<number | null>(null);
   const isDark = resolvedScheme === 'dark';
+  const wid = user ? `solo-${user.uid}` : null;
 
   // Sync draft when user changes externally (e.g. after auth event).
   useEffect(() => {
@@ -43,6 +46,22 @@ export default function ProfileScreen() {
     const ts = cur?.metadata?.creationTime;
     if (ts) setCreatedAt(new Date(ts));
   }, [user?.uid]);
+
+  // Server-side count aggregation — cheap, doesn't pull each doc. Refreshes
+  // on every profile mount; not realtime, but the user can't be on Profile
+  // and the entry screen simultaneously so the value is always current
+  // when displayed.
+  useEffect(() => {
+    if (!wid) return;
+    let cancelled = false;
+    getTransactionCount(wid)
+      .then((n) => { if (!cancelled) setTxCount(n); })
+      .catch((err: unknown) => {
+        console.warn('[profile] transaction count failed', err);
+        if (!cancelled) setTxCount(0);
+      });
+    return () => { cancelled = true; };
+  }, [wid]);
 
   // We reached /profile via router.replace (see MobileTopBar) so the Stack
   // is empty behind us — Android's hardware back would exit the app. Route
@@ -259,14 +278,18 @@ export default function ProfileScreen() {
           <Text className="font-sans text-sm" style={{ color: mutedColor }}>
             {t('settings:profile.transactionsLogged')}
           </Text>
-          <Text className="font-mono tabular-nums text-base font-sans-semibold">0</Text>
+          <Text className="font-mono tabular-nums text-base font-sans-semibold">
+            {txCount ?? '—'}
+          </Text>
         </View>
-        <Text
-          className="font-sans text-xs mt-3"
-          style={{ color: mutedColor }}
-        >
-          {t('settings:profile.noTransactionsYet')}
-        </Text>
+        {txCount === 0 ? (
+          <Text
+            className="font-sans text-xs mt-3"
+            style={{ color: mutedColor }}
+          >
+            {t('settings:profile.noTransactionsYet')}
+          </Text>
+        ) : null}
       </Card>
 
       {/* Achievements placeholder */}

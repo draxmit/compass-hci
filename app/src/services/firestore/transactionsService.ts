@@ -1,6 +1,6 @@
 import type { Split, Transaction, TransactionType } from '@compass/shared-types';
 import {
-  collection, doc, getDoc, getDocs, increment, onSnapshot,
+  collection, doc, getCountFromServer, getDoc, getDocs, increment, onSnapshot,
   orderBy, limit as fsLimit, query, serverTimestamp, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
@@ -138,6 +138,21 @@ export function subscribeRecent(
   return onSnapshot(q, (snap) => {
     cb(snap.docs.map((d) => ({ ...(d.data() as Omit<Transaction, 'id'>), id: d.id })));
   });
+}
+
+/**
+ * One-shot transaction count for the workspace. Uses Firestore's
+ * server-side aggregation (`getCountFromServer`) so we don't pull every
+ * doc into memory just to count them. Used by the Profile screen's
+ * "Transactions logged" stat.
+ *
+ * Not realtime — Profile fetches on each mount, which is fresh enough
+ * because the user can't be on Profile and the entry screen at the same
+ * time.
+ */
+export async function getTransactionCount(wid: string): Promise<number> {
+  const snap = await getCountFromServer(transactionsCollection(wid));
+  return snap.data().count;
 }
 
 /**

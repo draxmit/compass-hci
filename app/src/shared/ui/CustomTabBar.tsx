@@ -104,7 +104,12 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('common:nav.newTransaction')}
-                onPress={() => router.push('/transaction/new')}
+                // Same trick as the avatar tap (see MobileTopBar): replace
+                // instead of push, so there's no layered Stack underneath
+                // the new screen for Android to snapshot-reveal during the
+                // transition. Save/cancel paths in /transaction/new use
+                // canGoBack-fallback to land on the right tab.
+                onPress={() => router.replace('/transaction/new')}
                 style={{
                   width: 52,
                   height: 52,

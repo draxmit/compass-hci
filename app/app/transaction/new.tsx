@@ -77,14 +77,23 @@ export default function NewTransactionScreen() {
     return () => { unsubA(); unsubC(); };
   }, [wid]);
 
+  // Hardware back: same fallback as Profile — we may have arrived here via
+  // router.replace from the FAB (mobile), in which case the Stack is empty
+  // behind us and Android's default back would exit the app. Route to the
+  // Transactions tab so the user lands on the most useful surface.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (router.canGoBack()) return false;
-      router.replace('/');
+      router.replace('/transactions');
       return true;
     });
     return () => sub.remove();
   }, [router]);
+
+  const closeScreen = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/transactions');
+  };
 
   // Re-parse on every NLP-input change. Apply-result inlined so the
   // useEffect closure can be stable without an extra useCallback.
@@ -143,7 +152,7 @@ export default function NewTransactionScreen() {
         rawInput: nlpInput.trim() || null,
         confidence: nlpInput.trim() ? confidence : null,
       });
-      router.back();
+      closeScreen();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('transactions:entry.errors.createFailed');
       Alert.alert(t('transactions:entry.title'), msg);
@@ -169,7 +178,7 @@ export default function NewTransactionScreen() {
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t('common:actions.back')}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            onPress={closeScreen}
             hitSlop={8}
             className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
           >
@@ -318,7 +327,7 @@ export default function NewTransactionScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('transactions:entry.actions.cancel')}
-              onPress={() => router.back()}
+              onPress={closeScreen}
               disabled={saving}
               style={{
                 flex: 1,
