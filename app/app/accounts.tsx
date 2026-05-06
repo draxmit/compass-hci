@@ -476,7 +476,10 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang: _lang }: Account
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
             {t('accounts:fields.type')}
           </Text>
-          <View className="flex-row" style={{ gap: 6 }}>
+          {/* 2×2 grid — `flex: 1` across 4 buttons made the "Credit Card" /
+              "Kartu Kredit" label wrap awkwardly on narrow screens. Two
+              48%-wide rows give every label room to breathe. */}
+          <View className="flex-row flex-wrap" style={{ gap: 8 }}>
             {ACCOUNT_TYPES.map((typeKey) => {
               const selected = type === typeKey;
               return (
@@ -486,18 +489,19 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang: _lang }: Account
                   accessibilityState={{ selected }}
                   onPress={() => handleTypeChange(typeKey)}
                   style={{
-                    flex: 1,
-                    paddingVertical: 10,
+                    width: '48%',
+                    paddingVertical: 12,
                     borderRadius: 10,
                     borderWidth: 1,
                     alignItems: 'center',
                     justifyContent: 'center',
+                    minHeight: 44,
                     borderColor: selected ? tokens.accent.dashboard : borderColor,
                     backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
                   }}
                 >
                   <Text
-                    className="font-sans-medium text-xs"
+                    className="font-sans-medium text-sm"
                     style={{ color: selected ? tokens.accent.dashboard : fgColor }}
                   >
                     {t(`accounts:types.${typeKey}`)}
