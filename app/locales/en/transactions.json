@@ -1,6 +1,7 @@
 {
   "title": "Transactions",
   "comingSoon": "Coming in T7.",
+  "emptyHint": "Tap + to log your first transaction.",
   "entry": {
     "title": "New transaction",
     "nlpLabel": "Quick entry",
