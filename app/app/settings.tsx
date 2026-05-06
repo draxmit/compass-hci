@@ -98,7 +98,7 @@ export default function SettingsScreen() {
         </Text>
 
       {/* Theme picker */}
-      <Card padding="lg" className="mb-4 w-full max-w-md">
+      <Card padding="lg" className="mb-4 w-full">
         <Text className={sectionLabelClass} style={{ color: mutedColor }}>
           {t('settings:settings.section.theme')}
         </Text>
@@ -144,7 +144,7 @@ export default function SettingsScreen() {
       </Card>
 
       {/* Language picker */}
-      <Card padding="lg" className="mb-4 w-full max-w-md">
+      <Card padding="lg" className="mb-4 w-full">
         <Text className={sectionLabelClass} style={{ color: mutedColor }}>
           {t('settings:settings.section.language')}
         </Text>
@@ -190,7 +190,7 @@ export default function SettingsScreen() {
       </Card>
 
       {/* Sign out */}
-      <Card padding="none" className="w-full max-w-md">
+      <Card padding="none" className="w-full">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('settings:settings.signOut')}

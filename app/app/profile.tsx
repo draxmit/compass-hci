@@ -138,7 +138,7 @@ export default function ProfileScreen() {
 
       {/* Identity card */}
       {user ? (
-        <Card padding="lg" className="mb-4 w-full max-w-md">
+        <Card padding="lg" className="mb-4 w-full">
           <Text className={sectionLabelClass} style={{ color: mutedColor }}>
             {t('settings:profile.section.identity')}
           </Text>
@@ -270,7 +270,7 @@ export default function ProfileScreen() {
       ) : null}
 
       {/* Activity stats card */}
-      <Card padding="lg" className="mb-4 w-full max-w-md">
+      <Card padding="lg" className="mb-4 w-full">
         <Text className={sectionLabelClass} style={{ color: mutedColor }}>
           {t('settings:profile.section.activity')}
         </Text>
@@ -293,7 +293,7 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Achievements placeholder */}
-      <Card padding="lg" className="mb-4 w-full max-w-md">
+      <Card padding="lg" className="mb-4 w-full">
         <View className="flex-row items-center mb-2">
           <Sparkles size={16} color={tokens.accent.insights} />
           <Text
@@ -309,7 +309,7 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Accounts link — your money lives here. */}
-      <Card padding="none" className="mb-4 w-full max-w-md">
+      <Card padding="none" className="mb-4 w-full">
         <Pressable
           accessibilityRole="link"
           accessibilityLabel={t('accounts:title')}
@@ -328,7 +328,7 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Categories link — your data lives in Profile, not Settings. */}
-      <Card padding="none" className="mb-4 w-full max-w-md">
+      <Card padding="none" className="mb-4 w-full">
         <Pressable
           accessibilityRole="link"
           accessibilityLabel={t('categories:title')}
@@ -347,7 +347,7 @@ export default function ProfileScreen() {
       </Card>
 
       {/* Settings link */}
-      <Card padding="none" className="w-full max-w-md">
+      <Card padding="none" className="w-full">
         <Pressable
           accessibilityRole="link"
           accessibilityLabel={t('settings:profile.settingsLink')}
