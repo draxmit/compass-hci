@@ -42,7 +42,23 @@
     "actions": {
       "save": "Save",
       "saving": "Saving…",
-      "cancel": "Cancel"
-    }
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleting": "Deleting…",
+      "deleteConfirmTitle": "Delete this transaction?",
+      "deleteConfirmBody": "Account balance and monthly total will be reversed."
+    },
+    "editTitle": "Edit transaction",
+    "loadingFailed": "Couldn't load transaction.",
+    "deleteFailed": "Failed to delete transaction."
+  },
+  "filters": {
+    "search": "Search…",
+    "allTypes": "All",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "allTime": "All time",
+    "clear": "Clear filters",
+    "noResults": "No transactions match the current filters."
   }
 }

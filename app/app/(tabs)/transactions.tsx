@@ -1,8 +1,10 @@
-import type { Account, Category, Transaction } from '@compass/shared-types';
-import { useEffect, useMemo, useState } from 'react';
+import type { Account, Category, Transaction, TransactionType } from '@compass/shared-types';
+import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
@@ -15,19 +17,26 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
+import { TextField } from '@/shared/ui/TextField';
 import { formatDate } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
 
+type TypeFilter = 'all' | TransactionType;
+type DateFilter = 'this_month' | 'last_month' | 'all_time';
+
 /**
- * (tabs)/transactions.tsx — minimal recent-transactions list. Subscribes
- * to the most recent 50 transactions across all months and renders them
- * grouped by date. T7 will replace this with the full FlashList +
- * chip filters + tap-to-edit flow; this lightweight version exists so
- * users can SEE their just-saved transactions without opening Firestore
- * console.
+ * (tabs)/transactions.tsx — recent transactions list with chip filters
+ * + tap-to-edit. Subscribes to the most recent 50 transactions across all
+ * months; filters run client-side.
+ *
+ * v1 simplification: the 50-tx subscription cap means "All time" filter
+ * actually shows the last 50 (ADR-08 §3). When a real user has hundreds
+ * of transactions a future polish pass should switch to a yearMonth-driven
+ * subscription with paged "load older" affordance.
  */
 export default function TransactionsScreen() {
   const { t, i18n } = useTranslation(['transactions', 'accounts', 'common']);
+  const router = useRouter();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
@@ -38,77 +47,200 @@ export default function TransactionsScreen() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
 
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('this_month');
+
   useEffect(() => {
     if (!wid) return;
     const unsubT = subscribeRecent(wid, 50, setTxs);
     const unsubA = subscribeAccounts(wid, setAccounts);
     const unsubC = subscribeCategories(wid, setCategories);
-    return () => {
-      unsubT();
-      unsubA();
-      unsubC();
-    };
+    return () => { unsubT(); unsubA(); unsubC(); };
   }, [wid]);
 
-  const accountsById = useMemo(
-    () => new Map(accounts.map((a) => [a.id, a])),
-    [accounts],
-  );
-  const categoriesById = useMemo(
-    () => new Map(categories.map((c) => [c.id, c])),
-    [categories],
-  );
+  const accountsById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+  const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
-  // Group transactions by date (already sorted desc by the subscription).
+  const filtered = useMemo(() => {
+    const now = new Date();
+    const thisYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastYearMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+    const lower = search.trim().toLowerCase();
+
+    return txs.filter((tx) => {
+      if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
+      if (dateFilter === 'this_month' && tx.yearMonth !== thisYearMonth) return false;
+      if (dateFilter === 'last_month' && tx.yearMonth !== lastYearMonth) return false;
+      if (lower && !tx.description.toLowerCase().includes(lower)) return false;
+      return true;
+    });
+  }, [txs, typeFilter, dateFilter, search]);
+
   const grouped = useMemo(() => {
     const groups = new Map<string, Transaction[]>();
-    for (const tx of txs) {
+    for (const tx of filtered) {
       const list = groups.get(tx.date) ?? [];
       list.push(tx);
       groups.set(tx.date, list);
     }
     return [...groups.entries()];
-  }, [txs]);
+  }, [filtered]);
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+
+  const filtersDirty = search.trim() !== '' || typeFilter !== 'all' || dateFilter !== 'this_month';
+
+  const typeChips: { key: TypeFilter; label: string }[] = [
+    { key: 'all', label: t('transactions:filters.allTypes') },
+    { key: 'expense', label: t('transactions:entry.types.expense') },
+    { key: 'income', label: t('transactions:entry.types.income') },
+    { key: 'transfer', label: t('transactions:entry.types.transfer') },
+  ];
+
+  const dateChips: { key: DateFilter; label: string }[] = [
+    { key: 'this_month', label: t('transactions:filters.thisMonth') },
+    { key: 'last_month', label: t('transactions:filters.lastMonth') },
+    { key: 'all_time', label: t('transactions:filters.allTime') },
+  ];
 
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md">
-        <Text className="font-sans-bold text-3xl mb-1">{t('transactions:title')}</Text>
-        <Text className="font-sans text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-6">
-          {grouped.length === 0
-            ? t('transactions:emptyHint', { defaultValue: 'Tap + to log your first transaction.' })
-            : ''}
-        </Text>
+        <Text className="font-sans-bold text-3xl mb-4">{t('transactions:title')}</Text>
 
-        {grouped.map(([date, items]) => (
-          <View key={date} className="mb-4">
-            <Text
-              className="font-sans-medium text-xs uppercase tracking-wider mb-2 px-4"
-              style={{ color: mutedColor }}
+        {/* Search */}
+        <Card padding="lg" className="mb-3">
+          <TextField
+            label=""
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t('transactions:filters.search')}
+            autoCapitalize="none"
+            returnKeyType="search"
+          />
+        </Card>
+
+        {/* Type chips */}
+        <View className="flex-row flex-wrap mb-2" style={{ gap: 6 }}>
+          {typeChips.map((chip) => {
+            const selected = typeFilter === chip.key;
+            return (
+              <Pressable
+                key={chip.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setTypeFilter(chip.key)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: selected ? tokens.accent.dashboard : borderColor,
+                  backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                }}
+              >
+                <Text
+                  className="font-sans-medium text-xs"
+                  style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+                >
+                  {chip.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Date chips */}
+        <View className="flex-row flex-wrap mb-4" style={{ gap: 6 }}>
+          {dateChips.map((chip) => {
+            const selected = dateFilter === chip.key;
+            return (
+              <Pressable
+                key={chip.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setDateFilter(chip.key)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: selected ? tokens.accent.dashboard : borderColor,
+                  backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                }}
+              >
+                <Text
+                  className="font-sans-medium text-xs"
+                  style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+                >
+                  {chip.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+          {filtersDirty ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('transactions:filters.clear')}
+              onPress={() => {
+                setSearch('');
+                setTypeFilter('all');
+                setDateFilter('this_month');
+              }}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 16,
+              }}
             >
-              {formatDate(new Date(date), 'long', lang)}
+              <Text className="font-sans-medium text-xs" style={{ color: mutedColor, textDecorationLine: 'underline' }}>
+                {t('transactions:filters.clear')}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {grouped.length === 0 ? (
+          <Card padding="lg">
+            <Text className="font-sans text-sm text-center" style={{ color: mutedColor }}>
+              {txs.length === 0
+                ? t('transactions:emptyHint')
+                : t('transactions:filters.noResults')}
             </Text>
-            <Card padding="none">
-              {items.map((tx, idx) => (
-                <TransactionRow
-                  key={tx.id}
-                  tx={tx}
-                  accountsById={accountsById}
-                  categoriesById={categoriesById}
-                  isDark={isDark}
-                  lang={lang}
-                  fgColor={fgColor}
-                  mutedColor={mutedColor}
-                  showDivider={idx > 0}
-                  t={t}
-                />
-              ))}
-            </Card>
-          </View>
-        ))}
+          </Card>
+        ) : (
+          grouped.map(([date, items]) => (
+            <View key={date} className="mb-4">
+              <Text
+                className="font-sans-medium text-xs uppercase tracking-wider mb-2 px-4"
+                style={{ color: mutedColor }}
+              >
+                {formatDate(new Date(date), 'long', lang)}
+              </Text>
+              <Card padding="none">
+                {items.map((tx, idx) => (
+                  <TransactionRow
+                    key={tx.id}
+                    tx={tx}
+                    accountsById={accountsById}
+                    categoriesById={categoriesById}
+                    isDark={isDark}
+                    lang={lang}
+                    fgColor={fgColor}
+                    mutedColor={mutedColor}
+                    showDivider={idx > 0}
+                    onPress={() => router.push(`/transaction/${tx.id}` as Href)}
+                    t={t}
+                  />
+                ))}
+              </Card>
+            </View>
+          ))
+        )}
       </View>
     </ScrollView>
   );
@@ -123,29 +255,18 @@ type TransactionRowProps = {
   fgColor: string;
   mutedColor: string;
   showDivider: boolean;
+  onPress: () => void;
   t: TFunction;
 };
 
 function TransactionRow({
-  tx,
-  accountsById,
-  categoriesById,
-  isDark,
-  lang,
-  fgColor,
-  mutedColor,
-  showDivider,
-  t,
+  tx, accountsById, categoriesById, isDark, lang, fgColor, mutedColor, showDivider, onPress, t,
 }: TransactionRowProps) {
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
-
   const account = accountsById.get(tx.accountId);
   const toAccount = tx.toAccountId ? accountsById.get(tx.toAccountId) : null;
   const splitCategory = tx.splits[0]?.categoryId ? categoriesById.get(tx.splits[0].categoryId) : null;
 
-  // For a transfer, show the icon of the from-account; for expense/income
-  // show the category icon (parent's icon if the category itself is gone
-  // due to archive race; falls back to the account icon).
   let icon = splitCategory?.icon ?? account?.icon ?? 'tag';
   let tint = splitCategory?.color ?? account?.color ?? 'slate';
   if (tx.type === 'transfer' && account) {
@@ -154,19 +275,15 @@ function TransactionRow({
   }
   const swatch = resolveCategoryColor(tint, isDark ? 'dark' : 'light');
 
-  // Primary label: description if present, else category name, else type.
   const primary = tx.description?.trim()
     || splitCategory?.name[lang]
     || t(`transactions:entry.types.${tx.type}`);
 
-  // Secondary: account name + (for transfers) → to-account name
   const accountLabel = account?.name ?? '?';
   const secondary = tx.type === 'transfer' && toAccount
     ? `${accountLabel} → ${toAccount.name}`
     : accountLabel;
 
-  // Amount: sign-aware. Expense displays negative (red), income positive
-  // (green/positive token), transfer neutral.
   let amountColor = fgColor;
   let amountPrefix = '';
   if (tx.type === 'expense') {
@@ -178,7 +295,10 @@ function TransactionRow({
   }
 
   return (
-    <View
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={primary}
+      onPress={onPress}
       className="flex-row items-center px-4 py-3 min-h-[44px]"
       style={{
         borderTopWidth: showDivider ? 1 : 0,
@@ -213,6 +333,6 @@ function TransactionRow({
         {amountPrefix}
         {formatIDR(tx.amount)}
       </Text>
-    </View>
+    </Pressable>
   );
 }

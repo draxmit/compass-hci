@@ -42,7 +42,23 @@
     "actions": {
       "save": "Simpan",
       "saving": "Menyimpan…",
-      "cancel": "Batal"
-    }
+      "cancel": "Batal",
+      "delete": "Hapus",
+      "deleting": "Menghapus…",
+      "deleteConfirmTitle": "Hapus transaksi?",
+      "deleteConfirmBody": "Saldo akun & total bulanan akan dikembalikan."
+    },
+    "editTitle": "Ubah transaksi",
+    "loadingFailed": "Gagal memuat transaksi.",
+    "deleteFailed": "Gagal menghapus transaksi."
+  },
+  "filters": {
+    "search": "Cari…",
+    "allTypes": "Semua",
+    "thisMonth": "Bulan ini",
+    "lastMonth": "Bulan lalu",
+    "allTime": "Semua waktu",
+    "clear": "Reset filter",
+    "noResults": "Tidak ada transaksi yang cocok dengan filter."
   }
 }

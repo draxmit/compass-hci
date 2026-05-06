@@ -1,7 +1,7 @@
 import type { Split, Transaction, TransactionType } from '@compass/shared-types';
 import {
-  collection, doc, getDocs, increment, onSnapshot,
-  orderBy, limit as fsLimit, query, serverTimestamp, where, writeBatch,
+  collection, doc, getDoc, getDocs, increment, onSnapshot,
+  orderBy, limit as fsLimit, query, serverTimestamp, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
 import { db } from '../firebase/client';
@@ -141,16 +141,59 @@ export function subscribeRecent(
 }
 
 /**
+ * Read one transaction by id. Used by the edit screen to pre-fill form
+ * state from the existing record.
+ */
+export async function getTransaction(wid: string, id: string): Promise<Transaction | null> {
+  const snap = await getDoc(transactionRef(wid, id));
+  if (!snap.exists()) return null;
+  return { ...(snap.data() as Omit<Transaction, 'id'>), id: snap.id };
+}
+
+/**
+ * Patch shape for `updateTransaction`. Explicitly limited to
+ * non-financial metadata (ADR-08 §1). Editing amount / account / category /
+ * type goes through `deleteTransaction` + `createTransaction` so the
+ * atomic-write invariant for balance + month totals stays intact.
+ */
+export type UpdateTransactionInput = {
+  description?: string;
+};
+
+/**
+ * Patch a transaction's non-financial metadata (currently just
+ * `description`). Refuses to touch any financial field — both at the
+ * type level (UpdateTransactionInput omits them) and at runtime (guard).
+ */
+export async function updateTransaction(
+  wid: string,
+  id: string,
+  patch: UpdateTransactionInput,
+): Promise<void> {
+  // Defensive runtime guard — the type already excludes financial keys,
+  // but keep the runtime check so an `as` cast can't bypass the invariant.
+  const forbidden = ['amount', 'amountIDR', 'currency', 'type', 'accountId', 'toAccountId', 'splits', 'date', 'yearMonth'];
+  for (const key of forbidden) {
+    if (key in (patch as Record<string, unknown>)) {
+      throw new Error(`updateTransaction: '${key}' must flow through deleteTransaction + createTransaction`);
+    }
+  }
+  await updateDoc(transactionRef(wid, id), {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
  * Hard delete with reversal. Batches the doc delete with reversed balance
  * + month-total updates so the financial state stays consistent. Editing
  * a transaction's amount/account/category goes through delete + recreate
- * (ADR-07 §10) — `updateTransaction` only patches non-financial metadata.
+ * (ADR-08 §1) — `updateTransaction` only patches non-financial metadata.
  */
 export async function deleteTransaction(wid: string, id: string): Promise<void> {
-  const snap = await getDocs(query(transactionsCollection(wid), where('__name__', '==', id)));
-  const docSnap = snap.docs[0];
-  if (!docSnap) throw new Error(`Transaction ${id} not found`);
-  const tx = docSnap.data() as Transaction;
+  const snap = await getDoc(transactionRef(wid, id));
+  if (!snap.exists()) throw new Error(`Transaction ${id} not found`);
+  const tx = snap.data() as Transaction;
 
   const batch = writeBatch(db);
   batch.delete(transactionRef(wid, id));
