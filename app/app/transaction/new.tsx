@@ -1,5 +1,6 @@
 import type { Account, Category, TransactionType } from '@compass/shared-types';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +35,18 @@ const TYPES: readonly TransactionType[] = ['expense', 'income', 'transfer'];
  * Atomic batch write goes through transactionsService.createTransaction —
  * tx doc + balance delta + category month total all land together.
  */
+// Tab paths the FAB / welcome cards may pass via ?from=… so we know
+// where to return to on save / cancel / hardware-back. Anything else
+// is dropped — we never let an arbitrary path through, which would let
+// a malformed link punt the user to a non-tab screen on close.
+const VALID_FROM = ['/', '/transactions', '/budgets', '/insights'] as const;
+type ValidFrom = (typeof VALID_FROM)[number];
+function resolveFrom(raw: unknown): ValidFrom {
+  return typeof raw === 'string' && (VALID_FROM as readonly string[]).includes(raw)
+    ? (raw as ValidFrom)
+    : '/transactions';
+}
+
 export default function NewTransactionScreen() {
   const { t, i18n } = useTranslation(['transactions', 'accounts', 'categories', 'common']);
   const router = useRouter();
@@ -43,6 +56,12 @@ export default function NewTransactionScreen() {
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
   const user = useAuthUser();
   const wid = user ? `solo-${user.uid}` : null;
+  // Source tab passed by the FAB / welcome cards via ?from=. Used as the
+  // close-fallback target when there's no Stack frame to pop (we arrived
+  // via router.replace, not push). Falls back to /transactions if absent
+  // or invalid.
+  const params = useLocalSearchParams<{ from?: string }>();
+  const fromTab: Href = resolveFrom(params.from);
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -80,19 +99,19 @@ export default function NewTransactionScreen() {
   // Hardware back: same fallback as Profile — we may have arrived here via
   // router.replace from the FAB (mobile), in which case the Stack is empty
   // behind us and Android's default back would exit the app. Route to the
-  // Transactions tab so the user lands on the most useful surface.
+  // source tab passed via ?from= (or /transactions as the safe fallback).
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (router.canGoBack()) return false;
-      router.replace('/transactions');
+      router.replace(fromTab);
       return true;
     });
     return () => sub.remove();
-  }, [router]);
+  }, [router, fromTab]);
 
   const closeScreen = () => {
     if (router.canGoBack()) router.back();
-    else router.replace('/transactions');
+    else router.replace(fromTab);
   };
 
   // Re-parse on every NLP-input change. Apply-result inlined so the

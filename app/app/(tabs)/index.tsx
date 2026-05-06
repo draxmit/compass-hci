@@ -59,21 +59,48 @@ export default function DashboardScreen() {
   const [lastMonthTotals, setLastMonthTotals] = useState<CategoryMonthTotal[]>([]);
   const [recentTxs, setRecentTxs] = useState<Transaction[]>([]);
 
+  // Per-subscription "first emission landed" flags. Without these the
+  // initial render sees [] for everything and triggers the welcome /
+  // empty-state branches for ~50–100 ms before Firestore's first
+  // emission lands — a "wrong UI flashes then real UI paints" effect.
+  // Gating the empty-state UI on allLoaded keeps the page blank during
+  // the loading window instead.
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [monthTotalsLoaded, setMonthTotalsLoaded] = useState(false);
+  const [recentLoaded, setRecentLoaded] = useState(false);
+
   const { thisYearMonth, lastYearMonth } = useMemo(() => yearMonths(), []);
 
   useEffect(() => {
     if (!wid) return;
-    const unsubA = subscribeAccounts(wid, setAccounts);
-    const unsubC = subscribeCategories(wid, setCategories);
-    const unsubM = subscribeMonthTotals(wid, thisYearMonth, setMonthTotals);
-    const unsubR = subscribeRecent(wid, 5, setRecentTxs);
+    const unsubA = subscribeAccounts(wid, (data) => {
+      setAccounts(data);
+      setAccountsLoaded(true);
+    });
+    const unsubC = subscribeCategories(wid, (data) => {
+      setCategories(data);
+      setCategoriesLoaded(true);
+    });
+    const unsubM = subscribeMonthTotals(wid, thisYearMonth, (data) => {
+      setMonthTotals(data);
+      setMonthTotalsLoaded(true);
+    });
+    const unsubR = subscribeRecent(wid, 5, (data) => {
+      setRecentTxs(data);
+      setRecentLoaded(true);
+    });
     // Last month is one-shot — used only for the delta computation, not
-    // realtime. If it changes between cold opens we tolerate it.
+    // realtime. Not part of the loaded-gate; if it lands a frame after
+    // the others the delta line just briefly reads "no change", which is
+    // acceptable.
     listMonthTotals(wid, lastYearMonth)
       .then(setLastMonthTotals)
       .catch((err: unknown) => console.warn('[dashboard] listMonthTotals(last) failed', err));
     return () => { unsubA(); unsubC(); unsubM(); unsubR(); };
   }, [wid, thisYearMonth, lastYearMonth]);
+
+  const allLoaded = accountsLoaded && categoriesLoaded && monthTotalsLoaded && recentLoaded;
 
   // ---- Derived values ----
   const includedAccounts = useMemo(
@@ -111,9 +138,11 @@ export default function DashboardScreen() {
   );
 
   // Aggregate empty checks — let us show a single warm welcome instead
-  // of three separate "no X yet" lines stacked on a fresh user.
-  const trulyEmpty = includedAccounts.length === 0 && recentTxs.length === 0;
-  const noTxsButHasAccounts = includedAccounts.length > 0 && recentTxs.length === 0;
+  // of three separate "no X yet" lines stacked on a fresh user. Both
+  // gated on allLoaded so the welcome cards never paint during the
+  // ~50–100 ms loading window before Firestore's first emission.
+  const trulyEmpty = allLoaded && includedAccounts.length === 0 && recentTxs.length === 0;
+  const noTxsButHasAccounts = allLoaded && includedAccounts.length > 0 && recentTxs.length === 0;
 
   if (trulyEmpty) {
     return (
@@ -167,7 +196,9 @@ export default function DashboardScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('dashboard:welcome.addTransactionCta')}
-                onPress={() => router.replace('/transaction/new')}
+                onPress={() =>
+                  router.replace({ pathname: '/transaction/new', params: { from: '/' } })
+                }
                 style={{
                   flex: 1,
                   alignItems: 'center',
@@ -199,7 +230,7 @@ export default function DashboardScreen() {
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
             {t('dashboard:cards.netWorth')}
           </Text>
-          {includedAccounts.length === 0 ? (
+          {!allLoaded ? null : includedAccounts.length === 0 ? (
             <View>
               <Text className="font-sans text-sm mb-3" style={{ color: mutedColor }}>
                 {t('dashboard:empty.netWorth')}
@@ -277,7 +308,9 @@ export default function DashboardScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('dashboard:firstTransaction.cta')}
-              onPress={() => router.replace('/transaction/new')}
+              onPress={() =>
+                router.replace({ pathname: '/transaction/new', params: { from: '/' } })
+              }
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -302,7 +335,7 @@ export default function DashboardScreen() {
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
             {t('dashboard:cards.thisMonth')}
           </Text>
-          {thisMonthSpent === 0 && lastMonthSpent === 0 ? (
+          {!allLoaded ? null : thisMonthSpent === 0 && lastMonthSpent === 0 ? (
             <Text className="font-sans text-sm" style={{ color: mutedColor }}>
               {t('dashboard:empty.thisMonth')}
             </Text>
@@ -332,7 +365,7 @@ export default function DashboardScreen() {
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
             {t('dashboard:cards.topCategories')}
           </Text>
-          {top3.length === 0 ? (
+          {!allLoaded ? null : top3.length === 0 ? (
             <Text className="font-sans text-sm" style={{ color: mutedColor }}>
               {t('dashboard:empty.topCategories')}
             </Text>

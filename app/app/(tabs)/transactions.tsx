@@ -47,6 +47,12 @@ export default function TransactionsScreen() {
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  // First-emission flag for the transactions subscription. Without it
+  // the empty-welcome card flashes for ~50–100 ms before Firestore's
+  // first snapshot lands. Accounts + categories don't need their own
+  // flags here — they're only used for row rendering, not for the
+  // empty-state branch.
+  const [txsLoaded, setTxsLoaded] = useState(false);
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
@@ -57,7 +63,10 @@ export default function TransactionsScreen() {
 
   useEffect(() => {
     if (!wid) return;
-    const unsubT = subscribeRecent(wid, 50, setTxs);
+    const unsubT = subscribeRecent(wid, 50, (data) => {
+      setTxs(data);
+      setTxsLoaded(true);
+    });
     const unsubA = subscribeAccounts(wid, setAccounts);
     const unsubC = subscribeCategories(wid, setCategories);
     return () => { unsubT(); unsubA(); unsubC(); };
@@ -206,9 +215,11 @@ export default function TransactionsScreen() {
         </>
         ) : null}
 
-        {grouped.length === 0 ? (
+        {!txsLoaded ? null : grouped.length === 0 ? (
           txs.length === 0 ? (
-            /* Truly empty — friendlier welcome card with NLP example. */
+            /* Truly empty — friendlier welcome card with NLP example.
+               Gated on txsLoaded so it doesn't flash before the first
+               Firestore emission lands on cold open. */
             <Card padding="lg" className="items-center mt-2">
               <View
                 style={{
@@ -235,7 +246,12 @@ export default function TransactionsScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('transactions:welcome.cta')}
-                onPress={() => router.replace('/transaction/new')}
+                onPress={() =>
+                  router.replace({
+                    pathname: '/transaction/new',
+                    params: { from: '/transactions' },
+                  })
+                }
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',

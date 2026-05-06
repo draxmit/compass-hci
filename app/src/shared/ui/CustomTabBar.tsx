@@ -74,6 +74,18 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const tabBarBorder = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
   const activeRouteName = state.routes[state.index]?.name;
+  // Pass the active tab as ?from= so /transaction/new can return there on
+  // save / cancel / hardware-back. We use replace (not push) here to kill
+  // the layered-Stack flash on Android; replace destroys the back stack,
+  // so the source tab needs to ride along as a URL param to be recovered.
+  const fromPath: '/' | '/transactions' | '/budgets' | '/insights' =
+    activeRouteName === 'index'
+      ? '/'
+      : activeRouteName === 'transactions'
+        ? '/transactions'
+        : activeRouteName === 'budgets'
+          ? '/budgets'
+          : '/insights';
 
   return (
     <View
@@ -99,9 +111,15 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                 // Same trick as the avatar tap (see MobileTopBar): replace
                 // instead of push, so there's no layered Stack underneath
                 // the new screen for Android to snapshot-reveal during the
-                // transition. Save/cancel paths in /transaction/new use
-                // canGoBack-fallback to land on the right tab.
-                onPress={() => router.replace('/transaction/new')}
+                // transition. Source tab rides along as ?from= so the
+                // close-handler in /transaction/new lands the user back on
+                // the tab they started from (instead of always /transactions).
+                onPress={() =>
+                  router.replace({
+                    pathname: '/transaction/new',
+                    params: { from: fromPath },
+                  })
+                }
                 style={{
                   width: 52,
                   height: 52,
