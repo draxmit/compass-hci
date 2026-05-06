@@ -1,4 +1,47 @@
 {
   "title": "Transactions",
-  "comingSoon": "Coming in T7."
+  "comingSoon": "Coming in T7.",
+  "entry": {
+    "title": "New transaction",
+    "nlpLabel": "Quick entry",
+    "nlpPlaceholder": "e.g. Coffee at Starbucks 50k bca",
+    "nlpHint": "Type freely — we'll try to parse it.",
+    "confidence": "{{percent}}% match",
+    "fields": {
+      "type": "Type",
+      "amount": "Amount",
+      "amountPlaceholder": "0",
+      "date": "Date",
+      "account": "Account",
+      "fromAccount": "From account",
+      "toAccount": "To account",
+      "category": "Category",
+      "description": "Note",
+      "descriptionPlaceholder": "Optional"
+    },
+    "types": {
+      "expense": "Expense",
+      "income": "Income",
+      "transfer": "Transfer"
+    },
+    "pickers": {
+      "selectAccount": "Pick account",
+      "selectCategory": "Pick category",
+      "noAccounts": "No accounts yet. Add one from Profile first.",
+      "noCategories": "No categories yet."
+    },
+    "errors": {
+      "missingAmount": "Amount is required.",
+      "missingAccount": "Account is required.",
+      "missingCategory": "Category is required.",
+      "missingToAccount": "Destination account is required.",
+      "sameAccount": "From and to accounts must differ.",
+      "createFailed": "Failed to save transaction."
+    },
+    "actions": {
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel"
+    }
+  }
 }

@@ -1,4 +1,5 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -57,6 +58,7 @@ function TabCell({ iconColor, label, selected, onPress, renderIcon }: TabCellPro
  */
 export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { t } = useTranslation(['common']);
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { resolvedScheme } = useTheme();
   const { color: activeAccent } = usePageAccent();
@@ -89,9 +91,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('common:nav.newTransaction')}
-                onPress={() => {
-                  // T6 wires the actual quick-entry sheet.
-                }}
+                onPress={() => router.push('/transaction/new')}
                 style={{
                   width: 52,
                   height: 52,

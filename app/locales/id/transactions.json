@@ -1,4 +1,47 @@
 {
   "title": "Transaksi",
-  "comingSoon": "Hadir di T7."
+  "comingSoon": "Hadir di T7.",
+  "entry": {
+    "title": "Transaksi baru",
+    "nlpLabel": "Cara cepat",
+    "nlpPlaceholder": "Misal: Makan warteg 25rb bca",
+    "nlpHint": "Ketik bebas — kami coba pahami otomatis.",
+    "confidence": "{{percent}}% cocok",
+    "fields": {
+      "type": "Jenis",
+      "amount": "Jumlah",
+      "amountPlaceholder": "0",
+      "date": "Tanggal",
+      "account": "Akun",
+      "fromAccount": "Dari akun",
+      "toAccount": "Ke akun",
+      "category": "Kategori",
+      "description": "Catatan",
+      "descriptionPlaceholder": "Opsional"
+    },
+    "types": {
+      "expense": "Pengeluaran",
+      "income": "Pemasukan",
+      "transfer": "Transfer"
+    },
+    "pickers": {
+      "selectAccount": "Pilih akun",
+      "selectCategory": "Pilih kategori",
+      "noAccounts": "Belum ada akun. Tambahkan dulu di Profil.",
+      "noCategories": "Belum ada kategori."
+    },
+    "errors": {
+      "missingAmount": "Jumlah belum diisi.",
+      "missingAccount": "Akun belum dipilih.",
+      "missingCategory": "Kategori belum dipilih.",
+      "missingToAccount": "Akun tujuan belum dipilih.",
+      "sameAccount": "Akun asal & tujuan tidak boleh sama.",
+      "createFailed": "Gagal menyimpan transaksi."
+    },
+    "actions": {
+      "save": "Simpan",
+      "saving": "Menyimpan…",
+      "cancel": "Batal"
+    }
+  }
 }

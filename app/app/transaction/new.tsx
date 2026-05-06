@@ -1,0 +1,534 @@
+import type { Account, Category, TransactionType } from '@compass/shared-types';
+import { useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { subscribeAccounts } from '@/services/firestore/accountsService';
+import { subscribeCategories } from '@/services/firestore/categoriesService';
+import { createTransaction } from '@/services/firestore/transactionsService';
+import { useAuthUser } from '@/stores/authStore';
+import type { Locale } from '@/shared/i18n';
+import { resolveCategoryColor } from '@/shared/theme/categoryColors';
+import { tokens } from '@/shared/theme/tokens';
+import { useTheme } from '@/shared/theme/useTheme';
+import { Card } from '@/shared/ui/Card';
+import { CategoryIcon } from '@/shared/ui/CategoryIcon';
+import { Text } from '@/shared/ui/Text';
+import { TextField } from '@/shared/ui/TextField';
+import { formatIDR } from '@/shared/utils/formatIDR';
+import { parseTransaction } from '@/shared/utils/nlpParser';
+import type { NlpResult } from '@/shared/utils/nlpParser';
+
+const TYPES: readonly TransactionType[] = ['expense', 'income', 'transfer'];
+
+/**
+ * /transaction/new — quick-entry screen reached from the FAB on tabs and
+ * the "+ New transaction" CTA in the sidebar. Single screen that combines
+ * an NLP free-text input + a manual form. The parser fires on the NLP
+ * input and pre-populates the form fields; user reviews + edits + saves.
+ *
+ * Atomic batch write goes through transactionsService.createTransaction —
+ * tx doc + balance delta + category month total all land together.
+ */
+export default function NewTransactionScreen() {
+  const { t, i18n } = useTranslation(['transactions', 'accounts', 'categories', 'common']);
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { resolvedScheme } = useTheme();
+  const isDark = resolvedScheme === 'dark';
+  const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
+  const user = useAuthUser();
+  const wid = user ? `solo-${user.uid}` : null;
+
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const overlayBg = isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  // Form state — populated by NLP, overrideable by user.
+  const [type, setType] = useState<TransactionType>('expense');
+  const [amountText, setAmountText] = useState('');
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [toAccountId, setToAccountId] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [description, setDescription] = useState('');
+  const [date] = useState(new Date().toISOString().slice(0, 10));  // T6 v1 = today only; T7 will add date picker
+  const [nlpInput, setNlpInput] = useState('');
+  const [confidence, setConfidence] = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  // Per-field "touched-by-user" flags so re-parsing on every keystroke
+  // doesn't clobber fields the user has manually edited.
+  const touched = useRef<{ type: boolean; amount: boolean; account: boolean; toAccount: boolean; category: boolean; description: boolean }>({
+    type: false, amount: false, account: false, toAccount: false, category: false, description: false,
+  });
+
+  useEffect(() => {
+    if (!wid) return;
+    const unsubA = subscribeAccounts(wid, setAccounts);
+    const unsubC = subscribeCategories(wid, setCategories);
+    return () => { unsubA(); unsubC(); };
+  }, [wid]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (router.canGoBack()) return false;
+      router.replace('/');
+      return true;
+    });
+    return () => sub.remove();
+  }, [router]);
+
+  // Re-parse on every NLP-input change. Apply-result inlined so the
+  // useEffect closure can be stable without an extra useCallback.
+  useEffect(() => {
+    if (!nlpInput.trim()) {
+      setConfidence(0);
+      return;
+    }
+    const r: NlpResult = parseTransaction(nlpInput, { categories, accounts, today: date });
+    setConfidence(r.confidence);
+    if (!touched.current.type) setType(r.type);
+    if (!touched.current.amount && r.amount !== null) {
+      setAmountText(minorToInputText(r.amount, lang));
+    }
+    if (!touched.current.account && r.accountId) setAccountId(r.accountId);
+    if (!touched.current.toAccount && r.toAccountId) setToAccountId(r.toAccountId);
+    if (!touched.current.category && r.categoryId) setCategoryId(r.categoryId);
+    if (!touched.current.description && r.description) setDescription(r.description);
+  }, [nlpInput, accounts, categories, date, lang]);
+
+  const handleSave = async () => {
+    if (saving || !wid) return;
+    const amount = parseAmountInput(amountText, lang);
+    if (!amount) {
+      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingAmount'));
+      return;
+    }
+    if (!accountId) {
+      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingAccount'));
+      return;
+    }
+    if (type !== 'transfer' && !categoryId) {
+      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingCategory'));
+      return;
+    }
+    if (type === 'transfer' && !toAccountId) {
+      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingToAccount'));
+      return;
+    }
+    if (type === 'transfer' && accountId === toAccountId) {
+      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.sameAccount'));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await createTransaction(wid, {
+        type,
+        date,
+        accountId,
+        toAccountId: type === 'transfer' ? toAccountId : null,
+        amount,
+        splits: type === 'transfer' || !categoryId ? [] : [{ categoryId, amount }],
+        description: description.trim() || (nlpInput.trim() || ''),
+        source: nlpInput.trim() ? 'nlp' : 'manual',
+        rawInput: nlpInput.trim() || null,
+        confidence: nlpInput.trim() ? confidence : null,
+      });
+      router.back();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t('transactions:entry.errors.createFailed');
+      Alert.alert(t('transactions:entry.title'), msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const accountOptions = useMemo(() => accounts, [accounts]);
+  // Filter to leaf categories only (parentId !== null) so users tag against
+  // specific categories, not the parent group. Custom user categories can
+  // be top-level (parentId === null) — include those too.
+  const categoryOptions = useMemo(() => {
+    const customTop = categories.filter((c) => c.parentId === null && !c.isPreset);
+    const leaves = categories.filter((c) => c.parentId !== null);
+    return [...leaves, ...customTop];
+  }, [categories]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: overlayBg }}>
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          padding: 24,
+          paddingTop: 48,
+          paddingBottom: 24 + insets.bottom,
+        }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="self-center w-full max-w-md">
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={t('common:actions.back')}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            hitSlop={8}
+            className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
+          >
+            <ChevronLeft size={22} color={fgColor} />
+            <Text className="font-sans-medium ml-1" style={{ color: fgColor }}>
+              {t('common:actions.back')}
+            </Text>
+          </Pressable>
+
+          <Text className="font-sans-bold text-3xl mb-4">{t('transactions:entry.title')}</Text>
+
+          {/* NLP quick-entry */}
+          <Card padding="lg" className="mb-4">
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+                {t('transactions:entry.nlpLabel')}
+              </Text>
+              {confidence > 0 ? (
+                <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+                  {t('transactions:entry.confidence', { percent: Math.round(confidence * 100) })}
+                </Text>
+              ) : null}
+            </View>
+            <TextField
+              label=""
+              value={nlpInput}
+              onChangeText={setNlpInput}
+              placeholder={t('transactions:entry.nlpPlaceholder')}
+              autoCapitalize="none"
+              returnKeyType="done"
+            />
+            <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>
+              {t('transactions:entry.nlpHint')}
+            </Text>
+          </Card>
+
+          {/* Type segmented buttons */}
+          <Card padding="lg" className="mb-4">
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+              {t('transactions:entry.fields.type')}
+            </Text>
+            <View className="flex-row" style={{ gap: 6 }}>
+              {TYPES.map((typeKey) => {
+                const selected = type === typeKey;
+                return (
+                  <Pressable
+                    key={typeKey}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => { touched.current.type = true; setType(typeKey); }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: 44,
+                      borderColor: selected ? tokens.accent.dashboard : borderColor,
+                      backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                    }}
+                  >
+                    <Text
+                      className="font-sans-medium text-sm"
+                      style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+                    >
+                      {t(`transactions:entry.types.${typeKey}`)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Card>
+
+          {/* Amount */}
+          <Card padding="lg" className="mb-4">
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+              {t('transactions:entry.fields.amount')}
+            </Text>
+            <TextField
+              label=""
+              value={amountText}
+              onChangeText={(v) => { touched.current.amount = true; setAmountText(formatAmountInput(v, lang)); }}
+              placeholder={t('transactions:entry.fields.amountPlaceholder')}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+            {amountText ? (
+              <Text className="font-mono tabular-nums text-xs mt-2" style={{ color: mutedColor }}>
+                {formatIDR(parseAmountInput(amountText, lang))}
+              </Text>
+            ) : null}
+          </Card>
+
+          {/* From account / single account */}
+          <AccountPicker
+            label={t(type === 'transfer' ? 'transactions:entry.fields.fromAccount' : 'transactions:entry.fields.account')}
+            accounts={accountOptions}
+            selectedId={accountId}
+            onSelect={(id) => { touched.current.account = true; setAccountId(id); }}
+            isDark={isDark}
+            t={t}
+          />
+
+          {/* To account (transfer only) */}
+          {type === 'transfer' ? (
+            <AccountPicker
+              label={t('transactions:entry.fields.toAccount')}
+              accounts={accountOptions}
+              selectedId={toAccountId}
+              onSelect={(id) => { touched.current.toAccount = true; setToAccountId(id); }}
+              isDark={isDark}
+              t={t}
+            />
+          ) : null}
+
+          {/* Category (expense / income only) */}
+          {type !== 'transfer' ? (
+            <CategoryPicker
+              categories={categoryOptions}
+              selectedId={categoryId}
+              onSelect={(id) => { touched.current.category = true; setCategoryId(id); }}
+              isDark={isDark}
+              lang={lang}
+              t={t}
+            />
+          ) : null}
+
+          {/* Description */}
+          <Card padding="lg" className="mb-4">
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+              {t('transactions:entry.fields.description')}
+            </Text>
+            <TextField
+              label=""
+              value={description}
+              onChangeText={(v) => { touched.current.description = true; setDescription(v); }}
+              placeholder={t('transactions:entry.fields.descriptionPlaceholder')}
+              autoCapitalize="sentences"
+              returnKeyType="done"
+            />
+          </Card>
+
+          {/* Save / Cancel */}
+          <View className="flex-row gap-2 mt-2">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('transactions:entry.actions.cancel')}
+              onPress={() => router.back()}
+              disabled={saving}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 12,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor,
+                minHeight: 44,
+                opacity: saving ? 0.5 : 1,
+              }}
+            >
+              <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
+                {t('transactions:entry.actions.cancel')}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('transactions:entry.actions.save')}
+              disabled={saving}
+              onPress={handleSave}
+              style={{
+                flex: 2,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 12,
+                borderRadius: 10,
+                backgroundColor: tokens.accent.dashboard,
+                opacity: saving ? 0.5 : 1,
+                minHeight: 44,
+              }}
+            >
+              <Text className="font-sans-medium text-white text-sm">
+                {saving ? t('transactions:entry.actions.saving') : t('transactions:entry.actions.save')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+type PickerCommonProps = {
+  isDark: boolean;
+  t: TFunction;
+};
+
+type AccountPickerProps = PickerCommonProps & {
+  label: string;
+  accounts: Account[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+};
+
+function AccountPicker({ label, accounts, selectedId, onSelect, isDark, t }: AccountPickerProps) {
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+
+  return (
+    <Card padding="lg" className="mb-4">
+      <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+        {label}
+      </Text>
+      {accounts.length === 0 ? (
+        <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+          {t('transactions:entry.pickers.noAccounts')}
+        </Text>
+      ) : (
+        accounts.map((acct) => {
+          const tint = resolveCategoryColor(acct.color, isDark ? 'dark' : 'light');
+          const selected = selectedId === acct.id;
+          return (
+            <Pressable
+              key={acct.id}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => onSelect(acct.id)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                padding: 10,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: selected ? tokens.accent.dashboard : borderColor,
+                backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                marginBottom: 6,
+              }}
+            >
+              <View style={{
+                width: 28, height: 28, borderRadius: 7, backgroundColor: tint + '22',
+                alignItems: 'center', justifyContent: 'center', marginRight: 10,
+              }}>
+                <CategoryIcon name={acct.icon} color={tint} size={14} />
+              </View>
+              <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }} numberOfLines={1}>
+                {acct.name}
+              </Text>
+              <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+                {t(`accounts:subtypes.${acct.subtype}`)}
+              </Text>
+            </Pressable>
+          );
+        })
+      )}
+    </Card>
+  );
+}
+
+type CategoryPickerProps = PickerCommonProps & {
+  categories: Category[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  lang: Locale;
+};
+
+function CategoryPicker({ categories, selectedId, onSelect, isDark, lang, t }: CategoryPickerProps) {
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+
+  return (
+    <Card padding="lg" className="mb-4">
+      <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+        {t('transactions:entry.fields.category')}
+      </Text>
+      {categories.length === 0 ? (
+        <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+          {t('transactions:entry.pickers.noCategories')}
+        </Text>
+      ) : (
+        <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+          {categories.map((cat) => {
+            const tint = resolveCategoryColor(cat.color, isDark ? 'dark' : 'light');
+            const selected = selectedId === cat.id;
+            return (
+              <Pressable
+                key={cat.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => onSelect(cat.id)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: selected ? tokens.accent.dashboard : borderColor,
+                  backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                }}
+              >
+                <CategoryIcon name={cat.icon} color={tint} size={12} />
+                <Text className="font-sans-medium text-xs ml-1.5" style={{ color: fgColor }}>
+                  {cat.name[lang]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </Card>
+  );
+}
+
+// --- Amount input helpers (mirror accounts.tsx, but local copy keeps the
+//     screen self-contained; can extract to shared utils when a third
+//     screen needs them).
+
+function formatAmountInput(raw: string, locale: Locale): string {
+  const decimalSep = locale === 'id' ? ',' : '.';
+  const allowedRe = locale === 'id' ? /[^\d,]/g : /[^\d.]/g;
+  let cleaned = raw.replace(allowedRe, '');
+  const parts = cleaned.split(decimalSep);
+  let intPart = parts[0] ?? '';
+  let decPart = parts.length > 1 ? parts.slice(1).join('') : null;
+  if (decPart !== null && decPart.length > 2) decPart = decPart.slice(0, 2);
+  const formattedInt = intPart
+    ? new Intl.NumberFormat(locale === 'id' ? 'id-ID' : 'en-US').format(Number(intPart))
+    : '';
+  if (decPart === null) return formattedInt;
+  return `${formattedInt}${decimalSep}${decPart}`;
+}
+
+function parseAmountInput(formatted: string, locale: Locale): number {
+  const decimalSep = locale === 'id' ? ',' : '.';
+  const thousandsSep = locale === 'id' ? '.' : ',';
+  const cleaned = formatted.split(thousandsSep).join('').replace(decimalSep, '.');
+  const value = Number(cleaned);
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value * 100);
+}
+
+function minorToInputText(minorUnits: number, locale: Locale): string {
+  if (!minorUnits) return '';
+  const major = minorUnits / 100;
+  const intPart = Math.trunc(Math.abs(major));
+  const cents = Math.round(Math.abs(minorUnits) - intPart * 100);
+  const formattedInt = new Intl.NumberFormat(locale === 'id' ? 'id-ID' : 'en-US').format(intPart);
+  if (cents === 0) return formattedInt;
+  const decimalSep = locale === 'id' ? ',' : '.';
+  return `${formattedInt}${decimalSep}${cents.toString().padStart(2, '0')}`;
+}

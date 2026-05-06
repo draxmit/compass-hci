@@ -166,4 +166,71 @@ export type Account = {
   updatedAt: unknown;
 };
 
-// TODO(T6): export Transaction, Split types
+/**
+ * Transaction type — expense reduces an account, income increases it,
+ * transfer moves between two accounts (no category).
+ */
+export type TransactionType = 'expense' | 'income' | 'transfer';
+
+/**
+ * One leg of a transaction's category attribution. v1 always writes
+ * `splits.length === 1` (one category for the whole transaction); v2 will
+ * support multi-split (e.g. a Tokopedia order split across Pakaian +
+ * Elektronik). For transfers, `splits = []` — transfers don't belong to a
+ * category.
+ *
+ * Invariant: ∑ splits[i].amount === transaction.amount when splits non-empty.
+ */
+export type Split = {
+  categoryId: string;
+  amount: number;  // integer minor units
+};
+
+/**
+ * Transaction document.
+ * Path: `workspaces/{wid}/transactions/{txId}`.
+ *
+ * Always written atomically with associated balance + monthly-total updates
+ * via `transactionsService.createTransaction` (ADR-07 §2). Never write a
+ * transaction doc directly without going through the service.
+ *
+ * `yearMonth` is denormalised so monthly views (dashboard, budgets) can
+ * filter by `where('yearMonth', '==', '2026-05')` without index gymnastics.
+ */
+export type Transaction = {
+  id: string;
+  type: TransactionType;
+  date: string;          // 'YYYY-MM-DD' day grain in v1
+  yearMonth: string;     // 'YYYY-MM' denormalised
+  accountId: string;     // for expense/income: source/sink. For transfer: from-account.
+  toAccountId: string | null;  // transfer only — destination account
+  currency: 'IDR';
+  amount: number;        // integer minor units
+  amountIDR: number;     // == amount in v1; v2 multi-currency uses FX snapshot
+  splits: Split[];       // length 1 in v1; [] for transfers
+  description: string;
+  source: 'manual' | 'nlp';
+  rawInput: string | null;
+  confidence: number | null;
+  createdAt: unknown;
+  updatedAt: unknown;
+};
+
+/**
+ * Per-category, per-month rollup. Doc id is deterministic
+ * (`${yearMonth}_${categoryId}`) so the transactions service can `setDoc`
+ * with `merge: true` + `increment()` in the same batch as a transaction
+ * write — no read-modify-write race.
+ *
+ * Path: `workspaces/{wid}/category_month_totals/{yearMonth}_{categoryId}`.
+ *
+ * Tracks expense rollup ONLY. Income transactions don't roll up here —
+ * dashboard income totals (T8) come from a separate query path.
+ */
+export type CategoryMonthTotal = {
+  categoryId: string;
+  yearMonth: string;
+  totalIDR: number;     // integer minor units
+  txCount: number;
+  updatedAt: unknown;
+};

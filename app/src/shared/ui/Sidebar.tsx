@@ -90,9 +90,7 @@ export function Sidebar() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('common:nav.newTransaction')}
-        onPress={() => {
-          // T6 wires the actual quick-entry sheet
-        }}
+        onPress={() => router.push('/transaction/new')}
         className={`flex-row items-center mb-6 rounded-xl border border-surface-light-border dark:border-surface-dark-border ${collapsed ? 'justify-center p-3' : 'gap-2 px-3 py-3'}`}
         style={{ backgroundColor: activeAccentColor + '14' }}
       >
