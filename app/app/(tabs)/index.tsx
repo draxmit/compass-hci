@@ -113,13 +113,14 @@ export default function DashboardScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md">
-        {/* Net Worth */}
-        <Card padding="lg" className="mb-3">
-          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-1" style={{ color: mutedColor }}>
+        {/* Net Worth — flat editorial layout. Section label in page column,
+            hero number floats freely (no card). */}
+        <View className="mb-8">
+          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
             {t('dashboard:cards.netWorth')}
           </Text>
           {includedAccounts.length === 0 ? (
-            <View className="mt-2">
+            <View>
               <Text className="font-sans text-sm mb-3" style={{ color: mutedColor }}>
                 {t('dashboard:empty.netWorth')}
               </Text>
@@ -148,14 +149,14 @@ export default function DashboardScreen() {
           ) : (
             <>
               <Text
-                className="font-mono tabular-nums text-3xl mt-1"
+                className="font-mono tabular-nums text-4xl"
                 style={{ color: fgColor }}
                 adjustsFontSizeToFit
                 numberOfLines={1}
               >
                 {formatIDR(netWorth)}
               </Text>
-              <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
+              <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>
                 {t('dashboard:cards.acrossNAccounts', {
                   count: includedAccounts.length,
                   context: includedAccounts.length === 1 ? 'one' : 'other',
@@ -163,21 +164,21 @@ export default function DashboardScreen() {
               </Text>
             </>
           )}
-        </Card>
+        </View>
 
-        {/* This Month */}
-        <Card padding="lg" className="mb-3">
-          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-1" style={{ color: mutedColor }}>
+        {/* This Month — same pattern. */}
+        <View className="mb-8">
+          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
             {t('dashboard:cards.thisMonth')}
           </Text>
           {thisMonthSpent === 0 && lastMonthSpent === 0 ? (
-            <Text className="font-sans text-sm mt-2" style={{ color: mutedColor }}>
+            <Text className="font-sans text-sm" style={{ color: mutedColor }}>
               {t('dashboard:empty.thisMonth')}
             </Text>
           ) : (
             <>
               <Text
-                className="font-mono tabular-nums text-2xl mt-1"
+                className="font-mono tabular-nums text-3xl"
                 style={{ color: fgColor }}
                 adjustsFontSizeToFit
                 numberOfLines={1}
@@ -192,10 +193,11 @@ export default function DashboardScreen() {
               />
             </>
           )}
-        </Card>
+        </View>
 
-        {/* Top Categories */}
-        <Card padding="lg" className="mb-3">
+        {/* Top Categories — list of rows with share bars. No card; rows
+            sit directly in the page column. */}
+        <View className="mb-8">
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
             {t('dashboard:cards.topCategories')}
           </Text>
@@ -256,9 +258,10 @@ export default function DashboardScreen() {
               );
             })
           )}
-        </Card>
+        </View>
 
-        {/* Recent */}
+        {/* Recent — keeps the card because it actually contains list rows
+            that benefit from a unified container. */}
         <Card padding="none" className="mb-3">
           <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
             <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
