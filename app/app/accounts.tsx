@@ -219,9 +219,17 @@ function AccountGroup({ type, accounts, isDark, onEditAccount }: AccountGroupPro
 
   return (
     <Card padding="none" className="mb-4">
+      {/* paddingLeft 64 = pl-4 (16) + icon-swatch 36 + ml-3 (12) so the
+          section header lines up with where each account row's name starts,
+          not with the icon's left edge. */}
       <View
-        className="px-4 py-3"
-        style={{ borderBottomWidth: 1, borderBottomColor: borderColor }}
+        style={{
+          paddingLeft: 64,
+          paddingRight: 16,
+          paddingVertical: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: borderColor,
+        }}
       >
         <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
           {t(`accounts:types.${type}`)}
@@ -283,7 +291,22 @@ type AccountEditPanelProps = {
   lang: Locale;
 };
 
-function AccountEditPanel({ target, onClose, wid, isDark, lang: _lang }: AccountEditPanelProps) {
+/**
+ * Locale-aware live formatter for the balance input. Strips non-digits,
+ * formats with the active locale's thousands separator. Empty input → ''.
+ */
+function formatBalanceInput(raw: string, locale: Locale): string {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  return new Intl.NumberFormat(locale === 'id' ? 'id-ID' : 'en-US').format(Number(digits));
+}
+
+function parseBalanceInput(formatted: string): number {
+  const digits = formatted.replace(/\D/g, '');
+  return digits ? Number(digits) : 0;
+}
+
+function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPanelProps) {
   const { t } = useTranslation(['accounts', 'common']);
   const insets = useSafeAreaInsets();
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
@@ -299,7 +322,7 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang: _lang }: Account
   const [type, setType] = useState<AccountType>(initialType);
   const [subtype, setSubtypeState] = useState<AccountSubtype>(initialSubtype);
   const [balanceText, setBalanceText] = useState(
-    String(editing?.currentBalance ?? 0),
+    editing ? formatBalanceInput(String(editing.currentBalance), lang) : '',
   );
   const [includedInNetWorth, setIncludedInNetWorth] = useState(
     editing?.includedInNetWorth ?? true,
@@ -342,8 +365,8 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang: _lang }: Account
       Alert.alert(t('accounts:title'), t('accounts:errors.missingName'));
       return;
     }
-    const balance = Number(balanceText.replace(/[^\d.-]/g, ''));
-    if (Number.isNaN(balance)) {
+    const balance = parseBalanceInput(balanceText);
+    if (!Number.isFinite(balance)) {
       Alert.alert(t('accounts:title'), t('accounts:errors.balanceInvalid'));
       return;
     }
@@ -566,7 +589,7 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang: _lang }: Account
           <TextField
             label=""
             value={balanceText}
-            onChangeText={setBalanceText}
+            onChangeText={(v) => setBalanceText(formatBalanceInput(v, lang))}
             placeholder={t('accounts:fields.balancePlaceholder')}
             keyboardType="numeric"
             returnKeyType="done"
