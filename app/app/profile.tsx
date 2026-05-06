@@ -1,6 +1,6 @@
 import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, Tag, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, Tag, Wallet, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +20,7 @@ import { formatDate } from '@/shared/utils/formatDate';
 // (desktop) or the avatar in MobileTopBar (mobile). Settings is reached
 // from a link card inside this screen.
 export default function ProfileScreen() {
-  const { t } = useTranslation(['settings', 'common', 'categories']);
+  const { t } = useTranslation(['settings', 'common', 'categories', 'accounts']);
   const { resolvedScheme } = useTheme();
   const router = useRouter();
   const isDesktop = useIsDesktop();
@@ -283,6 +283,25 @@ export default function ProfileScreen() {
         <Text className="font-sans text-sm" style={{ color: mutedColor }}>
           {t('settings:profile.achievementsBlurb')}
         </Text>
+      </Card>
+
+      {/* Accounts link — your money lives here. */}
+      <Card padding="none" className="mb-4 w-full max-w-md">
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('accounts:title')}
+          onPress={() => router.push('/accounts')}
+          className="flex-row items-center px-5 py-4 min-h-[44px]"
+        >
+          <Wallet size={20} color={mutedColor} />
+          <View className="ml-3 flex-1">
+            <Text className="font-sans-medium">{t('accounts:title')}</Text>
+            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+              {t('accounts:tagline')}
+            </Text>
+          </View>
+          <ChevronRight size={18} color={mutedColor} />
+        </Pressable>
       </Card>
 
       {/* Categories link — your data lives in Profile, not Settings. */}

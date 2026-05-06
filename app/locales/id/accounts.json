@@ -1,0 +1,78 @@
+{
+  "title": "Akun",
+  "tagline": "Atur akun bank, e-wallet, dan kartu kreditmu.",
+  "add": "Tambah akun",
+  "edit": "Ubah akun",
+  "addNew": "Tambah",
+  "addCustom": "Buat akun baru",
+  "empty": {
+    "title": "Belum ada akun",
+    "body": "Tambahkan akun bank, e-wallet, atau dompet tunai untuk mulai mencatat transaksi.",
+    "cta": "Tambahkan akun pertama"
+  },
+  "totalBalance": "Total saldo",
+  "types": {
+    "cash": "Tunai",
+    "bank": "Bank",
+    "ewallet": "E-Wallet",
+    "credit_card": "Kartu Kredit"
+  },
+  "fields": {
+    "name": "Nama",
+    "namePlaceholder": "Misal: BCA Tahapan",
+    "type": "Tipe",
+    "subtype": "Sub-tipe",
+    "balance": "Saldo",
+    "balancePlaceholder": "0",
+    "balanceHint": "Saldo awal akan menjadi saldo saat ini.",
+    "balanceEditHint": "Mengatur saldo akan menimpa nilai saat ini.",
+    "icon": "Ikon",
+    "color": "Warna",
+    "includedInNetWorth": "Hitung di kekayaan bersih"
+  },
+  "actions": {
+    "save": "Simpan",
+    "saving": "Menyimpan…",
+    "cancel": "Batal",
+    "archive": "Arsipkan",
+    "archiveConfirmTitle": "Arsipkan akun?",
+    "archiveConfirmBody": "Akun ini akan disembunyikan, tapi transaksi yang sudah ada tetap aman."
+  },
+  "errors": {
+    "loadFailed": "Gagal memuat akun.",
+    "createFailed": "Gagal membuat akun.",
+    "updateFailed": "Gagal mengubah akun.",
+    "archiveFailed": "Gagal mengarsipkan akun.",
+    "missingName": "Nama akun belum diisi.",
+    "balanceInvalid": "Saldo harus berupa angka."
+  },
+  "subtypes": {
+    "cash": "Tunai",
+    "bca": "BCA",
+    "mandiri": "Mandiri",
+    "bri": "BRI",
+    "bni": "BNI",
+    "cimb": "CIMB Niaga",
+    "permata": "Permata",
+    "danamon": "Danamon",
+    "btn": "BTN",
+    "bsi": "BSI",
+    "jago": "Bank Jago",
+    "jenius": "Jenius",
+    "blu": "blu",
+    "seabank": "SeaBank",
+    "bank_other": "Bank Lainnya",
+    "gopay": "GoPay",
+    "ovo": "OVO",
+    "dana": "DANA",
+    "shopeepay": "ShopeePay",
+    "linkaja": "LinkAja",
+    "doku": "DOKU",
+    "ewallet_other": "E-Wallet Lainnya",
+    "visa": "Visa",
+    "mastercard": "Mastercard",
+    "jcb": "JCB",
+    "amex": "Amex",
+    "card_other": "Kartu Lainnya"
+  }
+}

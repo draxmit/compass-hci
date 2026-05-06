@@ -2,6 +2,7 @@ import { getLocales } from 'expo-localization';
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
+import accountsEn from '../../../locales/en/accounts.json';
 import authEn from '../../../locales/en/auth.json';
 import budgetsEn from '../../../locales/en/budgets.json';
 import categoriesEn from '../../../locales/en/categories.json';
@@ -9,6 +10,7 @@ import commonEn from '../../../locales/en/common.json';
 import dashboardEn from '../../../locales/en/dashboard.json';
 import settingsEn from '../../../locales/en/settings.json';
 import transactionsEn from '../../../locales/en/transactions.json';
+import accountsId from '../../../locales/id/accounts.json';
 import authId from '../../../locales/id/auth.json';
 import budgetsId from '../../../locales/id/budgets.json';
 import categoriesId from '../../../locales/id/categories.json';
@@ -28,6 +30,7 @@ const NAMESPACES = [
   'budgets',
   'settings',
   'categories',
+  'accounts',
 ] as const;
 
 const resources = {
@@ -39,6 +42,7 @@ const resources = {
     budgets: budgetsId,
     settings: settingsId,
     categories: categoriesId,
+    accounts: accountsId,
   },
   en: {
     common: commonEn,
@@ -48,6 +52,7 @@ const resources = {
     budgets: budgetsEn,
     settings: settingsEn,
     categories: categoriesEn,
+    accounts: accountsEn,
   },
 } as const;
 

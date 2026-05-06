@@ -72,7 +72,10 @@ export type CategoryIcon =
   | 'stethoscope' | 'pill' | 'dumbbell'
   | 'book-open' | 'graduation-cap'
   | 'wallet' | 'gift' | 'briefcase' | 'trending-up'
-  | 'coins' | 'landmark' | 'tag';
+  | 'coins' | 'landmark' | 'tag'
+  // Added in T5 (ADR-06) for credit-card subtypes — same registry serves
+  // both categories and accounts.
+  | 'credit-card';
 
 /**
  * Curated colour-key palette for categories. Resolution to hex (per
@@ -107,6 +110,60 @@ export type Category = {
   isArchived: boolean;
   order: number;
   createdAt: unknown;
+};
+
+/**
+ * Account types — top-level grouping for the accounts list (T5 / ADR-06).
+ * Investment accounts are out of scope for v1; landing in v3.
+ */
+export type AccountType = 'cash' | 'bank' | 'ewallet' | 'credit_card';
+
+/**
+ * Curated account-subtype keys for the Indonesian audience. Mostly proper
+ * nouns (BCA / Mandiri / GoPay / OVO etc) so display names live in i18n
+ * and are largely identical between locales.
+ *
+ * Adding a new institution requires extending this union AND adding a
+ * default icon in `accountSubtypes.ts` AND an i18n display name in both
+ * `accounts.json` files.
+ */
+export type AccountSubtype =
+  // cash
+  | 'cash'
+  // banks (top IDN + 'other' escape hatch)
+  | 'bca' | 'mandiri' | 'bri' | 'bni' | 'cimb' | 'permata' | 'danamon'
+  | 'btn' | 'bsi' | 'jago' | 'jenius' | 'blu' | 'seabank' | 'bank_other'
+  // e-wallets
+  | 'gopay' | 'ovo' | 'dana' | 'shopeepay' | 'linkaja' | 'doku' | 'ewallet_other'
+  // credit cards
+  | 'visa' | 'mastercard' | 'jcb' | 'amex' | 'card_other';
+
+/**
+ * Account document.
+ * Path: `workspaces/{wid}/accounts/{accountId}`.
+ *
+ * `currentBalance` is denormalised — only mutated via accountsService
+ * (T6 transactions atomically update it alongside transaction writes).
+ * `initialBalance` is the create-time snapshot, never mutated.
+ *
+ * Reuses `CategoryIcon` + `CategoryColor` from the curated registries —
+ * the same icon/colour vocabulary serves both categories and accounts.
+ */
+export type Account = {
+  id: string;
+  name: string;
+  type: AccountType;
+  subtype: AccountSubtype;
+  currency: 'IDR';
+  currentBalance: number;
+  initialBalance: number;
+  includedInNetWorth: boolean;
+  isArchived: boolean;
+  icon: CategoryIcon;
+  color: CategoryColor;
+  order: number;
+  createdAt: unknown;
+  updatedAt: unknown;
 };
 
 // TODO(T6): export Transaction, Split types

@@ -1,0 +1,78 @@
+{
+  "title": "Accounts",
+  "tagline": "Manage your bank, e-wallet, and credit-card accounts.",
+  "add": "Add account",
+  "edit": "Edit account",
+  "addNew": "Add",
+  "addCustom": "Create a new account",
+  "empty": {
+    "title": "No accounts yet",
+    "body": "Add a bank, e-wallet, or cash account to start tracking transactions.",
+    "cta": "Add your first account"
+  },
+  "totalBalance": "Total balance",
+  "types": {
+    "cash": "Cash",
+    "bank": "Bank",
+    "ewallet": "E-Wallet",
+    "credit_card": "Credit Card"
+  },
+  "fields": {
+    "name": "Name",
+    "namePlaceholder": "e.g. BCA Tahapan",
+    "type": "Type",
+    "subtype": "Subtype",
+    "balance": "Balance",
+    "balancePlaceholder": "0",
+    "balanceHint": "The initial balance becomes the current balance.",
+    "balanceEditHint": "Setting balance overrides the current value.",
+    "icon": "Icon",
+    "color": "Colour",
+    "includedInNetWorth": "Include in net worth"
+  },
+  "actions": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "archive": "Archive",
+    "archiveConfirmTitle": "Archive this account?",
+    "archiveConfirmBody": "It'll be hidden from the list, but existing transactions stay intact."
+  },
+  "errors": {
+    "loadFailed": "Failed to load accounts.",
+    "createFailed": "Failed to create account.",
+    "updateFailed": "Failed to update account.",
+    "archiveFailed": "Failed to archive account.",
+    "missingName": "Account name is required.",
+    "balanceInvalid": "Balance must be a number."
+  },
+  "subtypes": {
+    "cash": "Cash",
+    "bca": "BCA",
+    "mandiri": "Mandiri",
+    "bri": "BRI",
+    "bni": "BNI",
+    "cimb": "CIMB Niaga",
+    "permata": "Permata",
+    "danamon": "Danamon",
+    "btn": "BTN",
+    "bsi": "BSI",
+    "jago": "Bank Jago",
+    "jenius": "Jenius",
+    "blu": "blu",
+    "seabank": "SeaBank",
+    "bank_other": "Other Bank",
+    "gopay": "GoPay",
+    "ovo": "OVO",
+    "dana": "DANA",
+    "shopeepay": "ShopeePay",
+    "linkaja": "LinkAja",
+    "doku": "DOKU",
+    "ewallet_other": "Other E-Wallet",
+    "visa": "Visa",
+    "mastercard": "Mastercard",
+    "jcb": "JCB",
+    "amex": "Amex",
+    "card_other": "Other Card"
+  }
+}

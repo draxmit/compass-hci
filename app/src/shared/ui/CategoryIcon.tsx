@@ -1,8 +1,8 @@
 import type { LucideIcon } from 'lucide-react-native';
 import {
-  BookOpen, Bike, Briefcase, Car, Coffee, Coins, Cookie, Droplet, Dumbbell,
-  Film, Fuel, Gamepad2, GraduationCap, Gift, HeartPulse, Home, Landmark, Music,
-  ParkingCircle, Phone, Pill, Pizza, Plane, ShoppingCart, Shirt, Sparkles,
+  BookOpen, Bike, Briefcase, Car, Coffee, Coins, Cookie, CreditCard, Droplet,
+  Dumbbell, Film, Fuel, Gamepad2, GraduationCap, Gift, HeartPulse, Home, Landmark,
+  Music, ParkingCircle, Phone, Pill, Pizza, Plane, ShoppingCart, Shirt, Sparkles,
   Stethoscope, Tag, Train, TrendingUp, Tv, Tv2, Utensils, Wallet, Wifi, Zap,
 } from 'lucide-react-native';
 
@@ -50,6 +50,8 @@ export const CATEGORY_ICONS: Record<CategoryIconKey, LucideIcon> = {
   'coins': Coins,
   'landmark': Landmark,
   'tag': Tag,
+  // T5: credit-card subtypes.
+  'credit-card': CreditCard,
 };
 
 export const CATEGORY_ICON_KEYS = Object.keys(CATEGORY_ICONS) as CategoryIconKey[];
