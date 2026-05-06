@@ -112,7 +112,7 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
-      <View className="self-center w-full max-w-md">
+      <View className="self-center w-full max-w-md lg:max-w-3xl">
         {/* Net Worth — flat editorial layout. Section label in page column,
             hero number floats freely (no card). */}
         <View className="mb-8">

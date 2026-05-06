@@ -115,7 +115,7 @@ export default function ProfileScreen() {
         contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48, paddingBottom: 24 + insets.bottom }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="self-center w-full max-w-md">
+        <View className="self-center w-full max-w-md lg:max-w-2xl">
         {!isDesktop && (
           <Pressable
             accessibilityRole="button"

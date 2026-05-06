@@ -113,7 +113,7 @@ export default function TransactionsScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
-      <View className="self-center w-full max-w-md">
+      <View className="self-center w-full max-w-md lg:max-w-3xl">
         {/* Title now lives in MobileTopBar — no screen-level duplication. */}
 
         {/* Search — bare TextField; Card-wrap was making it look like a
