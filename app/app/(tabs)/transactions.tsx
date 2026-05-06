@@ -2,7 +2,7 @@ import type { Account, Category, Transaction, TransactionType } from '@compass/s
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { ChevronDown, X } from 'lucide-react-native';
+import { ChevronDown, Plus, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -117,21 +117,25 @@ export default function TransactionsScreen() {
         {/* Title now lives in MobileTopBar — no screen-level duplication. */}
 
         {/* Search — bare TextField; Card-wrap was making it look like a
-            nested box. */}
-        <View className="mb-3">
-          <TextField
-            label=""
-            value={search}
-            onChangeText={setSearch}
-            placeholder={t('transactions:filters.search')}
-            autoCapitalize="none"
-            returnKeyType="search"
-          />
-        </View>
+            nested box. Hidden when there are no transactions to filter. */}
+        {txs.length > 0 ? (
+          <View className="mb-3">
+            <TextField
+              label=""
+              value={search}
+              onChangeText={setSearch}
+              placeholder={t('transactions:filters.search')}
+              autoCapitalize="none"
+              returnKeyType="search"
+            />
+          </View>
+        ) : null}
 
         {/* Filter pills — two compact dropdowns + optional Clear link.
             Tapping a pill expands its options below; only one expanded
-            at a time. */}
+            at a time. Hidden when there are no transactions to filter. */}
+        {txs.length > 0 ? (
+        <>
         <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
           <FilterPill
             label={t('transactions:entry.fields.type')}
@@ -199,15 +203,63 @@ export default function TransactionsScreen() {
         ) : null}
 
         <View className="mb-3" />
+        </>
+        ) : null}
 
         {grouped.length === 0 ? (
-          <Card padding="lg">
-            <Text className="font-sans text-sm text-center" style={{ color: mutedColor }}>
-              {txs.length === 0
-                ? t('transactions:emptyHint')
-                : t('transactions:filters.noResults')}
-            </Text>
-          </Card>
+          txs.length === 0 ? (
+            /* Truly empty — friendlier welcome card with NLP example. */
+            <Card padding="lg" className="items-center mt-2">
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  backgroundColor: tokens.accent.dashboard + '22',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 12,
+                }}
+              >
+                <Plus size={24} color={tokens.accent.dashboard} strokeWidth={2.4} />
+              </View>
+              <Text className="font-sans-bold text-lg text-center" style={{ color: fgColor }}>
+                {t('transactions:welcome.title')}
+              </Text>
+              <Text
+                className="font-sans text-sm text-center mt-2 mb-4"
+                style={{ color: mutedColor, lineHeight: 20 }}
+              >
+                {t('transactions:welcome.body')}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('transactions:welcome.cta')}
+                onPress={() => router.replace('/transaction/new')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  backgroundColor: tokens.accent.dashboard,
+                  minHeight: 44,
+                }}
+              >
+                <Plus size={14} color="#fff" />
+                <Text className="font-sans-medium text-white text-sm">
+                  {t('transactions:welcome.cta')}
+                </Text>
+              </Pressable>
+            </Card>
+          ) : (
+            <Card padding="lg">
+              <Text className="font-sans text-sm text-center" style={{ color: mutedColor }}>
+                {t('transactions:filters.noResults')}
+              </Text>
+            </Card>
+          )
         ) : (
           grouped.map(([date, items]) => (
             <View key={date} className="mb-4">

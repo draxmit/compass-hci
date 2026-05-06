@@ -28,5 +28,16 @@
   "goal": {
     "placeholder": "Menabung untuk: Lebaran 2027",
     "fromOnboarding": "Atur di T10"
+  },
+  "welcome": {
+    "title": "Selamat datang di Compass",
+    "body": "Compass bantu kamu lihat ke mana uangmu pergi. Mulai dengan tambah akun, lalu catat transaksi pertama.",
+    "addAccountCta": "Tambah akun",
+    "addTransactionCta": "Catat transaksi"
+  },
+  "firstTransaction": {
+    "title": "Akun siap — sekarang catat transaksi",
+    "body": "Tap tombol + di bawah, atau pakai cara cepat: ketik \"Makan warteg 25rb bca\" — Compass langsung paham.",
+    "cta": "Catat transaksi pertama"
   }
 }

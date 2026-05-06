@@ -4,7 +4,7 @@ import type {
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { Plus } from 'lucide-react-native';
+import { Plus, Sparkles } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -110,6 +110,86 @@ export default function DashboardScreen() {
     [accounts],
   );
 
+  // Aggregate empty checks — let us show a single warm welcome instead
+  // of three separate "no X yet" lines stacked on a fresh user.
+  const trulyEmpty = includedAccounts.length === 0 && recentTxs.length === 0;
+  const noTxsButHasAccounts = includedAccounts.length > 0 && recentTxs.length === 0;
+
+  if (trulyEmpty) {
+    return (
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+        <View className="self-center w-full max-w-md lg:max-w-3xl">
+          <Card padding="lg" className="items-center mt-6">
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                backgroundColor: tokens.accent.dashboard + '22',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Sparkles size={28} color={tokens.accent.dashboard} strokeWidth={2.2} />
+            </View>
+            <Text className="font-sans-bold text-2xl text-center" style={{ color: fgColor }}>
+              {t('dashboard:welcome.title')}
+            </Text>
+            <Text
+              className="font-sans text-sm text-center mt-3 mb-6"
+              style={{ color: mutedColor, lineHeight: 20 }}
+            >
+              {t('dashboard:welcome.body')}
+            </Text>
+            <View className="flex-row gap-2 self-stretch">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('dashboard:welcome.addAccountCta')}
+                onPress={() => router.push('/accounts')}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  backgroundColor: tokens.accent.dashboard,
+                  minHeight: 44,
+                }}
+              >
+                <Plus size={14} color="#fff" />
+                <Text className="font-sans-medium text-white text-sm">
+                  {t('dashboard:welcome.addAccountCta')}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('dashboard:welcome.addTransactionCta')}
+                onPress={() => router.replace('/transaction/new')}
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'],
+                  minHeight: 44,
+                }}
+              >
+                <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
+                  {t('dashboard:welcome.addTransactionCta')}
+                </Text>
+              </Pressable>
+            </View>
+          </Card>
+        </View>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md lg:max-w-3xl">
@@ -166,6 +246,57 @@ export default function DashboardScreen() {
           )}
         </View>
 
+        {noTxsButHasAccounts ? (
+          /* Has Net Worth above; the other three sections (This Month,
+             Top Categories, Recent) all have nothing meaningful to show.
+             Replace them with one consolidated 'first transaction' card
+             instead of three sparse 'no X yet' lines. */
+          <Card padding="lg" className="items-center mt-2">
+            <View
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                backgroundColor: tokens.accent.dashboard + '22',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <Plus size={24} color={tokens.accent.dashboard} strokeWidth={2.4} />
+            </View>
+            <Text className="font-sans-bold text-lg text-center" style={{ color: fgColor }}>
+              {t('dashboard:firstTransaction.title')}
+            </Text>
+            <Text
+              className="font-sans text-sm text-center mt-2 mb-4"
+              style={{ color: mutedColor, lineHeight: 20 }}
+            >
+              {t('dashboard:firstTransaction.body')}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('dashboard:firstTransaction.cta')}
+              onPress={() => router.replace('/transaction/new')}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 10,
+                backgroundColor: tokens.accent.dashboard,
+                minHeight: 44,
+              }}
+            >
+              <Plus size={14} color="#fff" />
+              <Text className="font-sans-medium text-white text-sm">
+                {t('dashboard:firstTransaction.cta')}
+              </Text>
+            </Pressable>
+          </Card>
+        ) : (
+          <>
         {/* This Month — same pattern. */}
         <View className="mb-8">
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
@@ -278,30 +409,24 @@ export default function DashboardScreen() {
               </Text>
             </Pressable>
           </View>
-          {recentTxs.length === 0 ? (
-            <View className="px-4 pb-4">
-              <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-                {t('dashboard:empty.recent')}
-              </Text>
-            </View>
-          ) : (
-            recentTxs.map((tx, idx) => (
-              <RecentRow
-                key={tx.id}
-                tx={tx}
-                accountsById={accountsById}
-                categoriesById={categoriesById}
-                isDark={isDark}
-                lang={lang}
-                fgColor={fgColor}
-                mutedColor={mutedColor}
-                showDivider={idx > 0}
-                onPress={() => router.push(`/transaction/${tx.id}` as Href)}
-                t={t}
-              />
-            ))
-          )}
+          {recentTxs.map((tx, idx) => (
+            <RecentRow
+              key={tx.id}
+              tx={tx}
+              accountsById={accountsById}
+              categoriesById={categoriesById}
+              isDark={isDark}
+              lang={lang}
+              fgColor={fgColor}
+              mutedColor={mutedColor}
+              showDivider={idx > 0}
+              onPress={() => router.push(`/transaction/${tx.id}` as Href)}
+              t={t}
+            />
+          ))}
         </Card>
+          </>
+        )}
 
         {/* Goal placeholder — T10 fills in the real value. */}
         <View

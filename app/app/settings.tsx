@@ -76,7 +76,7 @@ export default function SettingsScreen() {
         contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48, paddingBottom: 24 + insets.bottom }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="self-center w-full max-w-md lg:max-w-2xl">
+        <View className="self-center w-full max-w-md lg:max-w-3xl">
         {/* Back-to-Profile link visible on all platforms — Settings is always
             a sub-route of /profile so the back action is unambiguous. */}
         <Pressable

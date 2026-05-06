@@ -28,5 +28,16 @@
   "goal": {
     "placeholder": "Saving for: Lebaran 2027",
     "fromOnboarding": "Set in T10"
+  },
+  "welcome": {
+    "title": "Welcome to Compass",
+    "body": "Compass helps you see where your money goes. Start by adding an account, then log your first transaction.",
+    "addAccountCta": "Add account",
+    "addTransactionCta": "Log a transaction"
+  },
+  "firstTransaction": {
+    "title": "Accounts ready — now log a transaction",
+    "body": "Tap the + button below, or use quick entry: type \"Coffee at Starbucks 50k bca\" — Compass gets it.",
+    "cta": "Log first transaction"
   }
 }

@@ -2,6 +2,11 @@
   "title": "Transaksi",
   "comingSoon": "Hadir di T7.",
   "emptyHint": "Tap + untuk catat transaksi pertama.",
+  "welcome": {
+    "title": "Belum ada transaksi",
+    "body": "Tap tombol + di bawah untuk catat transaksi pertama. Atau pakai cara cepat: ketik \"Makan warteg 25rb bca\" — Compass langsung paham.",
+    "cta": "Catat sekarang"
+  },
   "entry": {
     "title": "Transaksi baru",
     "nlpLabel": "Cara cepat",
