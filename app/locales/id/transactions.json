@@ -4,8 +4,8 @@
   "entry": {
     "title": "Transaksi baru",
     "nlpLabel": "Cara cepat",
-    "nlpPlaceholder": "Misal: Makan warteg 25rb bca",
-    "nlpHint": "Ketik bebas — kami coba pahami otomatis.",
+    "nlpPlaceholder": "Ketik transaksimu…",
+    "nlpHint": "Misal: Makan warteg 25rb bca",
     "confidence": "{{percent}}% cocok",
     "fields": {
       "type": "Jenis",

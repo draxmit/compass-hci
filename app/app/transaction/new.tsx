@@ -1,6 +1,6 @@
 import type { Account, Category, TransactionType } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -153,14 +153,6 @@ export default function NewTransactionScreen() {
   };
 
   const accountOptions = useMemo(() => accounts, [accounts]);
-  // Filter to leaf categories only (parentId !== null) so users tag against
-  // specific categories, not the parent group. Custom user categories can
-  // be top-level (parentId === null) — include those too.
-  const categoryOptions = useMemo(() => {
-    const customTop = categories.filter((c) => c.parentId === null && !c.isPreset);
-    const leaves = categories.filter((c) => c.parentId !== null);
-    return [...leaves, ...customTop];
-  }, [categories]);
 
   return (
     <View style={{ flex: 1, backgroundColor: overlayBg }}>
@@ -297,7 +289,7 @@ export default function NewTransactionScreen() {
           {/* Category (expense / income only) */}
           {type !== 'transfer' ? (
             <CategoryPicker
-              categories={categoryOptions}
+              categories={categories}
               selectedId={categoryId}
               onSelect={(id) => { touched.current.category = true; setCategoryId(id); }}
               isDark={isDark}
@@ -450,45 +442,201 @@ function CategoryPicker({ categories, selectedId, onSelect, isDark, lang, t }: C
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
+  // Group leaf categories under their parent. Custom user-created
+  // categories with parentId === null and no children are shown as
+  // standalone selectable rows (no group header).
+  const { groups, standalone } = useMemo(() => {
+    const parents = categories.filter((c) => c.parentId === null);
+    const grouped = parents
+      .map((parent) => ({
+        parent,
+        children: categories
+          .filter((c) => c.parentId === parent.id)
+          .sort((a, b) => a.order - b.order),
+      }))
+      .filter((g) => g.children.length > 0)
+      .sort((a, b) => a.parent.order - b.parent.order);
+    const childlessTopLevel = parents
+      .filter((p) => !categories.some((c) => c.parentId === p.id))
+      .sort((a, b) => a.order - b.order);
+    return { groups: grouped, standalone: childlessTopLevel };
+  }, [categories]);
+
+  // Auto-expand the group containing the currently-selected category so
+  // users see their selection without an extra tap. Other groups stay
+  // collapsed for a clean default.
+  const initialExpanded = useMemo(() => {
+    const set = new Set<string>();
+    if (selectedId) {
+      const sel = categories.find((c) => c.id === selectedId);
+      if (sel?.parentId) set.add(sel.parentId);
+    }
+    return set;
+  }, [selectedId, categories]);
+  const [expanded, setExpanded] = useState<Set<string>>(initialExpanded);
+
+  // Re-expand if the NLP parser populates a new selection in a different
+  // group while the picker is mounted.
+  useEffect(() => {
+    if (!selectedId) return;
+    const sel = categories.find((c) => c.id === selectedId);
+    if (!sel?.parentId) return;
+    setExpanded((prev) => (prev.has(sel.parentId!) ? prev : new Set([...prev, sel.parentId!])));
+  }, [selectedId, categories]);
+
+  function toggleGroup(parentId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(parentId)) next.delete(parentId);
+      else next.add(parentId);
+      return next;
+    });
+  }
+
+  const totalCategories = groups.reduce((sum, g) => sum + g.children.length, 0) + standalone.length;
+
   return (
     <Card padding="lg" className="mb-4">
       <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
         {t('transactions:entry.fields.category')}
       </Text>
-      {categories.length === 0 ? (
+      {totalCategories === 0 ? (
         <Text className="font-sans text-sm" style={{ color: mutedColor }}>
           {t('transactions:entry.pickers.noCategories')}
         </Text>
       ) : (
-        <View className="flex-row flex-wrap" style={{ gap: 6 }}>
-          {categories.map((cat) => {
-            const tint = resolveCategoryColor(cat.color, isDark ? 'dark' : 'light');
-            const selected = selectedId === cat.id;
+        <>
+          {groups.map(({ parent, children }) => {
+            const isExpanded = expanded.has(parent.id);
+            const parentTint = resolveCategoryColor(parent.color, isDark ? 'dark' : 'light');
+            const containsSelected = children.some((c) => c.id === selectedId);
             return (
-              <Pressable
-                key={cat.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => onSelect(cat.id)}
+              <View
+                key={parent.id}
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 10,
-                  paddingVertical: 8,
-                  borderRadius: 16,
                   borderWidth: 1,
-                  borderColor: selected ? tokens.accent.dashboard : borderColor,
-                  backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                  borderColor: containsSelected ? tokens.accent.dashboard : borderColor,
+                  borderRadius: 10,
+                  marginBottom: 8,
+                  overflow: 'hidden',
                 }}
               >
-                <CategoryIcon name={cat.icon} color={tint} size={12} />
-                <Text className="font-sans-medium text-xs ml-1.5" style={{ color: fgColor }}>
-                  {cat.name[lang]}
-                </Text>
-              </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isExpanded }}
+                  onPress={() => toggleGroup(parent.id)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 10,
+                    backgroundColor: containsSelected ? tokens.accent.dashboard + '14' : 'transparent',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 6,
+                      backgroundColor: parentTint + '22',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
+                    }}
+                  >
+                    <CategoryIcon name={parent.icon} color={parentTint} size={14} />
+                  </View>
+                  <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }}>
+                    {parent.name[lang]}
+                  </Text>
+                  {isExpanded ? (
+                    <ChevronDown size={16} color={mutedColor} />
+                  ) : (
+                    <ChevronRight size={16} color={mutedColor} />
+                  )}
+                </Pressable>
+                {isExpanded ? (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      flexWrap: 'wrap',
+                      gap: 6,
+                      padding: 10,
+                      borderTopWidth: 1,
+                      borderTopColor: borderColor,
+                    }}
+                  >
+                    {children.map((child) => {
+                      const tint = resolveCategoryColor(child.color, isDark ? 'dark' : 'light');
+                      const selected = selectedId === child.id;
+                      return (
+                        <Pressable
+                          key={child.id}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          onPress={() => onSelect(child.id)}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingHorizontal: 10,
+                            paddingVertical: 8,
+                            borderRadius: 16,
+                            borderWidth: 1,
+                            borderColor: selected ? tokens.accent.dashboard : borderColor,
+                            backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                          }}
+                        >
+                          <CategoryIcon name={child.icon} color={tint} size={12} />
+                          <Text className="font-sans-medium text-xs ml-1.5" style={{ color: fgColor }}>
+                            {child.name[lang]}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
+              </View>
             );
           })}
-        </View>
+          {/* Custom user-created standalone categories — no group, just chips. */}
+          {standalone.length > 0 ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 6,
+                marginTop: 4,
+              }}
+            >
+              {standalone.map((cat) => {
+                const tint = resolveCategoryColor(cat.color, isDark ? 'dark' : 'light');
+                const selected = selectedId === cat.id;
+                return (
+                  <Pressable
+                    key={cat.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => onSelect(cat.id)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingHorizontal: 10,
+                      paddingVertical: 8,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: selected ? tokens.accent.dashboard : borderColor,
+                      backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                    }}
+                  >
+                    <CategoryIcon name={cat.icon} color={tint} size={12} />
+                    <Text className="font-sans-medium text-xs ml-1.5" style={{ color: fgColor }}>
+                      {cat.name[lang]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+        </>
       )}
     </Card>
   );
