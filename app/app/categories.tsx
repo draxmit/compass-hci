@@ -106,7 +106,7 @@ export default function CategoriesScreen() {
             <Pressable
               accessibilityRole="link"
               accessibilityLabel={t('common:actions.back')}
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/settings'))}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile'))}
               hitSlop={8}
               className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
             >

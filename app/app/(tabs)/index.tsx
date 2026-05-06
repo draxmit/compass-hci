@@ -401,7 +401,10 @@ export default function DashboardScreen() {
             <Pressable
               accessibilityRole="link"
               accessibilityLabel={t('dashboard:cards.seeAll')}
-              onPress={() => router.push('/transactions')}
+              // navigate (not push) — /transactions is a TAB, not a modal.
+              // Pushing it would leave Dashboard underneath in the Stack and
+              // break tab-bar focus; navigate cleanly switches tabs.
+              onPress={() => router.navigate('/transactions')}
               hitSlop={6}
             >
               <Text className="font-sans-medium text-xs" style={{ color: tokens.accent.dashboard }}>
