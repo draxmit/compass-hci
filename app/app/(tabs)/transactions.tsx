@@ -2,6 +2,7 @@ import type { Account, Category, Transaction, TransactionType } from '@compass/s
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
+import { ChevronDown } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -50,6 +51,9 @@ export default function TransactionsScreen() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('this_month');
+  // Which filter pill (if any) is currently expanded. Only one open at a
+  // time — Mercury/Linear-style dropdown chip pattern.
+  const [openFilter, setOpenFilter] = useState<'type' | 'date' | null>(null);
 
   useEffect(() => {
     if (!wid) return;
@@ -125,90 +129,68 @@ export default function TransactionsScreen() {
           />
         </View>
 
-        {/* Type chips — equal-width segmented buttons, one row of four. */}
-        <View className="flex-row mb-2" style={{ gap: 6 }}>
-          {typeChips.map((chip) => {
-            const selected = typeFilter === chip.key;
-            return (
-              <Pressable
-                key={chip.key}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => setTypeFilter(chip.key)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  alignItems: 'center',
-                  borderColor: selected ? tokens.accent.dashboard : borderColor,
-                  backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
-                }}
-              >
-                <Text
-                  className="font-sans-medium text-xs"
-                  style={{ color: selected ? tokens.accent.dashboard : fgColor }}
-                  numberOfLines={1}
-                >
-                  {chip.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+        {/* Filter pills — two compact dropdowns + optional Clear link.
+            Tapping a pill expands its options below; only one expanded
+            at a time. */}
+        <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
+          <FilterPill
+            label={t('transactions:entry.fields.type')}
+            value={typeChips.find((c) => c.key === typeFilter)?.label ?? ''}
+            open={openFilter === 'type'}
+            onPress={() => setOpenFilter((cur) => (cur === 'type' ? null : 'type'))}
+            isDark={isDark}
+          />
+          <FilterPill
+            label={t('transactions:entry.fields.date')}
+            value={dateChips.find((c) => c.key === dateFilter)?.label ?? ''}
+            open={openFilter === 'date'}
+            onPress={() => setOpenFilter((cur) => (cur === 'date' ? null : 'date'))}
+            isDark={isDark}
+          />
+          {filtersDirty ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('transactions:filters.clear')}
+              onPress={() => {
+                setSearch('');
+                setTypeFilter('all');
+                setDateFilter('this_month');
+                setOpenFilter(null);
+              }}
+              className="px-2 py-1 min-h-[32px] justify-center ml-auto"
+            >
+              <Text className="font-sans-medium text-xs" style={{ color: mutedColor, textDecorationLine: 'underline' }}>
+                {t('transactions:filters.clear')}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
 
-        {/* Date chips — equal-width segmented buttons, one row of three. */}
-        <View className="flex-row mb-2" style={{ gap: 6 }}>
-          {dateChips.map((chip) => {
-            const selected = dateFilter === chip.key;
-            return (
-              <Pressable
-                key={chip.key}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => setDateFilter(chip.key)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  alignItems: 'center',
-                  borderColor: selected ? tokens.accent.dashboard : borderColor,
-                  backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
-                }}
-              >
-                <Text
-                  className="font-sans-medium text-xs"
-                  style={{ color: selected ? tokens.accent.dashboard : fgColor }}
-                  numberOfLines={1}
-                >
-                  {chip.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Clear-all link, only when any filter is non-default. Sits under
-            the chip rows so it doesn't disrupt their grid alignment. */}
-        {filtersDirty ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('transactions:filters.clear')}
-            onPress={() => {
-              setSearch('');
-              setTypeFilter('all');
-              setDateFilter('this_month');
+        {/* Expanded options for the open pill. */}
+        {openFilter === 'type' ? (
+          <FilterOptionPanel
+            options={typeChips}
+            selectedKey={typeFilter}
+            onSelect={(key) => {
+              setTypeFilter(key);
+              setOpenFilter(null);
             }}
-            className="self-end mb-3 px-2 py-1 min-h-[32px] justify-center"
-          >
-            <Text className="font-sans-medium text-xs" style={{ color: mutedColor, textDecorationLine: 'underline' }}>
-              {t('transactions:filters.clear')}
-            </Text>
-          </Pressable>
-        ) : (
-          <View className="mb-3" />
-        )}
+            isDark={isDark}
+          />
+        ) : null}
+        {openFilter === 'date' ? (
+          <FilterOptionPanel
+            options={dateChips}
+            selectedKey={dateFilter}
+            onSelect={(key) => {
+              setDateFilter(key);
+              setOpenFilter(null);
+            }}
+            isDark={isDark}
+          />
+        ) : null}
+
+        <View className="mb-3" />
 
         {grouped.length === 0 ? (
           <Card padding="lg">
@@ -249,6 +231,103 @@ export default function TransactionsScreen() {
         )}
       </View>
     </ScrollView>
+  );
+}
+
+type FilterPillProps = {
+  label: string;            // dimension name (e.g. "Type")
+  value: string;            // current selection (e.g. "All")
+  open: boolean;
+  onPress: () => void;
+  isDark: boolean;
+};
+
+function FilterPill({ label, value, open, onPress, isDark }: FilterPillProps) {
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      accessibilityLabel={`${label}: ${value}`}
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: open ? tokens.accent.dashboard : borderColor,
+        backgroundColor: open ? tokens.accent.dashboard + '14' : 'transparent',
+        minHeight: 36,
+        gap: 4,
+      }}
+    >
+      <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+        {label}:
+      </Text>
+      <Text className="font-sans-medium text-xs" style={{ color: fgColor }}>
+        {value}
+      </Text>
+      <ChevronDown
+        size={14}
+        color={open ? tokens.accent.dashboard : mutedColor}
+        style={{
+          transform: [{ rotate: open ? '180deg' : '0deg' }],
+        }}
+      />
+    </Pressable>
+  );
+}
+
+type FilterOptionPanelProps<K extends string> = {
+  options: { key: K; label: string }[];
+  selectedKey: K;
+  onSelect: (key: K) => void;
+  isDark: boolean;
+};
+
+function FilterOptionPanel<K extends string>({
+  options,
+  selectedKey,
+  onSelect,
+  isDark,
+}: FilterOptionPanelProps<K>) {
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+  return (
+    <Card padding="md" className="mb-3">
+      <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+        {options.map((opt) => {
+          const selected = opt.key === selectedKey;
+          return (
+            <Pressable
+              key={opt.key}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => onSelect(opt.key)}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: selected ? tokens.accent.dashboard : borderColor,
+                backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+              }}
+            >
+              <Text
+                className="font-sans-medium text-xs"
+                style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Card>
   );
 }
 
