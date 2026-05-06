@@ -2,7 +2,7 @@ import type { Account, Category, Transaction, TransactionType } from '@compass/s
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { ChevronDown } from 'lucide-react-native';
+import { ChevronDown, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -157,11 +157,19 @@ export default function TransactionsScreen() {
                 setDateFilter('this_month');
                 setOpenFilter(null);
               }}
-              className="px-2 py-1 min-h-[32px] justify-center ml-auto"
+              hitSlop={6}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: 'auto',
+              }}
             >
-              <Text className="font-sans-medium text-xs" style={{ color: mutedColor, textDecorationLine: 'underline' }}>
-                {t('transactions:filters.clear')}
-              </Text>
+              <X size={14} color={mutedColor} />
             </Pressable>
           ) : null}
         </View>
@@ -298,36 +306,45 @@ function FilterOptionPanel<K extends string>({
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
   return (
-    <Card padding="md" className="mb-3">
-      <View className="flex-row flex-wrap" style={{ gap: 6 }}>
-        {options.map((opt) => {
-          const selected = opt.key === selectedKey;
-          return (
-            <Pressable
-              key={opt.key}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => onSelect(opt.key)}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: selected ? tokens.accent.dashboard : borderColor,
-                backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
-              }}
+    <View
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        padding: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor,
+        marginBottom: 12,
+      }}
+    >
+      {options.map((opt) => {
+        const selected = opt.key === selectedKey;
+        return (
+          <Pressable
+            key={opt.key}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            onPress={() => onSelect(opt.key)}
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: selected ? tokens.accent.dashboard : borderColor,
+              backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+            }}
+          >
+            <Text
+              className="font-sans-medium text-xs"
+              style={{ color: selected ? tokens.accent.dashboard : fgColor }}
             >
-              <Text
-                className="font-sans-medium text-xs"
-                style={{ color: selected ? tokens.accent.dashboard : fgColor }}
-              >
-                {opt.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </Card>
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
