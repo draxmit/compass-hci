@@ -110,10 +110,11 @@ export default function TransactionsScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md">
-        <Text className="font-sans-bold text-3xl mb-4">{t('transactions:title')}</Text>
+        {/* Title now lives in MobileTopBar — no screen-level duplication. */}
 
-        {/* Search */}
-        <Card padding="lg" className="mb-3">
+        {/* Search — bare TextField; Card-wrap was making it look like a
+            nested box. */}
+        <View className="mb-3">
           <TextField
             label=""
             value={search}
@@ -122,10 +123,10 @@ export default function TransactionsScreen() {
             autoCapitalize="none"
             returnKeyType="search"
           />
-        </Card>
+        </View>
 
-        {/* Type chips */}
-        <View className="flex-row flex-wrap mb-2" style={{ gap: 6 }}>
+        {/* Type chips — equal-width segmented buttons, one row of four. */}
+        <View className="flex-row mb-2" style={{ gap: 6 }}>
           {typeChips.map((chip) => {
             const selected = typeFilter === chip.key;
             return (
@@ -135,10 +136,11 @@ export default function TransactionsScreen() {
                 accessibilityState={{ selected }}
                 onPress={() => setTypeFilter(chip.key)}
                 style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 16,
+                  flex: 1,
+                  paddingVertical: 8,
+                  borderRadius: 10,
                   borderWidth: 1,
+                  alignItems: 'center',
                   borderColor: selected ? tokens.accent.dashboard : borderColor,
                   backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
                 }}
@@ -146,6 +148,7 @@ export default function TransactionsScreen() {
                 <Text
                   className="font-sans-medium text-xs"
                   style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+                  numberOfLines={1}
                 >
                   {chip.label}
                 </Text>
@@ -154,8 +157,8 @@ export default function TransactionsScreen() {
           })}
         </View>
 
-        {/* Date chips */}
-        <View className="flex-row flex-wrap mb-4" style={{ gap: 6 }}>
+        {/* Date chips — equal-width segmented buttons, one row of three. */}
+        <View className="flex-row mb-2" style={{ gap: 6 }}>
           {dateChips.map((chip) => {
             const selected = dateFilter === chip.key;
             return (
@@ -165,10 +168,11 @@ export default function TransactionsScreen() {
                 accessibilityState={{ selected }}
                 onPress={() => setDateFilter(chip.key)}
                 style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 16,
+                  flex: 1,
+                  paddingVertical: 8,
+                  borderRadius: 10,
                   borderWidth: 1,
+                  alignItems: 'center',
                   borderColor: selected ? tokens.accent.dashboard : borderColor,
                   backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
                 }}
@@ -176,33 +180,35 @@ export default function TransactionsScreen() {
                 <Text
                   className="font-sans-medium text-xs"
                   style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+                  numberOfLines={1}
                 >
                   {chip.label}
                 </Text>
               </Pressable>
             );
           })}
-          {filtersDirty ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('transactions:filters.clear')}
-              onPress={() => {
-                setSearch('');
-                setTypeFilter('all');
-                setDateFilter('this_month');
-              }}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 16,
-              }}
-            >
-              <Text className="font-sans-medium text-xs" style={{ color: mutedColor, textDecorationLine: 'underline' }}>
-                {t('transactions:filters.clear')}
-              </Text>
-            </Pressable>
-          ) : null}
         </View>
+
+        {/* Clear-all link, only when any filter is non-default. Sits under
+            the chip rows so it doesn't disrupt their grid alignment. */}
+        {filtersDirty ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('transactions:filters.clear')}
+            onPress={() => {
+              setSearch('');
+              setTypeFilter('all');
+              setDateFilter('this_month');
+            }}
+            className="self-end mb-3 px-2 py-1 min-h-[32px] justify-center"
+          >
+            <Text className="font-sans-medium text-xs" style={{ color: mutedColor, textDecorationLine: 'underline' }}>
+              {t('transactions:filters.clear')}
+            </Text>
+          </Pressable>
+        ) : (
+          <View className="mb-3" />
+        )}
 
         {grouped.length === 0 ? (
           <Card padding="lg">

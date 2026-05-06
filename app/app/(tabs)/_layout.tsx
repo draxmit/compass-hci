@@ -34,7 +34,7 @@ export default function TabsLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: true,
-        header: () => <MobileTopBar />,
+        header: (props) => <MobileTopBar {...props} />,
         sceneStyle: { backgroundColor: 'transparent' },
         // Pre-mount all four tabs at app start. Default lazy mount caused a
         // one-frame flash on first visit to each tab as the screen tree was

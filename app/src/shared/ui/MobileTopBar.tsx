@@ -1,17 +1,20 @@
-import { Pressable, View } from 'react-native';
+import type { BottomTabHeaderProps } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthUser } from '@/stores/authStore';
 import { Avatar } from './Avatar';
+import { Text } from './Text';
 
 /**
- * Mobile-only top bar shown above tab content. Right-aligned avatar that
- * opens /profile on tap. Profile screen has Settings link inside.
+ * Mobile-only top bar shown above tab content. Renders the active tab's
+ * title on the left and the avatar (tap → /profile) on the right.
  *
  * Lives in (tabs)/_layout.tsx via Tabs.screenOptions.header so it's
- * persistent across all tab screens.
+ * persistent across all tab screens. Receives `BottomTabHeaderProps` so it
+ * can read each screen's `title` from its `Tabs.Screen` options.
  *
  * Avatar tap uses `replace` rather than `push`: replacing the (tabs) entry
  * removes the layered Stack composition that was causing a one-frame
@@ -19,20 +22,25 @@ import { Avatar } from './Avatar';
  * 'none' + opaque contentStyle. Back from /profile lands on Dashboard via
  * profile.tsx's canGoBack-fallback (no stack remembers which tab we left).
  */
-export function MobileTopBar() {
+export function MobileTopBar({ options }: BottomTabHeaderProps) {
   const { t } = useTranslation(['common']);
   const router = useRouter();
   const user = useAuthUser();
 
+  const title = typeof options.title === 'string' ? options.title : '';
+
   return (
     <SafeAreaView edges={['top']} style={{ backgroundColor: 'transparent' }}>
-      <View className="flex-row justify-end px-4 py-2">
+      <View className="flex-row items-center justify-between px-6 py-3">
+        <Text className="font-sans-bold text-2xl flex-1" numberOfLines={1}>
+          {title}
+        </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common:nav.openProfile')}
           onPress={() => router.replace('/profile')}
           hitSlop={8}
-          className="rounded-full"
+          className="rounded-full ml-3"
         >
           <Avatar
             photoURL={user?.photoURL ?? null}
