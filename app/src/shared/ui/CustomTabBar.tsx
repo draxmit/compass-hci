@@ -65,13 +65,13 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const isDark = resolvedScheme === 'dark';
 
   const inactiveColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
-  // Slightly-elevated tab bar surface, distinct from page bg, so the
-  // PageBackdrop accent gradient can't visually bleed into the nav chrome.
-  // Hand-picked: page bg is #0a0a0a / #fafafa; tab bar one notch up.
-  const tabBarBg = isDark ? '#141414' : '#f3f3f3';
-  // Stronger border + upward shadow so the bar reads as a clearly separate
-  // surface "floating above" the content (Mercury-style elevated nav).
-  const tabBarBorder = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(10,10,10,0.18)';
+  // Tab bar bg matches the page bg — no gradient to hide from anymore
+  // (PageBackdrop removed in the same pass). A hairline top border is the
+  // only delineation between content and nav chrome; everything else feels
+  // 'of a piece'. Per-page accent identity now lives ONLY on action
+  // elements (active tab icon/label, FAB), not on backgrounds.
+  const tabBarBg = isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'];
+  const tabBarBorder = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
   const activeRouteName = state.routes[state.index]?.name;
 
@@ -84,14 +84,6 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
         backgroundColor: tabBarBg,
         borderTopWidth: 1,
         borderTopColor: tabBarBorder,
-        // Elevated above the content. iOS picks up shadowColor/Offset/Radius;
-        // Android needs `elevation` AND a non-transparent backgroundColor
-        // (which we have above) for the platform shadow to actually render.
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: isDark ? 0.5 : 0.08,
-        shadowRadius: 8,
-        elevation: 12,
       }}
     >
       {TAB_ORDER.map((tabName) => {

@@ -19,7 +19,6 @@ import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import { AppShell } from '@/shared/ui/AppShell';
-import { PageBackdrop } from '@/shared/ui/PageBackdrop';
 import { Splash } from '@/shared/ui/Splash';
 import { useAuthLoading, useIsAuthed } from '@/stores/authStore';
 import { detectLowEndMode, useUiStore } from '@/stores/uiStore';
@@ -190,7 +189,6 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <NavigationLayer>
-        <PageBackdrop />
         <AppShell>
           <AuthGate>
             <StackTree />
