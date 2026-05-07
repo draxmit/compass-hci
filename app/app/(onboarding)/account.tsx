@@ -2,7 +2,7 @@ import type { AccountSubtype, AccountType } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import { createAccount } from '@/services/firestore/accountsService';
 import { useAuthStore } from '@/stores/authStore';
@@ -153,7 +153,15 @@ export default function AccountStep() {
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
             {t('onboarding:account.subtypeLabel')}
           </Text>
-          <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+          {/* Single horizontal-scroll row instead of a flex-wrap stack —
+              avoids 7-14 chips taking 3-4 lines on mobile and reads as
+              a tight pill rail similar to the date pickers in
+              transactions filters. */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingRight: 8 }}
+          >
             {subtypeOptions.map((opt) => {
               const active = subtype === opt.key;
               return (
@@ -180,7 +188,7 @@ export default function AccountStep() {
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
 
         <TextField

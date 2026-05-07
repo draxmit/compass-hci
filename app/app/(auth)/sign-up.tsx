@@ -8,7 +8,6 @@ import { signUpWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { tokens } from '@/shared/theme/tokens';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
 import { Logo } from '@/shared/ui/Logo';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
@@ -67,12 +66,14 @@ export default function SignUpScreen() {
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Card padding="lg" className="w-full max-w-md">
-        <View className="items-center mb-6">
+      {/* No Card wrapper — flat content reads as the app's first surface
+          rather than a quirky boxed widget. Matches sign-in.tsx. */}
+      <View className="w-full max-w-md">
+        <View className="items-center mb-8">
           <Logo size={48} color={accent} />
         </View>
-        <Text className="font-sans-bold text-2xl text-center mb-2">{t('auth:signUp.title')}</Text>
-        <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
+        <Text className="font-sans-bold text-3xl text-center mb-2">{t('auth:signUp.title')}</Text>
+        <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-10">
           {t('auth:signUp.tagline')}
         </Text>
 
@@ -138,7 +139,7 @@ export default function SignUpScreen() {
           <Text className="text-sm text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
             {t('auth:signUp.haveAccount')}
           </Text>
-          <Link href={'/(auth)/sign-in' as Href} asChild>
+          <Link href={'/(auth)/sign-in' as Href} replace asChild>
             <Text
               className="font-sans-semibold text-sm"
               style={{ color: accent }}
@@ -148,7 +149,7 @@ export default function SignUpScreen() {
             </Text>
           </Link>
         </View>
-      </Card>
+      </View>
     </ScrollView>
   );
 }

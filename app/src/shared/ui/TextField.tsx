@@ -60,9 +60,15 @@ export function TextField({
 
   return (
     <View className="w-full">
-      <Text className="font-sans-medium text-xs mb-1.5 text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
-        {label}
-      </Text>
+      {/* Skip rendering the label entirely when callers pass label="".
+          Otherwise the empty <Text> still occupies a line of height +
+          margin and breaks compact inline layouts (e.g. the
+          inline-amount cells on the first-budget onboarding step). */}
+      {label.length > 0 ? (
+        <Text className="font-sans-medium text-xs mb-1.5 text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
+          {label}
+        </Text>
+      ) : null}
       <View
         className="rounded-xl bg-surface-light-input dark:bg-surface-dark-input"
         style={{

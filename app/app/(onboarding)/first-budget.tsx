@@ -138,49 +138,60 @@ export default function FirstBudgetStep() {
       onPrimary={handleDone}
       primaryBusy={busy}
     >
-      <View style={{ gap: 12 }}>
-        {rows.map((row) => {
+      {/* Compact single-row layout (icon + name + inline TextField). The
+          earlier two-row card per category felt too tall — six cards
+          forced a long scroll on mobile. Now each row is ~52 px. */}
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor,
+          borderRadius: 12,
+          overflow: 'hidden',
+        }}
+      >
+        {rows.map((row, idx) => {
           const cat = row.category;
           const catColor = resolveCategoryColor(cat.color, isDark ? 'dark' : 'light');
           return (
             <View
               key={cat.id}
+              className="flex-row items-center"
               style={{
-                borderWidth: 1,
-                borderColor,
-                borderRadius: 12,
-                padding: 14,
+                paddingVertical: 8,
+                paddingHorizontal: 12,
                 gap: 10,
+                borderTopWidth: idx > 0 ? 1 : 0,
+                borderTopColor: borderColor,
               }}
             >
-              <View className="flex-row items-center" style={{ gap: 12 }}>
-                <View
-                  style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    backgroundColor: catColor + '22',
-                    alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <CategoryIcon name={cat.icon} color={catColor} size={16} />
-                </View>
-                <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }} numberOfLines={1}>
-                  {cat.name[lang]}
-                </Text>
+              <View
+                style={{
+                  width: 28, height: 28, borderRadius: 7,
+                  backgroundColor: catColor + '22',
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <CategoryIcon name={cat.icon} color={catColor} size={14} />
               </View>
-              <TextField
-                label=""
-                value={row.limitText}
-                onChangeText={(text) => handleLimitChange(cat.id, text)}
-                placeholder={t('onboarding:firstBudget.perCategoryHint')}
-                keyboardType="numeric"
-              />
+              <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }} numberOfLines={1}>
+                {cat.name[lang]}
+              </Text>
+              <View style={{ width: 132 }}>
+                <TextField
+                  label=""
+                  value={row.limitText}
+                  onChangeText={(text) => handleLimitChange(cat.id, text)}
+                  placeholder={t('onboarding:firstBudget.perCategoryHint')}
+                  keyboardType="numeric"
+                />
+              </View>
             </View>
           );
         })}
-        <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>
-          {t('onboarding:firstBudget.skipHint')}
-        </Text>
       </View>
+      <Text className="font-sans text-xs mt-3" style={{ color: mutedColor }}>
+        {t('onboarding:firstBudget.skipHint')}
+      </Text>
     </OnboardingShell>
   );
 }

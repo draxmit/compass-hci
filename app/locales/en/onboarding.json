@@ -13,10 +13,10 @@
   },
   "welcome": {
     "title": "Welcome to Compass",
-    "body": "Compass helps you see where your money goes. Let's start with the gentlest question: what are you saving for?",
-    "fieldLabel": "Saving for",
-    "fieldPlaceholder": "Lebaran 2027",
-    "fieldHint": "Anything works. You can change it later."
+    "body": "Compass helps you see where your money goes. Before we start — anything money-related on your mind right now?",
+    "fieldLabel": "On your mind",
+    "fieldPlaceholder": "New bike, Lebaran 2027, emergency fund…",
+    "fieldHint": "Anything works — or skip it. You can add one later."
   },
   "budgetStyle": {
     "title": "Pick a budget style",

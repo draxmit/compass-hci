@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next';
 import { sendPasswordReset } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
 import { Logo } from '@/shared/ui/Logo';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
@@ -43,12 +42,13 @@ export default function ForgotPasswordScreen() {
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Card padding="lg" className="w-full max-w-md">
-        <View className="items-center mb-6">
+      {/* Flat content — matches sign-in / sign-up. */}
+      <View className="w-full max-w-md">
+        <View className="items-center mb-8">
           <Logo size={48} color={accent} />
         </View>
-        <Text className="font-sans-bold text-2xl text-center mb-2">{t('auth:forgotPassword.title')}</Text>
-        <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
+        <Text className="font-sans-bold text-3xl text-center mb-2">{t('auth:forgotPassword.title')}</Text>
+        <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-10">
           {t('auth:forgotPassword.body')}
         </Text>
 
@@ -56,7 +56,7 @@ export default function ForgotPasswordScreen() {
           <View className="gap-4">
             <Text className="font-sans-semibold text-center">{t('auth:forgotPassword.successTitle')}</Text>
             <Text className="text-center">{t('auth:forgotPassword.successBody')}</Text>
-            <Link href={'/(auth)/sign-in' as Href} asChild>
+            <Link href={'/(auth)/sign-in' as Href} replace asChild>
               <Button onPress={() => undefined}>{t('auth:forgotPassword.backToSignIn')}</Button>
             </Link>
           </View>
@@ -78,7 +78,7 @@ export default function ForgotPasswordScreen() {
               {isSubmitting ? t('auth:forgotPassword.submitting') : t('auth:forgotPassword.submit')}
             </Button>
             <View className="flex-row justify-center mt-2 gap-1">
-              <Link href={'/(auth)/sign-in' as Href} asChild>
+              <Link href={'/(auth)/sign-in' as Href} replace asChild>
                 <Text
                   className="font-sans-semibold text-sm"
                   style={{ color: accent }}
@@ -90,7 +90,7 @@ export default function ForgotPasswordScreen() {
             </View>
           </View>
         )}
-      </Card>
+      </View>
     </ScrollView>
   );
 }

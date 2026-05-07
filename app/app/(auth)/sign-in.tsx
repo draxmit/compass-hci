@@ -8,7 +8,6 @@ import { signInWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { tokens } from '@/shared/theme/tokens';
 import { Button } from '@/shared/ui/Button';
-import { Card } from '@/shared/ui/Card';
 import { Logo } from '@/shared/ui/Logo';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
@@ -60,12 +59,15 @@ export default function SignInScreen() {
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Card padding="lg" className="w-full max-w-md">
-        <View className="items-center mb-6">
+      {/* No Card wrapper — auth surface reads cleaner as flat content on
+          the page surface. Card was making it feel like a quirky widget
+          instead of the app's home screen for first-runs. */}
+      <View className="w-full max-w-md">
+        <View className="items-center mb-8">
           <Logo size={48} color={accent} />
         </View>
-        <Text className="font-sans-bold text-2xl text-center mb-2">{t('auth:signIn.title')}</Text>
-        <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-8">
+        <Text className="font-sans-bold text-3xl text-center mb-2">{t('auth:signIn.title')}</Text>
+        <Text className="text-center text-surface-light-fg-muted dark:text-surface-dark-fg-muted mb-10">
           {t('auth:signIn.tagline')}
         </Text>
 
@@ -97,7 +99,7 @@ export default function SignInScreen() {
           <View className="items-end">
             {/* Typed routes regenerate on `expo start`; cast keeps tsc green
                 until then. Route file exists at app/app/(auth)/forgot-password.tsx. */}
-            <Link href={'/(auth)/forgot-password' as Href} asChild>
+            <Link href={'/(auth)/forgot-password' as Href} replace asChild>
               <Text
                 className="font-sans-medium text-sm"
                 style={{ color: accent }}
@@ -135,7 +137,7 @@ export default function SignInScreen() {
           <Text className="text-sm text-surface-light-fg-muted dark:text-surface-dark-fg-muted">
             {t('auth:signIn.noAccount')}
           </Text>
-          <Link href={'/(auth)/sign-up' as Href} asChild>
+          <Link href={'/(auth)/sign-up' as Href} replace asChild>
             <Text
               className="font-sans-semibold text-sm"
               style={{ color: accent }}
@@ -145,7 +147,7 @@ export default function SignInScreen() {
             </Text>
           </Link>
         </View>
-      </Card>
+      </View>
     </ScrollView>
   );
 }

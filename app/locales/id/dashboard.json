@@ -26,8 +26,8 @@
     "recent": "Belum ada transaksi."
   },
   "goal": {
-    "savingFor": "Menabung untuk: {{goal}}",
-    "placeholder": "Menabung untuk: Lebaran 2027",
+    "savingFor": "Lagi mikirin: {{goal}}",
+    "placeholder": "Lagi mikirin: Lebaran 2027",
     "fromOnboarding": "Atur di T10"
   },
   "welcome": {

@@ -13,10 +13,10 @@
   },
   "welcome": {
     "title": "Selamat datang di Compass",
-    "body": "Compass bantu kamu lihat ke mana uangmu pergi. Mulai dari pertanyaan ringan: lagi nabung untuk apa?",
-    "fieldLabel": "Lagi nabung untuk",
-    "fieldPlaceholder": "Lebaran 2027",
-    "fieldHint": "Bebas isi apa pun. Bisa diubah nanti."
+    "body": "Compass bantu kamu lihat ke mana uangmu pergi. Sebelum mulai — ada hal soal duit yang lagi kamu pikirin?",
+    "fieldLabel": "Lagi mikirin",
+    "fieldPlaceholder": "Beli motor, Lebaran 2027, dana darurat…",
+    "fieldHint": "Bebas isi apa pun — atau lewati. Bisa ditambah nanti."
   },
   "budgetStyle": {
     "title": "Pilih gaya budget",
