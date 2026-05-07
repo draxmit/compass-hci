@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 import '../global.css';
+import { BiometricGate } from '@/features/auth/BiometricGate';
 import { signOut, useAuthSubscription } from '@/services/firebase';
 import { hydratePersistedLocale, initI18n } from '@/shared/i18n';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
@@ -271,7 +272,13 @@ export default function RootLayout() {
         <AppAlertProvider>
           <AppShell>
             <AuthGate>
-              <StackTree />
+              {/* BiometricGate v3 phase A — gates the StackTree behind a
+                  successful biometric prompt when the user has flipped
+                  Settings → Biometric on AND the device supports it.
+                  Web + non-enrolled devices pass through transparently. */}
+              <BiometricGate>
+                <StackTree />
+              </BiometricGate>
             </AuthGate>
           </AppShell>
         </AppAlertProvider>

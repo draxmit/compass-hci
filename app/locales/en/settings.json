@@ -66,10 +66,10 @@
     },
     "security": {
       "biometricLabel": "Unlock with biometrics",
-      "biometricHint": "Use Face ID / Touch ID to open the app.",
+      "biometricHint": "Require Face ID / Touch ID / fingerprint to open Compass on this device. Web ignores the toggle.",
       "encryptedCacheLabel": "Encrypted cache",
       "encryptedCacheHint": "Encrypt local data on this device.",
-      "comingInV3": "Coming in v3"
+      "comingInV3": "Coming in v3.5"
     },
     "account": {
       "deleteLabel": "Delete account",
@@ -89,6 +89,15 @@
     },
     "actions": {
       "backToProfile": "Back to Profile"
+    }
+  },
+  "biometric": {
+    "lockScreen": {
+      "title": "Compass is locked",
+      "body": "Confirm it's you to continue. You can sign out below if biometrics aren't available right now.",
+      "unlock": "Unlock",
+      "unlocking": "Waiting for unlock…",
+      "signOut": "Sign out instead"
     }
   }
 }

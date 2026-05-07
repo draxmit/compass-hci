@@ -327,10 +327,13 @@ export default function SettingsScreen() {
             {t('settings:settings.section.security')}
           </Text>
           <Card padding="none" className="mb-6 w-full">
+            {/* Biometric toggle — wired live in v3 phase A. The flag is
+                read by BiometricGate at app cold-start. The 'Coming
+                in v3' pill is dropped now that the feature ships;
+                encryptedCache below still carries it (deferred to v3.5). */}
             <SecurityRow
               label={t('settings:settings.security.biometricLabel')}
               hint={t('settings:settings.security.biometricHint')}
-              comingSoon={t('settings:settings.security.comingInV3')}
               value={biometricEnabled}
               onValueChange={handleToggleBiometric}
               isDark={isDark}
@@ -411,7 +414,9 @@ export default function SettingsScreen() {
 type SecurityRowProps = {
   label: string;
   hint: string;
-  comingSoon: string;
+  /** Optional 'Coming in v3' / 'Coming in v3.5' style pill. Omit when the
+      feature is live (e.g., biometric is fully wired in v3 phase A). */
+  comingSoon?: string;
   value: boolean;
   onValueChange: (next: boolean) => void;
   isDark: boolean;
@@ -440,19 +445,21 @@ function SecurityRow({
             <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
               {label}
             </Text>
-            <Text
-              className="font-sans-medium text-[10px]"
-              style={{
-                color: mutedColor,
-                backgroundColor: borderColor,
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-                borderRadius: 6,
-                overflow: 'hidden',
-              }}
-            >
-              {comingSoon}
-            </Text>
+            {comingSoon ? (
+              <Text
+                className="font-sans-medium text-[10px]"
+                style={{
+                  color: mutedColor,
+                  backgroundColor: borderColor,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 6,
+                  overflow: 'hidden',
+                }}
+              >
+                {comingSoon}
+              </Text>
+            ) : null}
           </View>
           <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
             {hint}

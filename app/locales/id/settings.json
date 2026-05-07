@@ -66,10 +66,10 @@
     },
     "security": {
       "biometricLabel": "Buka pakai biometrik",
-      "biometricHint": "Touch ID / Face ID untuk membuka aplikasi.",
+      "biometricHint": "Wajibkan Face ID / Touch ID / sidik jari untuk membuka Compass di perangkat ini. Toggle ini diabaikan di web.",
       "encryptedCacheLabel": "Cache terenkripsi",
       "encryptedCacheHint": "Enkripsi data lokal di perangkat ini.",
-      "comingInV3": "Hadir di v3"
+      "comingInV3": "Hadir di v3.5"
     },
     "account": {
       "deleteLabel": "Hapus akun",
@@ -89,6 +89,15 @@
     },
     "actions": {
       "backToProfile": "Kembali ke Profil"
+    }
+  },
+  "biometric": {
+    "lockScreen": {
+      "title": "Compass terkunci",
+      "body": "Konfirmasi identitasmu untuk lanjut. Kamu bisa keluar di bawah jika biometrik tidak tersedia sekarang.",
+      "unlock": "Buka kunci",
+      "unlocking": "Menunggu konfirmasi…",
+      "signOut": "Keluar saja"
     }
   }
 }
