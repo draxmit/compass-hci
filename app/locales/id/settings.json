@@ -60,6 +60,10 @@
       "en": "English",
       "setTo": "Atur bahasa ke {{label}}"
     },
+    "display": {
+      "idrLabel": "Tampilkan dalam IDR di semua tempat",
+      "idrHint": "Transaksi dan akun mata uang asing tampil dengan nilai IDR di baris utama, dan nilai asli di bawahnya. Default mati — hanya tampil dalam mata uang asli."
+    },
     "security": {
       "biometricLabel": "Buka pakai biometrik",
       "biometricHint": "Touch ID / Face ID untuk membuka aplikasi.",

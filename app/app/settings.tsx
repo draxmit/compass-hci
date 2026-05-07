@@ -57,6 +57,7 @@ export default function SettingsScreen() {
 
   // Biometric flag is on the user doc → useUserDoc keeps it fresh.
   const biometricEnabled = userDoc?.biometricEnabled ?? false;
+  const displayInIDR = userDoc?.displayInIDR ?? false;
 
   const themeButtons: { label: string; value: ThemeMode }[] = [
     { label: t('settings:settings.theme.light'), value: 'light' },
@@ -102,6 +103,17 @@ export default function SettingsScreen() {
   const handleToggleEncryptedCache = (next: boolean) => {
     setEncryptedCache(next);  // optimistic
     void setFlag('compass.encryptedCache.enabled', next);
+  };
+
+  const handleToggleDisplayInIDR = (next: boolean) => {
+    const uid = useAuthStore.getState().uid;
+    if (!uid) return;
+    // Same optimistic pattern as biometric — userDoc subscription
+    // reconciles. Affects every amount surface (tx rows / account
+    // rows / recent strip / report top-5) on the next render.
+    void updateUserDoc(uid, { displayInIDR: next }).catch((err: unknown) => {
+      console.warn('[settings] displayInIDR flag write failed', err);
+    });
   };
 
   const handleDelete = () => {
@@ -273,6 +285,40 @@ export default function SettingsScreen() {
                   </Pressable>
                 );
               })}
+            </View>
+          </Card>
+
+          {/* Display in IDR toggle (ADR-19 / multi-currency v2). When
+              on, every amount surface renders the IDR-converted value
+              as the primary line + native amount as a muted subtitle.
+              Default off → native-only. Cross-account aggregations
+              (Net Worth, monthly totals) always sum in IDR regardless. */}
+          <Card padding="lg" className="mb-6 w-full">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-3">
+                <Text
+                  className="font-sans-medium text-sm"
+                  style={{ color: fgColor }}
+                >
+                  {t('settings:settings.display.idrLabel')}
+                </Text>
+                <Text
+                  className="font-sans text-xs mt-1"
+                  style={{ color: mutedColor }}
+                >
+                  {t('settings:settings.display.idrHint')}
+                </Text>
+              </View>
+              <Switch
+                accessibilityLabel={t('settings:settings.display.idrLabel')}
+                value={displayInIDR}
+                onValueChange={handleToggleDisplayInIDR}
+                trackColor={{
+                  false: borderColor,
+                  true: tokens.accent.dashboard,
+                }}
+                thumbColor="#fff"
+              />
             </View>
           </Card>
 

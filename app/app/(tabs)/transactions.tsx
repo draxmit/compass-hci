@@ -15,7 +15,7 @@ import {
   createSavedFilter, deleteSavedFilter, subscribeSavedFilters,
 } from '@/services/firestore/savedFiltersService';
 import { subscribeRecent } from '@/services/firestore/transactionsService';
-import { useAuthUser } from '@/stores/authStore';
+import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -26,7 +26,7 @@ import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatDate } from '@/shared/utils/formatDate';
-import { formatCurrency } from '@/shared/utils/formatCurrency';
+import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
 import { collectTagFrequencies } from '@/shared/utils/tags';
 
 type TypeFilter = 'all' | TransactionType;
@@ -50,6 +50,8 @@ export default function TransactionsScreen() {
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
   const user = useAuthUser();
+  const userDoc = useUserDoc();
+  const displayInIDR = userDoc?.displayInIDR ?? false;
   const wid = user ? `solo-${user.uid}` : null;
 
   const [txs, setTxs] = useState<Transaction[]>([]);
@@ -582,6 +584,7 @@ export default function TransactionsScreen() {
                     lang={lang}
                     fgColor={fgColor}
                     mutedColor={mutedColor}
+                    displayInIDR={displayInIDR}
                     showDivider={idx > 0}
                     onPress={() => router.push(`/transaction/${tx.id}` as Href)}
                     t={t}
@@ -785,13 +788,14 @@ type TransactionRowProps = {
   lang: Locale;
   fgColor: string;
   mutedColor: string;
+  displayInIDR: boolean;
   showDivider: boolean;
   onPress: () => void;
   t: TFunction;
 };
 
 function TransactionRow({
-  tx, accountsById, categoriesById, isDark, lang, fgColor, mutedColor, showDivider, onPress, t,
+  tx, accountsById, categoriesById, isDark, lang, fgColor, mutedColor, displayInIDR, showDivider, onPress, t,
 }: TransactionRowProps) {
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
   const account = accountsById.get(tx.accountId);
@@ -887,13 +891,32 @@ function TransactionRow({
           </View>
         ) : null}
       </View>
-      <Text
-        className="font-mono tabular-nums text-base font-sans-semibold"
-        style={{ color: amountColor }}
-      >
-        {amountPrefix}
-        {formatCurrency(tx.amount, tx.currency ?? 'IDR')}
-      </Text>
+      <View style={{ alignItems: 'flex-end' }}>
+        {(() => {
+          const display = formatAmountForDisplay(
+            tx.amount, tx.currency ?? 'IDR', displayInIDR, lang,
+          );
+          return (
+            <>
+              <Text
+                className="font-mono tabular-nums text-base font-sans-semibold"
+                style={{ color: amountColor }}
+              >
+                {amountPrefix}
+                {display.primary}
+              </Text>
+              {display.secondary ? (
+                <Text
+                  className="font-mono tabular-nums text-xs"
+                  style={{ color: mutedColor, marginTop: 2 }}
+                >
+                  {display.secondary}
+                </Text>
+              ) : null}
+            </>
+          );
+        })()}
+      </View>
     </Pressable>
   );
 }

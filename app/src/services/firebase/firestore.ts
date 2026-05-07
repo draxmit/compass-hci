@@ -109,6 +109,7 @@ export async function updateUserDoc(
       | 'locale'
       | 'theme'
       | 'biometricEnabled'
+      | 'displayInIDR'
     >
   >,
 ): Promise<void> {

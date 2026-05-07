@@ -19,6 +19,18 @@ export type UserDoc = {
   baseCurrency: 'IDR' | 'USD';
   budgetStyle: 'monthly_limit' | 'envelope';
   biometricEnabled: boolean;
+  /**
+   * v2 multi-currency display preference. When `true`, every amount
+   * surface (tx rows, account rows, recent strip, report's top-5)
+   * renders the IDR-converted amount as the primary line with the
+   * native amount muted underneath. When `false` (default), amounts
+   * render in their native currency only — native-currency-first
+   * (the source-of-truth balance the user's bank shows). Cross-account
+   * aggregations (Net Worth, monthly totals, budgets) always sum in
+   * IDR regardless of this preference. Optional on the doc to keep
+   * legacy v1 docs compatible — read-side helpers default to `false`.
+   */
+  displayInIDR?: boolean;
   fcmTokens: string[];
   onboardingComplete: boolean;
   /**

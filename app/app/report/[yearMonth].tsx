@@ -14,7 +14,7 @@ import { listAccounts } from '@/services/firestore/accountsService';
 import { listCategories } from '@/services/firestore/categoriesService';
 import { listMonthTotals } from '@/services/firestore/categoryMonthTotalsService';
 import { listTransactions } from '@/services/firestore/transactionsService';
-import { useAuthUser } from '@/stores/authStore';
+import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -23,7 +23,7 @@ import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { formatDate } from '@/shared/utils/formatDate';
-import { formatCurrency } from '@/shared/utils/formatCurrency';
+import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { formatPercent } from '@/shared/utils/formatPercent';
 
@@ -46,6 +46,8 @@ export default function MonthlyReportScreen() {
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
   const user = useAuthUser();
+  const userDoc = useUserDoc();
+  const displayInIDR = userDoc?.displayInIDR ?? false;
   const wid = user ? `solo-${user.uid}` : null;
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
@@ -346,6 +348,7 @@ export default function MonthlyReportScreen() {
                         fgColor={fgColor}
                         mutedColor={mutedColor}
                         borderColor={borderColor}
+                        displayInIDR={displayInIDR}
                         onPress={() => router.push(`/transaction/${tx.id}` as Href)}
                       />
                     ))}
@@ -536,12 +539,13 @@ type TopExpenseRowProps = {
   fgColor: string;
   mutedColor: string;
   borderColor: string;
+  displayInIDR: boolean;
   onPress: () => void;
 };
 
 function TopExpenseRow({
   tx, accountsById, categoriesById, showDivider, isDark, lang,
-  fgColor, mutedColor, borderColor, onPress,
+  fgColor, mutedColor, borderColor, displayInIDR, onPress,
 }: TopExpenseRowProps) {
   const split = tx.splits[0];
   const category = split ? categoriesById.get(split.categoryId) : undefined;
@@ -588,9 +592,31 @@ function TopExpenseRow({
           {account ? ` · ${account.name}` : ''}
         </Text>
       </View>
-      <Text className="font-mono tabular-nums text-sm" style={{ color: tokens.semantic.danger }}>
-        {formatCurrency(tx.amount, tx.currency ?? 'IDR', lang)}
-      </Text>
+      <View style={{ alignItems: 'flex-end' }}>
+        {(() => {
+          const display = formatAmountForDisplay(
+            tx.amount, tx.currency ?? 'IDR', displayInIDR, lang,
+          );
+          return (
+            <>
+              <Text
+                className="font-mono tabular-nums text-sm"
+                style={{ color: tokens.semantic.danger }}
+              >
+                {display.primary}
+              </Text>
+              {display.secondary ? (
+                <Text
+                  className="font-mono tabular-nums text-xs"
+                  style={{ color: mutedColor, marginTop: 2 }}
+                >
+                  {display.secondary}
+                </Text>
+              ) : null}
+            </>
+          );
+        })()}
+      </View>
     </Pressable>
   );
 }

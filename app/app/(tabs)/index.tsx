@@ -23,7 +23,7 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
-import { formatCurrency } from '@/shared/utils/formatCurrency';
+import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
 import { formatDate } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { convertToIDRMinor } from '@/shared/utils/fxRates';
@@ -53,6 +53,7 @@ export default function DashboardScreen() {
   const wid = user ? `solo-${user.uid}` : null;
   const userDoc = useUserDoc();
   const goalText = userDoc?.primaryGoal?.trim() ?? '';
+  const displayInIDR = userDoc?.displayInIDR ?? false;
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -466,6 +467,7 @@ export default function DashboardScreen() {
               lang={lang}
               fgColor={fgColor}
               mutedColor={mutedColor}
+              displayInIDR={displayInIDR}
               showDivider={idx > 0}
               onPress={() => router.push(`/transaction/${tx.id}` as Href)}
               t={t}
@@ -540,13 +542,14 @@ type RecentRowProps = {
   lang: Locale;
   fgColor: string;
   mutedColor: string;
+  displayInIDR: boolean;
   showDivider: boolean;
   onPress: () => void;
   t: TFunction;
 };
 
 function RecentRow({
-  tx, accountsById, categoriesById, isDark, lang, fgColor, mutedColor, showDivider, onPress, t,
+  tx, accountsById, categoriesById, isDark, lang, fgColor, mutedColor, displayInIDR, showDivider, onPress, t,
 }: RecentRowProps) {
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
   const account = accountsById.get(tx.accountId);
@@ -605,13 +608,32 @@ function RecentRow({
           {formatDate(new Date(tx.date), 'long', lang)}
         </Text>
       </View>
-      <Text
-        className="font-mono tabular-nums text-sm font-sans-semibold"
-        style={{ color: amountColor }}
-      >
-        {amountPrefix}
-        {formatCurrency(tx.amount, tx.currency ?? 'IDR', lang)}
-      </Text>
+      <View style={{ alignItems: 'flex-end' }}>
+        {(() => {
+          const display = formatAmountForDisplay(
+            tx.amount, tx.currency ?? 'IDR', displayInIDR, lang,
+          );
+          return (
+            <>
+              <Text
+                className="font-mono tabular-nums text-sm font-sans-semibold"
+                style={{ color: amountColor }}
+              >
+                {amountPrefix}
+                {display.primary}
+              </Text>
+              {display.secondary ? (
+                <Text
+                  className="font-mono tabular-nums text-xs"
+                  style={{ color: mutedColor, marginTop: 2 }}
+                >
+                  {display.secondary}
+                </Text>
+              ) : null}
+            </>
+          );
+        })()}
+      </View>
     </Pressable>
   );
 }

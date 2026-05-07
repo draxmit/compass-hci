@@ -60,6 +60,10 @@
       "en": "English",
       "setTo": "Set language to {{label}}"
     },
+    "display": {
+      "idrLabel": "Show in IDR everywhere",
+      "idrHint": "Foreign-currency transactions and accounts show their IDR-converted amount as the primary line, with the native amount underneath. Off by default — native amounts only."
+    },
     "security": {
       "biometricLabel": "Unlock with biometrics",
       "biometricHint": "Use Face ID / Touch ID to open the app.",

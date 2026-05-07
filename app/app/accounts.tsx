@@ -15,7 +15,7 @@ import {
 import {
   ACCOUNT_TYPES, getSubtypeMeta, subtypesForType,
 } from '@/shared/data/accountSubtypes';
-import { useAuthUser } from '@/stores/authStore';
+import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import type { Locale } from '@/shared/i18n';
 import { CATEGORY_COLOR_KEYS, resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -27,7 +27,7 @@ import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { CurrencyPickerModal } from '@/features/accounts/CurrencyPickerModal';
 import { CURRENCY_META } from '@/shared/utils/currencyMeta';
-import { formatCurrency } from '@/shared/utils/formatCurrency';
+import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { convertToIDRMinor } from '@/shared/utils/fxRates';
 
@@ -49,6 +49,8 @@ export default function AccountsScreen() {
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
 
+  const userDoc = useUserDoc();
+  const displayInIDR = userDoc?.displayInIDR ?? false;
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
 
@@ -201,6 +203,8 @@ export default function AccountsScreen() {
                     type={type}
                     accounts={items}
                     isDark={isDark}
+                    lang={lang}
+                    displayInIDR={displayInIDR}
                     onEditAccount={(a) => setEditTarget({ mode: 'edit', account: a })}
                   />
                 ))}
@@ -217,10 +221,12 @@ type AccountGroupProps = {
   type: AccountType;
   accounts: Account[];
   isDark: boolean;
+  lang: Locale;
+  displayInIDR: boolean;
   onEditAccount: (a: Account) => void;
 };
 
-function AccountGroup({ type, accounts, isDark, onEditAccount }: AccountGroupProps) {
+function AccountGroup({ type, accounts, isDark, lang, displayInIDR, onEditAccount }: AccountGroupProps) {
   const { t } = useTranslation(['accounts']);
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -294,12 +300,31 @@ function AccountGroup({ type, accounts, isDark, onEditAccount }: AccountGroupPro
                 ) : null}
               </View>
             </View>
-            <Text
-              className="font-mono tabular-nums text-base"
-              style={{ color: fgColor }}
-            >
-              {formatCurrency(account.currentBalance, account.currency)}
-            </Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              {(() => {
+                const display = formatAmountForDisplay(
+                  account.currentBalance, account.currency, displayInIDR, lang,
+                );
+                return (
+                  <>
+                    <Text
+                      className="font-mono tabular-nums text-base"
+                      style={{ color: fgColor }}
+                    >
+                      {display.primary}
+                    </Text>
+                    {display.secondary ? (
+                      <Text
+                        className="font-mono tabular-nums text-xs"
+                        style={{ color: mutedColor, marginTop: 2 }}
+                      >
+                        {display.secondary}
+                      </Text>
+                    ) : null}
+                  </>
+                );
+              })()}
+            </View>
           </Pressable>
         );
       })}
