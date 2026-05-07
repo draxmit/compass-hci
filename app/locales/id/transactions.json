@@ -46,6 +46,14 @@
       "splitsMustSumToTotal": "Pembagian belum pas: jumlah baris harus sama dengan total.",
       "splitsMissingCategory": "Pilih kategori untuk tiap baris."
     },
+    "voice": {
+      "start": "Mulai dikte",
+      "stop": "Berhenti dikte",
+      "listening": "Mendengarkan… ngomong aja, Compass akan ketik buat kamu.",
+      "unavailableTitle": "Suara belum bisa di sini",
+      "unavailableNative": "Input suara untuk sementara hanya di versi web. Versi mobile hadir di v2.5.",
+      "unavailableBrowser": "Browser ini belum dukung input suara. Coba pakai Chrome, Edge, atau Safari."
+    },
     "splits": {
       "toggleToMulti": "+ Bagi ke beberapa kategori",
       "toggleToSingle": "← Pakai satu kategori",

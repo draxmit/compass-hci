@@ -1,11 +1,11 @@
 import type { Account, Category, TransactionType } from '@compass/shared-types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft, ChevronRight, Mic, MicOff } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { BackHandler, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
@@ -28,6 +28,7 @@ import {
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { parseTransaction } from '@/shared/utils/nlpParser';
 import type { NlpResult } from '@/shared/utils/nlpParser';
+import { useVoiceInput } from '@/shared/utils/voiceInput';
 
 const TYPES: readonly TransactionType[] = ['expense', 'income', 'transfer'];
 
@@ -95,6 +96,17 @@ export default function NewTransactionScreen() {
   // current total amount, then the user adds rows.
   const [splitsMode, setSplitsMode] = useState<'single' | 'multi'>('single');
   const [splitRows, setSplitRows] = useState<{ categoryId: string | null; amountText: string }[]>([]);
+
+  // Voice input → NLP field. Web only in v2 launch (native variant
+  // requires expo-speech-recognition + EAS dev client; v2.5 polish).
+  const voice = useVoiceInput({
+    locale: lang,
+    onResult: (transcript) => {
+      // Append to whatever's already in the input rather than replacing —
+      // user might be mid-sentence dictating extra detail.
+      setNlpInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    },
+  });
 
   // Per-field "touched-by-user" flags so re-parsing on every keystroke
   // doesn't clobber fields the user has manually edited.
@@ -286,7 +298,7 @@ export default function NewTransactionScreen() {
 
           <Text className="font-sans-bold text-3xl mb-4">{t('transactions:entry.title')}</Text>
 
-          {/* NLP quick-entry */}
+          {/* NLP quick-entry — text + (web) voice */}
           <Card padding="lg" className="mb-4">
             <View className="flex-row items-center justify-between mb-3">
               <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
@@ -298,16 +310,68 @@ export default function NewTransactionScreen() {
                 </Text>
               ) : null}
             </View>
-            <TextField
-              label=""
-              value={nlpInput}
-              onChangeText={setNlpInput}
-              placeholder={t('transactions:entry.nlpPlaceholder')}
-              autoCapitalize="none"
-              returnKeyType="done"
-            />
+            <View className="flex-row items-stretch" style={{ gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <TextField
+                  label=""
+                  value={nlpInput}
+                  onChangeText={setNlpInput}
+                  placeholder={t('transactions:entry.nlpPlaceholder')}
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                />
+              </View>
+              {/* Voice button — web only in v2 launch (per ADR-15).
+                  Native taps surface a friendly explanation rather than
+                  failing silently. The button stays visible on both so
+                  the layout is stable across platforms. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  voice.isListening
+                    ? t('transactions:entry.voice.stop')
+                    : t('transactions:entry.voice.start')
+                }
+                accessibilityState={{ disabled: !voice.supported && Platform.OS === 'web' }}
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    appAlert(
+                      t('transactions:entry.voice.unavailableTitle'),
+                      t('transactions:entry.voice.unavailableNative'),
+                    );
+                    return;
+                  }
+                  if (!voice.supported) {
+                    appAlert(
+                      t('transactions:entry.voice.unavailableTitle'),
+                      t('transactions:entry.voice.unavailableBrowser'),
+                    );
+                    return;
+                  }
+                  if (voice.isListening) voice.stop();
+                  else voice.start();
+                }}
+                style={{
+                  width: 48,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: voice.isListening ? tokens.accent.transactions : borderColor,
+                  backgroundColor: voice.isListening ? tokens.accent.transactions + '22' : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {voice.isListening ? (
+                  <MicOff size={18} color={tokens.accent.transactions} />
+                ) : (
+                  <Mic size={18} color={mutedColor} />
+                )}
+              </Pressable>
+            </View>
             <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>
-              {t('transactions:entry.nlpHint')}
+              {voice.isListening
+                ? t('transactions:entry.voice.listening')
+                : t('transactions:entry.nlpHint')}
             </Text>
           </Card>
 
