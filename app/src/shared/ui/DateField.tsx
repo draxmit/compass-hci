@@ -18,21 +18,32 @@ export type DateFieldProps = {
   placeholder?: string;
   lang: Locale;
   accessibilityLabel?: string;
+  /** Earliest selectable date (inclusive) as 'YYYY-MM-DD'. Days /
+   * months / years before this point render dimmed and reject taps.
+   * Used by goals to prevent picking past target dates. Omit to
+   * allow any date (transactions need to log past spending). */
+  minDate?: string;
+  /** Latest selectable date (inclusive) as 'YYYY-MM-DD'. Symmetric
+   * to minDate. Currently unused but kept for future-proofing. */
+  maxDate?: string;
 };
 
 /**
- * Themed cross-platform date picker. Tap the field to open a modal
- * calendar grid; tap a day to commit. Today + selected day get
- * distinct visual treatment. Clear button removes the date. Same
- * component on web and native — no native datetimepicker dependency,
- * no `<input type="date">` styling drift between browsers.
+ * Themed cross-platform date picker. Three zoom levels — Day view
+ * shows a month grid; tap the month/year header to zoom out to Month
+ * view (12-month grid); tap the year there to zoom out to Year view
+ * (decade grid). Mirrors Google Forms' calendar UX.
+ *
+ * Same component on web and native — no native datetimepicker
+ * dependency, no `<input type="date">` styling drift between
+ * browsers.
  *
  * Format convention: stored / emitted as 'YYYY-MM-DD' to match the
  * existing `Goal.targetDate` and `Transaction.date` shapes. Empty
  * string represents 'no date'.
  */
 export function DateField({
-  value, onChange, placeholder, lang, accessibilityLabel,
+  value, onChange, placeholder, lang, accessibilityLabel, minDate, maxDate,
 }: DateFieldProps) {
   const { t } = useTranslation(['common']);
   const { resolvedScheme } = useTheme();
@@ -55,42 +66,47 @@ export function DateField({
     : tokens.surface['light-input'];
 
   const [open, setOpen] = useState(false);
-  // Month being viewed in the calendar — separate from `value` so the
-  // user can flip months without selecting yet. Initialised to the
-  // selected month (or current month if nothing selected).
+  // 'day' = month grid; 'month' = month-of-year grid; 'year' = decade
+  // grid. Header taps zoom out one level; selecting a cell zooms back
+  // in toward 'day'.
+  const [viewMode, setViewMode] = useState<'day' | 'month' | 'year'>('day');
   const initialMonth = (() => {
     if (value) {
-      const d = new Date(`${value}T00:00:00`);
-      if (!Number.isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
+      const d = parseIso(value);
+      if (d) return new Date(d.getFullYear(), d.getMonth(), 1);
     }
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   })();
   const [viewMonth, setViewMonth] = useState<Date>(initialMonth);
 
-  const valueDate = useMemo(() => {
-    if (!value) return null;
-    const d = new Date(`${value}T00:00:00`);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }, [value]);
+  const valueDate = useMemo(() => parseIso(value), [value]);
+  const minDateParsed = useMemo(() => (minDate ? parseIso(minDate) : null), [minDate]);
+  const maxDateParsed = useMemo(() => (maxDate ? parseIso(maxDate) : null), [maxDate]);
 
   const displayLabel = valueDate
     ? formatDate(valueDate, 'long', lang)
     : (placeholder ?? '');
+
+  // Reset view mode + view month each time the modal opens so a
+  // returning user lands on their saved date in day view.
+  function openModal() {
+    setViewMode('day');
+    if (valueDate) {
+      setViewMonth(new Date(valueDate.getFullYear(), valueDate.getMonth(), 1));
+    } else {
+      const now = new Date();
+      setViewMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    }
+    setOpen(true);
+  }
 
   return (
     <>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? displayLabel}
-        onPress={() => {
-          // Reset view to the selected month each time we open so a
-          // returning user lands on their saved month.
-          if (valueDate) {
-            setViewMonth(new Date(valueDate.getFullYear(), valueDate.getMonth(), 1));
-          }
-          setOpen(true);
-        }}
+        onPress={openModal}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -161,21 +177,60 @@ export function DateField({
               padding: 16,
             }}
           >
-            <CalendarGrid
-              viewMonth={viewMonth}
-              setViewMonth={setViewMonth}
-              selectedDate={valueDate}
-              onSelect={(iso) => {
-                onChange(iso);
-                setOpen(false);
-              }}
-              fgColor={fgColor}
-              mutedColor={mutedColor}
-              faintColor={faintColor}
-              borderColor={borderColor}
-              lang={lang}
-              t={t}
-            />
+            {viewMode === 'day' ? (
+              <CalendarDayGrid
+                viewMonth={viewMonth}
+                setViewMonth={setViewMonth}
+                selectedDate={valueDate}
+                minDate={minDateParsed}
+                maxDate={maxDateParsed}
+                onSelect={(iso) => {
+                  onChange(iso);
+                  setOpen(false);
+                }}
+                onZoomToMonths={() => setViewMode('month')}
+                fgColor={fgColor}
+                mutedColor={mutedColor}
+                faintColor={faintColor}
+                borderColor={borderColor}
+                lang={lang}
+              />
+            ) : viewMode === 'month' ? (
+              <CalendarMonthGrid
+                viewYear={viewMonth.getFullYear()}
+                setViewYear={(y) => setViewMonth(new Date(y, viewMonth.getMonth(), 1))}
+                selectedDate={valueDate}
+                minDate={minDateParsed}
+                maxDate={maxDateParsed}
+                onSelect={(month) => {
+                  setViewMonth(new Date(viewMonth.getFullYear(), month, 1));
+                  setViewMode('day');
+                }}
+                onZoomToYears={() => setViewMode('year')}
+                fgColor={fgColor}
+                mutedColor={mutedColor}
+                faintColor={faintColor}
+                borderColor={borderColor}
+                lang={lang}
+              />
+            ) : (
+              <CalendarYearGrid
+                centerYear={viewMonth.getFullYear()}
+                setCenterYear={(y) => setViewMonth(new Date(y, viewMonth.getMonth(), 1))}
+                selectedDate={valueDate}
+                minDate={minDateParsed}
+                maxDate={maxDateParsed}
+                onSelect={(y) => {
+                  setViewMonth(new Date(y, viewMonth.getMonth(), 1));
+                  setViewMode('month');
+                }}
+                fgColor={fgColor}
+                mutedColor={mutedColor}
+                faintColor={faintColor}
+                borderColor={borderColor}
+              />
+            )}
+
             <View
               className="flex-row items-center justify-between"
               style={{
@@ -189,8 +244,9 @@ export function DateField({
                 accessibilityRole="button"
                 onPress={() => {
                   const today = new Date();
-                  const iso = formatIso(today);
-                  onChange(iso);
+                  if (minDateParsed && today < minDateParsed) return;
+                  if (maxDateParsed && today > maxDateParsed) return;
+                  onChange(formatIso(today));
                   setOpen(false);
                 }}
                 style={{
@@ -230,44 +286,38 @@ export function DateField({
   );
 }
 
-// ---------- CalendarGrid ----------
+// ---------- CalendarDayGrid ----------
 
-type CalendarGridProps = {
+type CalendarDayGridProps = {
   viewMonth: Date;
   setViewMonth: (d: Date) => void;
   selectedDate: Date | null;
+  minDate: Date | null;
+  maxDate: Date | null;
   onSelect: (iso: string) => void;
+  onZoomToMonths: () => void;
   fgColor: string;
   mutedColor: string;
   faintColor: string;
   borderColor: string;
   lang: Locale;
-  t: (key: string) => string;
 };
 
-function CalendarGrid({
-  viewMonth, setViewMonth, selectedDate, onSelect,
-  fgColor, mutedColor, faintColor, borderColor, lang, t,
-}: CalendarGridProps) {
-  void t;
+function CalendarDayGrid({
+  viewMonth, setViewMonth, selectedDate, minDate, maxDate, onSelect, onZoomToMonths,
+  fgColor, mutedColor, faintColor, borderColor, lang,
+}: CalendarDayGridProps) {
   const accent = tokens.accent.dashboard;
   const today = new Date();
-  const todayY = today.getFullYear();
-  const todayM = today.getMonth();
-  const todayD = today.getDate();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   const year = viewMonth.getFullYear();
   const month = viewMonth.getMonth();
-  // First day of month + how many days to backfill from prev month so
-  // the grid starts on Sunday. Indonesian convention is also Sun-first
-  // for most calendars (printed + digital), so no locale flip.
   const firstOfMonth = new Date(year, month, 1);
-  const startWeekday = firstOfMonth.getDay(); // 0 = Sun
+  const startWeekday = firstOfMonth.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-  // 6×7 grid = 42 cells. Days from prev month, current month, next
-  // month — caller renders all of them, dimming the non-current ones.
   const cells: { date: Date; inMonth: boolean }[] = [];
   for (let i = startWeekday - 1; i >= 0; i--) {
     cells.push({ date: new Date(year, month - 1, daysInPrevMonth - i), inMonth: false });
@@ -286,17 +336,14 @@ function CalendarGrid({
 
   const monthLabel = formatDate(firstOfMonth, 'long-month', lang);
 
-  const goPrev = () => setViewMonth(new Date(year, month - 1, 1));
-  const goNext = () => setViewMonth(new Date(year, month + 1, 1));
-
   return (
     <>
-      {/* Header — month label centered, prev/next arrows on each side. */}
+      {/* Header — tappable month label zooms out to month-of-year. */}
       <View className="flex-row items-center justify-between" style={{ marginBottom: 12 }}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Previous month"
-          onPress={goPrev}
+          onPress={() => setViewMonth(new Date(year, month - 1, 1))}
           hitSlop={6}
           style={{
             width: 32, height: 32, borderRadius: 8,
@@ -305,13 +352,24 @@ function CalendarGrid({
         >
           <ChevronLeft size={16} color={mutedColor} />
         </Pressable>
-        <Text className="font-sans-semibold text-base" style={{ color: fgColor }}>
-          {monthLabel}
-        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Switch to month picker"
+          onPress={onZoomToMonths}
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 8,
+          }}
+        >
+          <Text className="font-sans-semibold text-base" style={{ color: fgColor }}>
+            {monthLabel} ▾
+          </Text>
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Next month"
-          onPress={goNext}
+          onPress={() => setViewMonth(new Date(year, month + 1, 1))}
           hitSlop={6}
           style={{
             width: 32, height: 32, borderRadius: 8,
@@ -322,42 +380,41 @@ function CalendarGrid({
         </Pressable>
       </View>
 
-      {/* Day-of-week labels */}
       <View className="flex-row" style={{ marginBottom: 4 }}>
         {dayLabels.map((d) => (
           <View key={d} style={{ flex: 1, alignItems: 'center', paddingVertical: 4 }}>
-            <Text
-              className="font-sans-medium text-xs"
-              style={{ color: mutedColor }}
-            >
-              {d}
-            </Text>
+            <Text className="font-sans-medium text-xs" style={{ color: mutedColor }}>{d}</Text>
           </View>
         ))}
       </View>
 
-      {/* Day grid */}
       <View className="flex-row flex-wrap">
         {cells.map((cell, idx) => {
-          const isToday = cell.date.getFullYear() === todayY
-            && cell.date.getMonth() === todayM
-            && cell.date.getDate() === todayD;
+          const cellMidnight = new Date(cell.date.getFullYear(), cell.date.getMonth(), cell.date.getDate());
+          const isToday = cellMidnight.getTime() === todayMidnight.getTime();
           const isSelected = selectedDate
-            && cell.date.getFullYear() === selectedDate.getFullYear()
-            && cell.date.getMonth() === selectedDate.getMonth()
-            && cell.date.getDate() === selectedDate.getDate();
+            && cellMidnight.getFullYear() === selectedDate.getFullYear()
+            && cellMidnight.getMonth() === selectedDate.getMonth()
+            && cellMidnight.getDate() === selectedDate.getDate();
+          const beforeMin = !!minDate && cellMidnight < minDate;
+          const afterMax = !!maxDate && cellMidnight > maxDate;
+          const disabled = beforeMin || afterMax;
           const dayColor = isSelected
             ? '#fff'
-            : !cell.inMonth
+            : disabled
               ? faintColor
-              : isToday
-                ? accent
-                : fgColor;
+              : !cell.inMonth
+                ? faintColor
+                : isToday
+                  ? accent
+                  : fgColor;
           return (
             <Pressable
               key={idx}
               accessibilityRole="button"
+              accessibilityState={{ disabled }}
               accessibilityLabel={formatDate(cell.date, 'long', lang)}
+              disabled={disabled}
               onPress={() => onSelect(formatIso(cell.date))}
               style={{
                 width: `${100 / 7}%`,
@@ -365,6 +422,7 @@ function CalendarGrid({
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: 2,
+                opacity: disabled && !isSelected ? 0.5 : 1,
               }}
             >
               <View
@@ -379,10 +437,7 @@ function CalendarGrid({
                   borderColor: !isSelected && isToday ? accent : borderColor,
                 }}
               >
-                <Text
-                  className="font-sans-medium text-sm"
-                  style={{ color: dayColor }}
-                >
+                <Text className="font-sans-medium text-sm" style={{ color: dayColor }}>
                   {cell.date.getDate()}
                 </Text>
               </View>
@@ -392,6 +447,271 @@ function CalendarGrid({
       </View>
     </>
   );
+}
+
+// ---------- CalendarMonthGrid ----------
+
+type CalendarMonthGridProps = {
+  viewYear: number;
+  setViewYear: (y: number) => void;
+  selectedDate: Date | null;
+  minDate: Date | null;
+  maxDate: Date | null;
+  onSelect: (month: number) => void;
+  onZoomToYears: () => void;
+  fgColor: string;
+  mutedColor: string;
+  faintColor: string;
+  borderColor: string;
+  lang: Locale;
+};
+
+function CalendarMonthGrid({
+  viewYear, setViewYear, selectedDate, minDate, maxDate, onSelect, onZoomToYears,
+  fgColor, mutedColor, faintColor, borderColor, lang,
+}: CalendarMonthGridProps) {
+  const accent = tokens.accent.dashboard;
+  const today = new Date();
+  const todayY = today.getFullYear();
+  const todayM = today.getMonth();
+
+  // Month abbreviations — 3-letter localized.
+  const monthLabels = Array.from({ length: 12 }, (_, m) => {
+    return formatDate(new Date(viewYear, m, 1), 'long-month', lang).split(' ')[0];
+  });
+
+  return (
+    <>
+      <View className="flex-row items-center justify-between" style={{ marginBottom: 12 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Previous year"
+          onPress={() => setViewYear(viewYear - 1)}
+          hitSlop={6}
+          style={{
+            width: 32, height: 32, borderRadius: 8,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <ChevronLeft size={16} color={mutedColor} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Switch to year picker"
+          onPress={onZoomToYears}
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 8,
+          }}
+        >
+          <Text className="font-sans-semibold text-base" style={{ color: fgColor }}>
+            {viewYear} ▾
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Next year"
+          onPress={() => setViewYear(viewYear + 1)}
+          hitSlop={6}
+          style={{
+            width: 32, height: 32, borderRadius: 8,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <ChevronRight size={16} color={mutedColor} />
+        </Pressable>
+      </View>
+
+      {/* 4 rows × 3 columns of month buttons. */}
+      <View className="flex-row flex-wrap">
+        {monthLabels.map((label, m) => {
+          const isCurrent = todayY === viewYear && todayM === m;
+          const isSelected = selectedDate
+            && selectedDate.getFullYear() === viewYear
+            && selectedDate.getMonth() === m;
+          // Disabled if every day in the month is below minDate or
+          // above maxDate. Cheap check: last day of month vs minDate,
+          // first day vs maxDate.
+          const lastOfMonth = new Date(viewYear, m + 1, 0);
+          const firstOfMonth = new Date(viewYear, m, 1);
+          const beforeMin = !!minDate && lastOfMonth < minDate;
+          const afterMax = !!maxDate && firstOfMonth > maxDate;
+          const disabled = beforeMin || afterMax;
+          return (
+            <Pressable
+              key={m}
+              accessibilityRole="button"
+              accessibilityState={{ disabled, selected: !!isSelected }}
+              disabled={disabled}
+              onPress={() => onSelect(m)}
+              style={{
+                width: '33.333%',
+                paddingHorizontal: 4,
+                paddingVertical: 6,
+                opacity: disabled && !isSelected ? 0.4 : 1,
+              }}
+            >
+              <View
+                style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 14,
+                  borderRadius: 10,
+                  backgroundColor: isSelected ? accent : 'transparent',
+                  borderWidth: !isSelected && isCurrent ? 1 : 0,
+                  borderColor: !isSelected && isCurrent ? accent : borderColor,
+                }}
+              >
+                <Text
+                  className="font-sans-medium text-sm"
+                  style={{
+                    color: isSelected
+                      ? '#fff'
+                      : disabled
+                        ? faintColor
+                        : isCurrent
+                          ? accent
+                          : fgColor,
+                  }}
+                >
+                  {label}
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
+// ---------- CalendarYearGrid ----------
+
+type CalendarYearGridProps = {
+  centerYear: number;
+  setCenterYear: (y: number) => void;
+  selectedDate: Date | null;
+  minDate: Date | null;
+  maxDate: Date | null;
+  onSelect: (year: number) => void;
+  fgColor: string;
+  mutedColor: string;
+  faintColor: string;
+  borderColor: string;
+};
+
+function CalendarYearGrid({
+  centerYear, setCenterYear, selectedDate, minDate, maxDate, onSelect,
+  fgColor, mutedColor, faintColor, borderColor,
+}: CalendarYearGridProps) {
+  const accent = tokens.accent.dashboard;
+  const today = new Date();
+  const todayYear = today.getFullYear();
+
+  // 12-year decade page. Show centerYear in the middle of the grid;
+  // 5 years before, 6 years after = 12 cells. prev/next chevrons jump
+  // by 12 years.
+  const startYear = centerYear - 5;
+  const endYear = centerYear + 6;
+
+  return (
+    <>
+      <View className="flex-row items-center justify-between" style={{ marginBottom: 12 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Previous decade"
+          onPress={() => setCenterYear(centerYear - 12)}
+          hitSlop={6}
+          style={{
+            width: 32, height: 32, borderRadius: 8,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <ChevronLeft size={16} color={mutedColor} />
+        </Pressable>
+        <Text className="font-sans-semibold text-base" style={{ color: fgColor }}>
+          {startYear}–{endYear}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Next decade"
+          onPress={() => setCenterYear(centerYear + 12)}
+          hitSlop={6}
+          style={{
+            width: 32, height: 32, borderRadius: 8,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <ChevronRight size={16} color={mutedColor} />
+        </Pressable>
+      </View>
+
+      {/* 4 rows × 3 columns of year buttons. */}
+      <View className="flex-row flex-wrap">
+        {Array.from({ length: 12 }, (_, i) => startYear + i).map((y) => {
+          const isCurrent = y === todayYear;
+          const isSelected = selectedDate && selectedDate.getFullYear() === y;
+          // Disabled if every day in the year is outside the bounds.
+          const lastOfYear = new Date(y, 11, 31);
+          const firstOfYear = new Date(y, 0, 1);
+          const beforeMin = !!minDate && lastOfYear < minDate;
+          const afterMax = !!maxDate && firstOfYear > maxDate;
+          const disabled = beforeMin || afterMax;
+          return (
+            <Pressable
+              key={y}
+              accessibilityRole="button"
+              accessibilityState={{ disabled, selected: !!isSelected }}
+              disabled={disabled}
+              onPress={() => onSelect(y)}
+              style={{
+                width: '33.333%',
+                paddingHorizontal: 4,
+                paddingVertical: 6,
+                opacity: disabled && !isSelected ? 0.4 : 1,
+              }}
+            >
+              <View
+                style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 14,
+                  borderRadius: 10,
+                  backgroundColor: isSelected ? accent : 'transparent',
+                  borderWidth: !isSelected && isCurrent ? 1 : 0,
+                  borderColor: !isSelected && isCurrent ? accent : borderColor,
+                }}
+              >
+                <Text
+                  className="font-sans-medium text-sm"
+                  style={{
+                    color: isSelected
+                      ? '#fff'
+                      : disabled
+                        ? faintColor
+                        : isCurrent
+                          ? accent
+                          : fgColor,
+                  }}
+                >
+                  {y}
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
+/** Parse 'YYYY-MM-DD' as a local-midnight Date, or return null if
+ * the input is empty / invalid. */
+function parseIso(iso: string): Date | null {
+  if (!iso) return null;
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 /**

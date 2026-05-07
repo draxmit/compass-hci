@@ -779,6 +779,7 @@ function GoalEditPanel({
               placeholder={t('goals:form.targetDatePlaceholder')}
               lang={lang}
               accessibilityLabel={t('goals:form.targetDateLabel')}
+              minDate={new Date().toISOString().slice(0, 10)}
             />
           </Card>
 
