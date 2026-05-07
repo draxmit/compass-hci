@@ -4,10 +4,10 @@ import type {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, FileDown } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { BackHandler, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { listAccounts } from '@/services/firestore/accountsService';
@@ -19,6 +19,7 @@ import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
@@ -49,6 +50,8 @@ export default function MonthlyReportScreen() {
   const userDoc = useUserDoc();
   const displayInIDR = userDoc?.displayInIDR ?? false;
   const wid = user ? `solo-${user.uid}` : null;
+  const appAlert = useAppAlert();
+  const [exporting, setExporting] = useState(false);
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -195,6 +198,81 @@ export default function MonthlyReportScreen() {
 
   const noData = loaded && thisExpenseTotal === 0 && thisIncomeTotal === 0;
 
+  // Export to DOCX. Web-only in v3 launch — `Packer.toBlob` from the
+  // `docx` package is browser-targeted, and bundling its native variant
+  // for React Native requires a Buffer polyfill we don't ship in v3.
+  // Native shows a friendly "use the web app" alert; the web download
+  // path uses an anchor + Blob URL with a deterministic filename.
+  const handleExport = async () => {
+    if (!yearMonth || !loaded || noData || exporting) return;
+    if (Platform.OS !== 'web') {
+      appAlert(
+        t('report:export.nativeUnsupportedTitle'),
+        t('report:export.nativeUnsupportedBody'),
+      );
+      return;
+    }
+    setExporting(true);
+    try {
+      // Dynamic import — the `docx` package is browser-targeted and
+      // pulls in jszip + Node polyfills that Metro rejects at bundle
+      // time. Loading it only at export-click means the rest of the
+      // screen (and the rest of the app) bundles cleanly on native,
+      // while web pulls it lazily on first export click.
+      const { generateReportDocxBlob, reportDocxFilename } = await import(
+        '@/features/reports/generateReportDocx'
+      );
+      // i18next's TFunction returns a special detailed-result type
+      // depending on the key's namespace. The DOCX generator only needs
+      // a string-out; bridge with a thin adaptor that forces the result
+      // through `String(...)`. Safe — every key we pass is a plain
+      // template string with no nested-object resources.
+      const tStr = (key: string, opts?: Record<string, unknown>) =>
+        String(t(key, opts as never));
+      const blob = await generateReportDocxBlob({
+        yearMonth,
+        lang,
+        monthLabel,
+        thisIncomeTotal,
+        thisExpenseTotal,
+        thisNet,
+        lastIncomeTotal,
+        lastExpenseTotal,
+        lastNet,
+        breakdown,
+        topExpenses,
+        categoriesById,
+        accountsById,
+        t: tStr,
+      });
+      const filename: string = reportDocxFilename(yearMonth);
+      // Browser download via a transient anchor element — same pattern
+      // CSV import uses on the inverse direction. Object URL released
+      // after the click handler so the browser has had a chance to
+      // start the download.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      appAlert(
+        t('report:export.successTitle'),
+        t('report:export.successBody', { filename }),
+      );
+    } catch (err) {
+      console.warn('[report] export failed', err);
+      appAlert(
+        t('report:export.errorTitle'),
+        t('report:export.errorBody'),
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: overlayBg }}>
       <ScrollView
@@ -219,9 +297,45 @@ export default function MonthlyReportScreen() {
             </Text>
           </Pressable>
 
-          <Text className="font-sans-bold text-3xl mb-6">
-            {t('report:title', { month: monthLabel })}
-          </Text>
+          {/* Title row — heading on the left, Export-to-Word button on the
+              right. Button hidden until data has loaded AND the month
+              isn't empty (nothing to export). On native, it stays
+              visible but the handler short-circuits with a friendly
+              "web only for now" alert. */}
+          <View className="flex-row items-start justify-between mb-6" style={{ gap: 12 }}>
+            <Text className="font-sans-bold text-3xl flex-1" numberOfLines={2}>
+              {t('report:title', { month: monthLabel })}
+            </Text>
+            {loaded && !noData ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('report:export.cta')}
+                accessibilityState={{ disabled: exporting }}
+                onPress={handleExport}
+                disabled={exporting}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor,
+                  minHeight: 38,
+                  opacity: exporting ? 0.5 : 1,
+                  marginTop: 4,
+                }}
+              >
+                <FileDown size={14} color={fgColor} />
+                <Text className="font-sans-medium text-xs" style={{ color: fgColor }}>
+                  {exporting
+                    ? t('report:export.exporting')
+                    : t('report:export.cta')}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
 
           {!loaded ? null : noData ? (
             <Card padding="lg" className="items-center">

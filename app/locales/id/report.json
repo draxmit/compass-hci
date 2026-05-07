@@ -14,10 +14,33 @@
   },
   "sections": {
     "breakdown": "Per kategori",
-    "topTransactions": "Pengeluaran terbesar"
+    "topTransactions": "Pengeluaran terbesar",
+    "summary": "Ringkasan"
   },
   "empty": {
     "noData": "Belum ada transaksi bulan ini.",
     "noDataCta": "Catat transaksi pertama"
-  }
+  },
+  "export": {
+    "cta": "Ekspor ke Word",
+    "exporting": "Mengekspor…",
+    "successTitle": "Laporan berhasil diekspor",
+    "successBody": "Tersimpan sebagai {{filename}}.",
+    "errorTitle": "Gagal mengekspor",
+    "errorBody": "Tidak bisa membuat dokumen Word. Coba lagi.",
+    "nativeUnsupportedTitle": "Tersedia di web",
+    "nativeUnsupportedBody": "Ekspor Word baru tersedia di aplikasi web. Buka Compass di browser dan coba lagi dari halaman Ringkasan.",
+    "totalLabel": "Total",
+    "noDescription": "(tanpa deskripsi)",
+    "unknownCategory": "(tanpa kategori)",
+    "col": {
+      "category": "Kategori",
+      "amount": "Jumlah",
+      "share": "Porsi",
+      "date": "Tanggal",
+      "description": "Deskripsi"
+    }
+  },
+  "exportSubtitle": "Dibuat pada {{generatedOn}} via Compass.",
+  "exportFooter": "Dibuat oleh Compass — keuanganmu, jelas."
 }
