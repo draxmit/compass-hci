@@ -1,5 +1,5 @@
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Check, ChevronLeft, ChevronRight, FileSpreadsheet, Pencil, Settings as SettingsIcon, Sparkles, Tag, Wallet, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,20 @@ import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatDate } from '@/shared/utils/formatDate';
 
+// Tab paths the avatar in MobileTopBar may pass via ?from=… so we know
+// where to return to on hardware-back / mobile back-arrow. We arrived via
+// router.replace (not push), so the Stack is empty behind us — without
+// this fallback the back button always lands on Dashboard regardless of
+// the source tab. Anything not in this list is dropped and we default to
+// Dashboard, matching the legacy behaviour.
+const VALID_FROM = ['/', '/transactions', '/budgets', '/insights'] as const;
+type ValidFrom = (typeof VALID_FROM)[number];
+function resolveFrom(raw: unknown): ValidFrom {
+  return typeof raw === 'string' && (VALID_FROM as readonly string[]).includes(raw)
+    ? (raw as ValidFrom)
+    : '/';
+}
+
 // /profile is the primary identity screen. Reached via Sidebar footer
 // (desktop) or the avatar in MobileTopBar (mobile). Settings is reached
 // from a link card inside this screen.
@@ -29,6 +43,12 @@ export default function ProfileScreen() {
   const isDesktop = useIsDesktop();
   const user = useAuthUser();
   const insets = useSafeAreaInsets();
+  // Source tab passed by MobileTopBar's avatar onPress via ?from=. Used
+  // as the back-fallback target since /profile is reached via
+  // router.replace (which clears the Stack). Falls back to Dashboard if
+  // absent or invalid.
+  const params = useLocalSearchParams<{ from?: string }>();
+  const fromTab: Href = resolveFrom(params.from);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
@@ -67,16 +87,16 @@ export default function ProfileScreen() {
 
   // We reached /profile via router.replace (see MobileTopBar) so the Stack
   // is empty behind us — Android's hardware back would exit the app. Route
-  // it back to Dashboard instead. No-op on web/iOS where BackHandler is
-  // not active.
+  // it back to the source tab (defaulting to Dashboard) instead. No-op on
+  // web/iOS where BackHandler is not active.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (router.canGoBack()) return false;
-      router.replace('/');
+      router.replace(fromTab);
       return true;
     });
     return () => sub.remove();
-  }, [router]);
+  }, [router, fromTab]);
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark
@@ -122,7 +142,7 @@ export default function ProfileScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('common:actions.back')}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace(fromTab))}
             hitSlop={8}
             className="flex-row items-center mb-4 -ml-2 px-2 py-2 min-h-[44px] self-start"
           >

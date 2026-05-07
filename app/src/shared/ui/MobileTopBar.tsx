@@ -1,5 +1,5 @@
 import type { BottomTabHeaderProps } from '@react-navigation/bottom-tabs';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,9 +25,21 @@ import { Text } from './Text';
 export function MobileTopBar({ options }: BottomTabHeaderProps) {
   const { t } = useTranslation(['common']);
   const router = useRouter();
+  const segments = useSegments();
   const user = useAuthUser();
 
   const title = typeof options.title === 'string' ? options.title : '';
+
+  // Pass the current tab as `?from=...` so the profile screen's back
+  // button can route back to the right tab. The (tabs) group emits
+  // segments like ['(tabs)', 'transactions'] (or just ['(tabs)'] for
+  // the index tab) — translate to a route path.
+  const fromPath = (() => {
+    const tabSeg = segments[1];
+    if (!tabSeg) return '/';  // dashboard / index
+    if (['transactions', 'budgets', 'insights'].includes(tabSeg)) return `/${tabSeg}`;
+    return '/';
+  })();
 
   return (
     <SafeAreaView edges={['top']} style={{ backgroundColor: 'transparent' }}>
@@ -38,7 +50,7 @@ export function MobileTopBar({ options }: BottomTabHeaderProps) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common:nav.openProfile')}
-          onPress={() => router.replace('/profile')}
+          onPress={() => router.replace(`/profile?from=${encodeURIComponent(fromPath)}`)}
           hitSlop={8}
           className="rounded-full ml-3"
         >
