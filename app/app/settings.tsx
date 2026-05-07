@@ -122,6 +122,19 @@ export default function SettingsScreen() {
               // flips to null inside deleteUserAccount.
             } catch (err: unknown) {
               const code = (err as FirebaseError)?.code;
+              // Recovery: by the time we got here the Firestore subtree
+              // is already wiped (the failure is on the LAST step,
+              // deleteUser). The user is signed in to a now-empty
+              // workspace which is broken UX. Force sign-out so they
+              // land on /sign-in cleanly. They can sign in again with
+              // the same email — ensureUserDoc rebuilds the workspace
+              // from scratch — or create a new account.
+              try {
+                await signOut();
+              } catch {
+                // best-effort; if even sign-out fails the AuthGate
+                // still surfaces the next auth state
+              }
               if (code === 'auth/requires-recent-login') {
                 appAlert(
                   t('settings:settings.account.deleteFailedTitle'),

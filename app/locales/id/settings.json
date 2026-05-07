@@ -74,8 +74,8 @@
       "deleteConfirmBody": "Semua akun, transaksi, budget, dan kategori akan terhapus. Sign-in juga dihapus. Tidak bisa dibatalkan.",
       "deleteConfirmAction": "Hapus selamanya",
       "deleting": "Menghapus akun…",
-      "deleteFailedTitle": "Gagal menghapus akun",
-      "requiresRecentLoginBody": "Demi keamanan, silakan keluar dan masuk lagi, lalu coba Hapus akun sekali lagi."
+      "deleteFailedTitle": "Akun belum sepenuhnya terhapus",
+      "requiresRecentLoginBody": "Datamu sudah dihapus, tapi demi keamanan kami belum bisa hapus sign-in-mu. Silakan masuk sekali lagi dengan email yang sama, lalu tap Hapus akun lagi untuk menyelesaikan."
     },
     "signOut": "Keluar",
     "signingOut": "Keluar…",

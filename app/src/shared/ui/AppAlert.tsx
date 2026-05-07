@@ -113,7 +113,9 @@ export function AppAlertProvider({ children }: { children: ReactNode }) {
           onPress={dismissByOutsideOrBack}
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.55)',
+            // Heavier backdrop than 0.55 so the underlying screen doesn't
+            // bleed through into the alert's translucent Card surface.
+            backgroundColor: 'rgba(0,0,0,0.78)',
             alignItems: 'center',
             justifyContent: 'center',
             padding: 24,
@@ -123,7 +125,23 @@ export function AppAlertProvider({ children }: { children: ReactNode }) {
               doesn't dismiss via the backdrop handler. */}
           <Pressable onPress={() => undefined} style={{ width: '100%', maxWidth: 380 }}>
             {active ? (
-              <Card padding="lg">
+              <Card
+                padding="lg"
+                /* Force a fully-opaque page-surface background. The default
+                   Card tint (rgba 3-4% over whatever's behind) is designed
+                   for cards laid out against a stable page bg, not modal
+                   contexts where the underlying screen is still painted
+                   behind the backdrop. Without this override the Card
+                   reads as "see-through" against the dimmed screen. */
+                style={{
+                  backgroundColor: isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'],
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 24,
+                  elevation: 16,
+                }}
+              >
                 <Text
                   className="font-sans-bold text-xl mb-2"
                   style={{ color: fgColor }}

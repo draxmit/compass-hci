@@ -74,8 +74,8 @@
       "deleteConfirmBody": "All accounts, transactions, budgets, and categories will be deleted. Your sign-in is removed too. This cannot be undone.",
       "deleteConfirmAction": "Delete forever",
       "deleting": "Deleting account…",
-      "deleteFailedTitle": "Couldn't delete account",
-      "requiresRecentLoginBody": "For security, please sign out and sign in again, then try Delete account once more."
+      "deleteFailedTitle": "Account not fully deleted",
+      "requiresRecentLoginBody": "Your data has been deleted, but for security we couldn't fully remove your sign-in. Please sign in once more with the same email, then tap Delete account again to finish."
     },
     "signOut": "Sign out",
     "signingOut": "Signing out…",

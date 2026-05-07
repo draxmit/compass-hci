@@ -31,7 +31,18 @@
   },
   "empty": {
     "title": "Belum ada insight",
-    "body": "Catat beberapa transaksi dulu — Compass akan tunjukkan pola pengeluaranmu di sini.",
-    "cta": "Catat transaksi pertama"
+    "body": "Catat beberapa transaksi dulu — Compass akan mulai tunjukkan pola pengeluaranmu di sini.",
+    "cta": "Catat transaksi pertama",
+    "previewTitle": "Yang akan kamu lihat di sini",
+    "preview": {
+      "trendTitle": "Tren 6 bulan",
+      "trendBody": "Total pengeluaran tiap bulan, supaya kamu lihat tren naik-turunnya.",
+      "anomalyTitle": "Yang berbeda dari biasanya",
+      "anomalyBody": "Kategori atau pengeluaran yang jauh lebih besar dari rata-rata.",
+      "heatmapTitle": "Hari paling boros",
+      "heatmapBody": "Kalender warna-warna — semakin pekat, semakin banyak pengeluaran hari itu.",
+      "weekdayTitle": "Pola harian",
+      "weekdayBody": "Hari apa kamu paling sering ngeluarin: weekday atau weekend?"
+    }
   }
 }

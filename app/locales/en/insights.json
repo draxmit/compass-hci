@@ -31,7 +31,18 @@
   },
   "empty": {
     "title": "No insights yet",
-    "body": "Log a few transactions first — Compass will surface your spending patterns here.",
-    "cta": "Log your first transaction"
+    "body": "Log a few transactions first — Compass will start surfacing your spending patterns here.",
+    "cta": "Log your first transaction",
+    "previewTitle": "What you'll see here",
+    "preview": {
+      "trendTitle": "6-month trend",
+      "trendBody": "Total spending each month, so you can spot the rise and fall.",
+      "anomalyTitle": "What's different from usual",
+      "anomalyBody": "Categories or single expenses much bigger than your typical.",
+      "heatmapTitle": "Heaviest spending days",
+      "heatmapBody": "Color-coded calendar — the darker the cell, the more you spent.",
+      "weekdayTitle": "Your weekly pattern",
+      "weekdayBody": "Which days you spend most: weekdays or weekends?"
+    }
   }
 }

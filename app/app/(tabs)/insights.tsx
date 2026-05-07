@@ -2,7 +2,7 @@ import type { Category, CategoryMonthTotal, Transaction } from '@compass/shared-
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { Plus, Sparkles, TrendingUp } from 'lucide-react-native';
+import { CalendarDays, Plus, Sparkles, TrendingUp, Zap } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -291,26 +291,35 @@ export default function InsightsScreen() {
   }
 
   if (totallyEmpty) {
+    // Preview list — 4 mini-rows with icon + title + body, mirroring the
+    // four sections that will appear once data exists. Gives the user a
+    // concrete preview rather than a single bare "no insights" card.
+    const previewIcons = [TrendingUp, Sparkles, CalendarDays, Zap] as const;
+    const previewKeys = ['trend', 'anomaly', 'heatmap', 'weekday'] as const;
     return (
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
         <View className="self-center w-full max-w-md lg:max-w-3xl">
-          <Card padding="lg" className="items-center mt-6">
+          {/* Welcome block */}
+          <View className="items-center mt-4 mb-8">
             <View
               style={{
-                width: 56, height: 56, borderRadius: 14,
+                width: 64, height: 64, borderRadius: 16,
                 backgroundColor: accent + '22',
                 alignItems: 'center', justifyContent: 'center',
                 marginBottom: 16,
               }}
             >
-              <Sparkles size={28} color={accent} strokeWidth={2.2} />
+              <Sparkles size={32} color={accent} strokeWidth={2.2} />
             </View>
-            <Text className="font-sans-bold text-2xl text-center" style={{ color: fgColor }}>
+            <Text
+              className="font-sans-bold text-2xl text-center"
+              style={{ color: fgColor }}
+            >
               {t('insights:empty.title')}
             </Text>
             <Text
-              className="font-sans text-sm text-center mt-3 mb-6"
-              style={{ color: mutedColor, lineHeight: 20 }}
+              className="font-sans text-sm text-center mt-3"
+              style={{ color: mutedColor, lineHeight: 20, maxWidth: 320 }}
             >
               {t('insights:empty.body')}
             </Text>
@@ -324,8 +333,9 @@ export default function InsightsScreen() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 6,
-                paddingHorizontal: 16,
-                paddingVertical: 10,
+                paddingHorizontal: 18,
+                paddingVertical: 12,
+                marginTop: 20,
                 borderRadius: 10,
                 backgroundColor: accent,
                 minHeight: 44,
@@ -336,6 +346,57 @@ export default function InsightsScreen() {
                 {t('insights:empty.cta')}
               </Text>
             </Pressable>
+          </View>
+
+          {/* Preview list — four mini-rows, one per section the user
+              will see once they've logged some transactions. */}
+          <Text
+            className="font-sans-medium text-xs uppercase tracking-wider mb-3"
+            style={{ color: mutedColor }}
+          >
+            {t('insights:empty.previewTitle')}
+          </Text>
+          <Card padding="none">
+            {previewKeys.map((key, idx) => {
+              // Icons array is parallel to keys; non-null asserted because
+              // both are length-4 const tuples typed by index.
+              const Icon = previewIcons[idx]!;
+              return (
+                <View
+                  key={key}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: 14,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    borderTopWidth: idx > 0 ? 1 : 0,
+                    borderTopColor: borderColor,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      backgroundColor: accent + '14',
+                      alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <Icon size={18} color={accent} strokeWidth={2.2} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text className="font-sans-semibold text-sm" style={{ color: fgColor }}>
+                      {t(`insights:empty.preview.${key}Title`)}
+                    </Text>
+                    <Text
+                      className="font-sans text-xs mt-1"
+                      style={{ color: mutedColor, lineHeight: 18 }}
+                    >
+                      {t(`insights:empty.preview.${key}Body`)}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
           </Card>
         </View>
       </ScrollView>
