@@ -212,6 +212,16 @@ export default function TransactionsScreen() {
   const filtersDirty =
     search.trim() !== '' || typeFilter !== 'all' || dateFilter !== 'this_month' || tagFilter.length > 0;
 
+  // Single reset path used by the inline X-button on the filter pill row
+  // AND the 'Clear filters' CTA inside the no-results card.
+  const resetFilters = () => {
+    setSearch('');
+    setTypeFilter('all');
+    setDateFilter('this_month');
+    setTagFilter([]);
+    setOpenFilter(null);
+  };
+
   const typeChips: { key: TypeFilter; label: string }[] = [
     { key: 'all', label: t('transactions:filters.allTypes') },
     { key: 'expense', label: t('transactions:entry.types.expense') },
@@ -483,13 +493,7 @@ export default function TransactionsScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('transactions:filters.clear')}
-              onPress={() => {
-                setSearch('');
-                setTypeFilter('all');
-                setDateFilter('this_month');
-                setTagFilter([]);
-                setOpenFilter(null);
-              }}
+              onPress={resetFilters}
               hitSlop={6}
               style={{
                 width: 32,
@@ -603,10 +607,35 @@ export default function TransactionsScreen() {
               </Pressable>
             </Card>
           ) : (
-            <Card padding="lg">
-              <Text className="font-sans text-sm text-center" style={{ color: mutedColor }}>
+            // Filtered view returned no rows. Offer a quick reset CTA
+            // — without it the user has to scroll back up + find the
+            // small X on the filter pill row, which defeats glanceable
+            // recovery from an over-narrow filter combo.
+            <Card padding="lg" className="items-center">
+              <Text className="font-sans text-sm text-center mb-4" style={{ color: mutedColor }}>
                 {t('transactions:filters.noResults')}
               </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('transactions:filters.clear')}
+                onPress={resetFilters}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor,
+                  minHeight: 38,
+                }}
+              >
+                <X size={14} color={fgColor} />
+                <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
+                  {t('transactions:filters.clear')}
+                </Text>
+              </Pressable>
             </Card>
           )
         ) : (
