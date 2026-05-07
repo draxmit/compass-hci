@@ -9,11 +9,11 @@ import {
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Redirect, Stack, useSegments } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 import '../global.css';
-import { useAuthSubscription } from '@/services/firebase';
+import { signOut, useAuthSubscription } from '@/services/firebase';
 import { hydratePersistedLocale, initI18n } from '@/shared/i18n';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 import { tokens } from '@/shared/theme/tokens';
@@ -151,6 +151,28 @@ function AuthGate({ children }: { children: ReactNode }) {
   const isAuthed = useIsAuthed();
   const userDoc = useUserDoc();
   const segments = useSegments();
+
+  // Track whether the user-doc was ever loaded for this session. If it
+  // goes from existing → null while still authed, the user's data has
+  // been deleted out from under us (e.g., delete-account flow whose
+  // deleteUser step failed after Firestore wipe succeeded). In that
+  // case we force sign-out so the user lands on /sign-in instead of an
+  // indefinite Splash. The ref-based guard means initial-load (where
+  // userDoc is null because the subscription hasn't fired yet) does
+  // NOT trigger this — only mid-session deletion does.
+  const hadUserDocRef = useRef(false);
+  useEffect(() => {
+    if (userDoc !== null) {
+      hadUserDocRef.current = true;
+      return;
+    }
+    if (isAuthed && hadUserDocRef.current) {
+      void signOut().catch(() => {
+        // best-effort; auth state will eventually flip even if signOut
+        // throws (token refresh failure, etc.).
+      });
+    }
+  }, [isAuthed, userDoc]);
 
   if (isLoading) {
     return <Splash />;

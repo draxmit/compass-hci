@@ -2,7 +2,9 @@ import type { Category, CategoryMonthTotal, Transaction } from '@compass/shared-
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { CalendarDays, Plus, Sparkles, TrendingUp, Zap } from 'lucide-react-native';
+import {
+  CalendarDays, ChevronLeft, ChevronRight, Plus, Sparkles, TrendingUp, Zap,
+} from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -76,9 +78,14 @@ export default function InsightsScreen() {
   const [thisMonthTxs, setThisMonthTxs] = useState<Transaction[]>([]);
   const [thisMonthTotals, setThisMonthTotals] = useState<CategoryMonthTotal[]>([]);
   const [trendCmts, setTrendCmts] = useState<CategoryMonthTotal[][]>([]);
+  const [allTxsByMonth, setAllTxsByMonth] = useState<Map<string, Transaction[]>>(new Map());
   const [categories, setCategories] = useState<Category[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  // Heatmap can navigate prev/next inside the trend window. Defaults to
+  // the current month (index 0); decrementing the index goes forward in
+  // time, incrementing goes back. Capped at 0..TREND_MONTHS-1.
+  const [heatmapIdx, setHeatmapIdx] = useState(0);
 
   // Compute the 6 yearMonths backwards from current. Memoised so the
   // useEffect deps are stable.
@@ -98,15 +105,18 @@ export default function InsightsScreen() {
     (async () => {
       try {
         const cmtPromises = yearMonths.map((ym) => listMonthTotals(wid, ym));
-        const currentYm = yearMonths[0] ?? '';
-        const [cmts, txs, cats] = await Promise.all([
+        // Load transactions for all 6 months upfront so heatmap month
+        // navigation is instant. Per-month txs are bounded (~50/month
+        // typical) so 6 × 50 = 300 reads is a small bump over the
+        // single-month variant. orderByDate: false dodges the
+        // composite index requirement (Insights doesn't need date
+        // order — it filters by day-of-month + category).
+        const txsPromises = yearMonths.map((ym) =>
+          listTransactions(wid, { yearMonth: ym, orderByDate: false }),
+        );
+        const [cmts, txsList, cats] = await Promise.all([
           Promise.all(cmtPromises),
-          // orderByDate: false — Insights filters by day-of-month and by
-          // category, never reads txs in date order. Skipping the orderBy
-          // means the query doesn't need the (yearMonth, date) composite
-          // index, so cold-open works on a fresh project before any
-          // index deploy.
-          listTransactions(wid, { yearMonth: currentYm, orderByDate: false }),
+          Promise.all(txsPromises),
           listCategories(wid),
         ]);
         if (cancelled) return;
@@ -114,10 +124,13 @@ export default function InsightsScreen() {
           yearMonth: ym,
           total: cmts[i]?.reduce((s, m) => s + m.totalIDR, 0) ?? 0,
         }));
+        const txsByMonth = new Map<string, Transaction[]>();
+        yearMonths.forEach((ym, i) => txsByMonth.set(ym, txsList[i] ?? []));
         setTrend(trendData);
         setTrendCmts(cmts);
         setThisMonthTotals(cmts[0] ?? []);
-        setThisMonthTxs(txs);
+        setThisMonthTxs(txsList[0] ?? []);
+        setAllTxsByMonth(txsByMonth);
         setCategories(cats);
         setLoaded(true);
       } catch (err) {
@@ -202,16 +215,18 @@ export default function InsightsScreen() {
     return [...categoryOuts, ...txOuts.slice(0, 3)].slice(0, ANOMALY_MAX_CALLOUTS);
   }, [loaded, trend.length, trendCmts, thisMonthTotals, thisMonthTxs, categoriesById]);
 
-  // ----- Heatmap data -----
+  // ----- Heatmap data — driven by heatmapIdx (0 = current, higher = older) -----
   const heatmap = useMemo(() => {
     if (!loaded) return null;
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();   // 0-indexed
+    const heatmapYM = yearMonths[heatmapIdx] ?? yearMonths[0]!;
+    const [yStr, mStr] = heatmapYM.split('-');
+    const year = Number(yStr);
+    const month = Number(mStr) - 1;   // 0-indexed
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDow = new Date(year, month, 1).getDay();   // 0=Sun
     const dayTotals = new Array<number>(daysInMonth + 1).fill(0);   // 1-indexed
-    for (const tx of thisMonthTxs) {
+    const txs = allTxsByMonth.get(heatmapYM) ?? [];
+    for (const tx of txs) {
       if (tx.type !== 'expense') continue;
       const day = Number(tx.date.slice(8, 10));
       if (day >= 1 && day <= daysInMonth) {
@@ -220,8 +235,8 @@ export default function InsightsScreen() {
     }
     const max = dayTotals.reduce((m, v) => Math.max(m, v), 0);
     const heaviestDay = dayTotals.indexOf(max);
-    return { dayTotals, daysInMonth, firstDow, max, heaviestDay };
-  }, [loaded, thisMonthTxs]);
+    return { yearMonth: heatmapYM, year, month, dayTotals, daysInMonth, firstDow, max, heaviestDay };
+  }, [loaded, yearMonths, heatmapIdx, allTxsByMonth]);
 
   // ----- Day-of-week aggregation -----
   // Average per dow across all transactions in the trend window.
@@ -283,7 +298,7 @@ export default function InsightsScreen() {
 
   if (loadError) {
     return (
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 40, paddingBottom: 100 }}>
         <View className="self-center w-full max-w-md lg:max-w-3xl">
           <Card padding="lg">
             <Text className="font-sans text-sm" style={{ color: mutedColor }}>
@@ -302,7 +317,7 @@ export default function InsightsScreen() {
     const previewIcons = [TrendingUp, Sparkles, CalendarDays, Zap] as const;
     const previewKeys = ['trend', 'anomaly', 'heatmap', 'weekday'] as const;
     return (
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 40, paddingBottom: 100 }}>
         <View className="self-center w-full max-w-md lg:max-w-3xl">
           {/* Welcome block */}
           <View className="items-center mt-4 mb-8">
@@ -504,27 +519,85 @@ export default function InsightsScreen() {
             <Text className={sectionLabelClass} style={{ color: mutedColor }}>
               {t('insights:sections.heatmap')}
             </Text>
+            {/* Month navigation: chevrons left/right with the active
+                month label centered. Prev disabled at the oldest month
+                in the trend window; Next disabled at the current month
+                (no future to navigate to). */}
+            <View
+              className="flex-row items-center justify-between mb-3"
+              style={{
+                borderWidth: 1,
+                borderColor,
+                borderRadius: 10,
+                paddingHorizontal: 4,
+                paddingVertical: 4,
+              }}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('common:actions.back')}
+                accessibilityState={{ disabled: heatmapIdx >= TREND_MONTHS - 1 }}
+                disabled={heatmapIdx >= TREND_MONTHS - 1}
+                onPress={() => setHeatmapIdx((i) => Math.min(i + 1, TREND_MONTHS - 1))}
+                hitSlop={8}
+                style={{
+                  width: 36, height: 36, borderRadius: 8,
+                  alignItems: 'center', justifyContent: 'center',
+                  opacity: heatmapIdx >= TREND_MONTHS - 1 ? 0.3 : 1,
+                }}
+              >
+                <ChevronLeft size={18} color={fgColor} />
+              </Pressable>
+              <Text
+                className="font-sans-medium text-sm"
+                style={{ color: fgColor }}
+              >
+                {formatDate(new Date(heatmap.year, heatmap.month, 1), 'long-month', lang)}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Next"
+                accessibilityState={{ disabled: heatmapIdx <= 0 }}
+                disabled={heatmapIdx <= 0}
+                onPress={() => setHeatmapIdx((i) => Math.max(i - 1, 0))}
+                hitSlop={8}
+                style={{
+                  width: 36, height: 36, borderRadius: 8,
+                  alignItems: 'center', justifyContent: 'center',
+                  opacity: heatmapIdx <= 0 ? 0.3 : 1,
+                }}
+              >
+                <ChevronRight size={18} color={fgColor} />
+              </Pressable>
+            </View>
+
             {heatmap.max === 0 ? (
               <Text className="font-sans text-sm" style={{ color: mutedColor }}>
                 {t('insights:heatmap.noData')}
               </Text>
             ) : (
               <>
-                <Heatmap
-                  daysInMonth={heatmap.daysInMonth}
-                  firstDow={heatmap.firstDow}
-                  dayTotals={heatmap.dayTotals}
-                  max={heatmap.max}
-                  accent={accent}
-                  borderColor={borderColor}
-                  mutedColor={mutedColor}
-                  fgColor={fgColor}
-                  weekdayShortNames={
-                    (t('insights:weekday.shortNames', { returnObjects: true }) as string[]) ?? []
-                  }
-                />
+                {/* Cap container width on desktop so cells don't blow up
+                    to ~110×110 px. 420 px = 7 cells × ~52 px each + gap,
+                    centered. Mobile already constrained by the page
+                    column max-width. */}
+                <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center' }}>
+                  <Heatmap
+                    daysInMonth={heatmap.daysInMonth}
+                    firstDow={heatmap.firstDow}
+                    dayTotals={heatmap.dayTotals}
+                    max={heatmap.max}
+                    accent={accent}
+                    borderColor={borderColor}
+                    mutedColor={mutedColor}
+                    fgColor={fgColor}
+                    weekdayShortNames={
+                      (t('insights:weekday.shortNames', { returnObjects: true }) as string[]) ?? []
+                    }
+                  />
+                </View>
                 {heatmap.heaviestDay > 0 ? (
-                  <Text className="font-sans text-xs mt-3" style={{ color: mutedColor }}>
+                  <Text className="font-sans text-xs mt-3 text-center" style={{ color: mutedColor }}>
                     {t('insights:heatmap.tipMost', {
                       day: heatmap.heaviestDay,
                       amount: formatIDR(heatmap.max, lang),
