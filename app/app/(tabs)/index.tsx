@@ -4,7 +4,7 @@ import type {
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { ChevronDown, ChevronRight, ChevronUp, Plus, Sparkles, Target } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronUp, Pin, Plus, Sparkles, Target } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -838,18 +838,15 @@ function DashboardGoalRow({
         {isPinned ? (
           <View
             style={{
-              paddingHorizontal: 6,
-              paddingVertical: 1,
-              borderRadius: 4,
+              width: 22,
+              height: 22,
+              borderRadius: 6,
               backgroundColor: accent + '22',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <Text
-              className="font-sans-semibold"
-              style={{ color: accent, fontSize: 9, letterSpacing: 0.5 }}
-            >
-              📌
-            </Text>
+            <Pin size={12} color={accent} fill={accent} />
           </View>
         ) : null}
         {hasTarget ? (
