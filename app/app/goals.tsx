@@ -1,4 +1,4 @@
-import type { Goal } from '@compass/shared-types';
+import type { Account, Goal } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import {
   Check, ChevronLeft, Pin, PinOff, Plus, Sparkles, Trash2, X,
@@ -9,6 +9,7 @@ import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { updateUserDoc } from '@/services/firebase';
+import { subscribeAccounts } from '@/services/firestore/accountsService';
 import {
   contributeGoal, createGoal, deleteGoal, subscribeGoals,
 } from '@/services/firestore/goalsService';
@@ -63,6 +64,7 @@ export default function GoalsScreen() {
   const accent = tokens.accent.dashboard;
 
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   // Add-goal panel state. When non-null, the screen swaps from list
@@ -81,7 +83,8 @@ export default function GoalsScreen() {
       setGoals(g);
       setLoaded(true);
     });
-    return () => unsub();
+    const unsubA = subscribeAccounts(wid, setAccounts);
+    return () => { unsub(); unsubA(); };
   }, [wid]);
 
   useEffect(() => {
@@ -283,6 +286,7 @@ export default function GoalsScreen() {
                   key={g.id}
                   goal={g}
                   wid={wid}
+                  accounts={accounts}
                   isDark={isDark}
                   lang={lang}
                   fgColor={fgColor}
@@ -334,6 +338,7 @@ export default function GoalsScreen() {
 type GoalRowProps = {
   goal: Goal;
   wid: string | null;
+  accounts: Account[];
   isDark: boolean;
   lang: Locale;
   fgColor: string;
@@ -350,7 +355,7 @@ type GoalRowProps = {
 };
 
 function GoalRow({
-  goal, wid, isDark, lang, fgColor, mutedColor, borderColor, accent,
+  goal, wid, accounts, isDark, lang, fgColor, mutedColor, borderColor, accent,
   isPinned, onTogglePin, isContributing, onToggleContribute, onDelete, appAlert, t,
 }: GoalRowProps) {
   const tpl = getTemplate(goal.templateKey);
@@ -364,6 +369,7 @@ function GoalRow({
   const reached = ratio >= 1;
 
   const [contribText, setContribText] = useState('');
+  const [contribAccountId, setContribAccountId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleContribute = async () => {
@@ -373,10 +379,15 @@ function GoalRow({
       appAlert(t('goals:contribute.title', { goalName: goal.name }), t('goals:contribute.errors.missingAmount'));
       return;
     }
+    if (!contribAccountId) {
+      appAlert(t('goals:contribute.title', { goalName: goal.name }), t('goals:contribute.errors.missingAccount'));
+      return;
+    }
     setSaving(true);
     try {
-      await contributeGoal(wid, goal.id, amount);
+      await contributeGoal(wid, goal.id, contribAccountId, amount);
       setContribText('');
+      setContribAccountId(null);
       onToggleContribute();   // collapse
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('goals:contribute.errors.saveFailed');
@@ -489,6 +500,63 @@ function GoalRow({
             placeholder={t('goals:contribute.amountPlaceholder')}
             keyboardType="numeric"
           />
+          {/* Account picker — required. Contribution debits this
+              account's balance atomically. Without it the user could
+              "contribute" money the system can't trace. */}
+          <Text
+            className="font-sans-medium text-xs uppercase tracking-wider mt-3 mb-2"
+            style={{ color: mutedColor }}
+          >
+            {t('goals:contribute.fromAccount')}
+          </Text>
+          {accounts.length === 0 ? (
+            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+              {t('goals:contribute.noAccounts')}
+            </Text>
+          ) : (
+            <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+              {accounts.filter((a) => !a.isArchived).map((acct) => {
+                const selected = acct.id === contribAccountId;
+                const acctTint = resolveCategoryColor(acct.color, isDark ? 'dark' : 'light');
+                return (
+                  <Pressable
+                    key={acct.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setContribAccountId(acct.id)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: selected ? accent : borderColor,
+                      backgroundColor: selected ? accent + '14' : 'transparent',
+                      minHeight: 32,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 16, height: 16, borderRadius: 4,
+                        backgroundColor: acctTint + '22',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <CategoryIcon name={acct.icon} color={acctTint} size={9} />
+                    </View>
+                    <Text
+                      className="font-sans-medium text-xs"
+                      style={{ color: selected ? accent : fgColor }}
+                    >
+                      {acct.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
           <View className="flex-row gap-2 mt-3">
             <Pressable
               accessibilityRole="button"

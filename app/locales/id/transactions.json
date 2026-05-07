@@ -58,7 +58,7 @@
     "splits": {
       "toggleToMulti": "Bagi ke beberapa kategori",
       "toggleToSingle": "Pakai satu kategori",
-      "addRow": "+ Tambah kategori",
+      "addRow": "Tambah kategori",
       "removeRow": "Hapus baris",
       "totalLine": "Total {{amount}}",
       "sumLine": "Sudah dibagi {{amount}}",

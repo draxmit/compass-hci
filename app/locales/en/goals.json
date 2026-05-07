@@ -1,7 +1,7 @@
 {
   "title": "Goals",
   "subtitle": "What you're saving for",
-  "addCta": "+ New goal",
+  "addCta": "New goal",
   "empty": {
     "title": "No goals yet",
     "body": "Pick a template or roll your own — Lebaran, emergency fund, new bike, anything.",
@@ -42,7 +42,7 @@
     "percentDone": "{{percent}}",
     "monthsToGo": "About {{count}} months to go",
     "targetByDate": "By {{date}}",
-    "addContribution": "+ Add",
+    "addContribution": "Add",
     "delete": "Delete",
     "pin": "Pin to dashboard",
     "unpin": "Unpin from dashboard"
@@ -52,11 +52,14 @@
     "body": "How much do you want to contribute now?",
     "amountLabel": "Amount",
     "amountPlaceholder": "0",
+    "fromAccount": "From account",
+    "noAccounts": "Add an account first to contribute.",
     "save": "Add",
     "saving": "Saving…",
     "cancel": "Cancel",
     "errors": {
       "missingAmount": "Amount is required.",
+      "missingAccount": "Pick the account this contribution comes from.",
       "saveFailed": "Couldn't add contribution."
     }
   },

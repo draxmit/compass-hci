@@ -1,7 +1,7 @@
 {
   "title": "Tujuan",
   "subtitle": "Hal-hal yang lagi kamu nabung",
-  "addCta": "+ Tujuan baru",
+  "addCta": "Tujuan baru",
   "empty": {
     "title": "Belum ada tujuan",
     "body": "Pilih dari template atau buat sendiri — bisa Lebaran, dana darurat, beli motor, apa aja.",
@@ -42,7 +42,7 @@
     "percentDone": "{{percent}}",
     "monthsToGo": "Sekitar {{count}} bulan lagi",
     "targetByDate": "Target {{date}}",
-    "addContribution": "+ Tambah",
+    "addContribution": "Tambah",
     "delete": "Hapus",
     "pin": "Tampilkan di dashboard",
     "unpin": "Lepas dari dashboard"
@@ -52,11 +52,14 @@
     "body": "Berapa yang mau kamu masukin sekarang?",
     "amountLabel": "Jumlah",
     "amountPlaceholder": "0",
+    "fromAccount": "Dari akun",
+    "noAccounts": "Tambah akun dulu untuk kontribusi.",
     "save": "Tambah",
     "saving": "Menyimpan…",
     "cancel": "Batal",
     "errors": {
       "missingAmount": "Jumlah belum diisi.",
+      "missingAccount": "Pilih akun sumber kontribusi.",
       "saveFailed": "Gagal menambah kontribusi."
     }
   },

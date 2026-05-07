@@ -1,7 +1,7 @@
 import type { Goal, GoalKind } from '@compass/shared-types';
 import {
   collection, deleteDoc, doc, getDoc, getDocs, increment, onSnapshot,
-  serverTimestamp, setDoc, updateDoc,
+  serverTimestamp, setDoc, updateDoc, writeBatch,
 } from 'firebase/firestore';
 
 import { db } from '../firebase/client';
@@ -95,19 +95,36 @@ export async function updateGoal(
 }
 
 /**
- * Atomic contribution: `currentMinor: increment(amount)`. Use a
- * negative amount to walk a goal back (e.g., user mis-typed and wants
- * to undo). The doc enforces no min/max — UI clamps to ≥ 0 if needed.
+ * Atomic contribution. Increments the goal's `currentMinor` AND
+ * decrements the source account's `currentBalance` in a single batch
+ * so the user's account balance reflects the move. No transaction
+ * record is written — contributions are notional savings, not
+ * categorised expenses. (v2.5 may add an opt-in tx record.)
+ *
+ * Note: this means `category_month_totals` is not affected. The
+ * monthly Insights / Budgets stay clean (a savings move shouldn't
+ * count as 'spending in some category').
+ *
+ * Negative amounts walk a goal back (and credit the account); the
+ * UI is the gate that prevents zero/negative amounts on the happy
+ * path.
  */
 export async function contributeGoal(
   wid: string,
-  id: string,
+  goalId: string,
+  accountId: string,
   amountMinor: number,
 ): Promise<void> {
-  await updateDoc(goalRef(wid, id), {
+  const batch = writeBatch(db);
+  batch.update(goalRef(wid, goalId), {
     currentMinor: increment(amountMinor),
     updatedAt: serverTimestamp(),
   });
+  batch.update(doc(db, 'workspaces', wid, 'accounts', accountId), {
+    currentBalance: increment(-amountMinor),
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
 }
 
 export async function deleteGoal(wid: string, id: string): Promise<void> {
@@ -141,10 +158,14 @@ export function subscribeGoal(
  *
  * Self-healing — re-running is a no-op:
  *   - if `pinnedGoalId` is already set, nothing to do.
- *   - if `primaryGoal` is empty/null, nothing to do.
- *   - otherwise: create a sinking-fund goal with the text as its name
- *     (target = 0, no date), set `pinnedGoalId` to its id, clear
- *     `primaryGoal`. User can edit target/date later from /goals.
+ *   - if `primaryGoal` is empty/null, mark migrated with `null` pin.
+ *   - if a goal with the same name already exists, REUSE it instead
+ *     of creating a duplicate (this fixes the previously-observed
+ *     duplicate-goal bug where two migration runs created two goals
+ *     with identical names — the second call now finds the first
+ *     goal and pins THAT instead of creating a third).
+ *   - otherwise: create a sinking-fund goal with the text as its
+ *     name (target = 0, no date), pin it, clear `primaryGoal`.
  *
  * Called from `useAuthSubscription` after ensureUserDoc resolves,
  * alongside the categories seed + accounts migration.
@@ -168,18 +189,29 @@ export async function migratePrimaryGoalToPinned(
     return;
   }
 
-  // Create a sinking-fund goal carrying the legacy text as its name.
-  const newGoalId = await createGoal(wid, {
-    kind: 'sinking_fund',
-    name: text,
-    targetMinor: 0,
-    currentMinor: 0,
-    targetDate: null,
-    templateKey: null,
+  // Dedup: scan existing goals for a name match. If we find one,
+  // pin that goal instead of creating a duplicate. Catches the case
+  // where a previous (racy) migration run created the goal but
+  // failed to write back pinnedGoalId.
+  const existingSnap = await getDocs(goalsCollection(wid));
+  const existing = existingSnap.docs.find((d) => {
+    const g = d.data() as Goal;
+    return typeof g.name === 'string' && g.name.trim() === text;
   });
-  // Pin it + clear the legacy field. Single doc write.
+
+  const goalId = existing
+    ? existing.id
+    : await createGoal(wid, {
+      kind: 'sinking_fund',
+      name: text,
+      targetMinor: 0,
+      currentMinor: 0,
+      targetDate: null,
+      templateKey: null,
+    });
+
   await updateDoc(userRef, {
-    pinnedGoalId: newGoalId,
+    pinnedGoalId: goalId,
     primaryGoal: null,
   });
 }

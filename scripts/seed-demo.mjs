@@ -309,7 +309,12 @@ async function main() {
     { localKey: 'bca',   name: 'BCA',           type: 'bank',        subtype: 'bca',        currency: 'IDR', initialBalance: 540_000_000, includedInNetWorth: true,  icon: 'landmark',    color: 'blue' },
     { localKey: 'gopay', name: 'GoPay',         type: 'ewallet',     subtype: 'gopay',      currency: 'IDR', initialBalance: 85_000_000,  includedInNetWorth: true,  icon: 'wallet',      color: 'green' },
     { localKey: 'cash',  name: 'Tunai',         type: 'cash',        subtype: 'cash',       currency: 'IDR', initialBalance: 30_000_000,  includedInNetWorth: true,  icon: 'wallet',      color: 'amber' },
-    { localKey: 'card',  name: 'Mandiri Card',  type: 'credit_card', subtype: 'mastercard', currency: 'IDR', initialBalance: -125_000_000, includedInNetWorth: true, icon: 'credit-card', color: 'red' },
+    // Credit cards conceptually carry "amount you owe" but we track
+    // them on the same number-line as cash accounts (negative =
+    // you owe). Starting at 0 so the demo doesn't pre-load a debt
+    // that the user has to mentally explain — any tx swiped on the
+    // card during the seeded period will move it negative naturally.
+    { localKey: 'card',  name: 'Mandiri Card',  type: 'credit_card', subtype: 'mastercard', currency: 'IDR', initialBalance: 0,            includedInNetWorth: true, icon: 'credit-card', color: 'red' },
     // v2: showcase the multi-currency feature with a USD savings account.
     // $2,150 (215000 minor) at the snapshot rate of Rp 16,500/USD ≈ Rp 35.5M
     // — appears on the dashboard net-worth via FX conversion + carries the
