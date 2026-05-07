@@ -705,6 +705,7 @@ type AnomalyCardProps = {
 };
 
 function AnomalyCard({ anomaly, isDark, lang, fgColor, mutedColor, borderColor, t }: AnomalyCardProps) {
+  void borderColor;   // intentionally unused — anomalies use a warning-tinted border instead
   const cat = anomaly.category;
   const catColor = resolveCategoryColor(cat.color, isDark ? 'dark' : 'light');
   const title =
@@ -723,13 +724,21 @@ function AnomalyCard({ anomaly, isDark, lang, fgColor, mutedColor, borderColor, 
           amount: formatIDR(anomaly.tx.amount, lang),
         });
 
+  // Anomalies are flagged precisely because they're notable — a neutral
+  // border made them blend in with the surrounding plain text. Border +
+  // very subtle bg tint in the warning amber pulls the eye + a 3px left
+  // accent stripe makes each row scannable without dominating the page.
+  // Category identity is preserved via the icon tile.
   return (
     <View
       style={{
         borderWidth: 1,
-        borderColor,
+        borderColor: tokens.semantic.warning + '4D',
+        borderLeftWidth: 3,
+        borderLeftColor: tokens.semantic.warning,
         borderRadius: 12,
         padding: 14,
+        backgroundColor: tokens.semantic.warning + '0F',
         flexDirection: 'row',
         gap: 12,
       }}
