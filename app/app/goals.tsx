@@ -26,7 +26,7 @@ import { DateField } from '@/shared/ui/DateField';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatAmountInput, minorToInputText, parseAmountInput } from '@/shared/utils/amountInput';
-import { formatDate } from '@/shared/utils/formatDate';
+import { formatDate, formatTimeUntil } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
 
 /**
@@ -475,20 +475,33 @@ function GoalRow({
         />
       </View>
 
-      <View className="flex-row items-baseline justify-between">
+      <View className="flex-row items-baseline justify-between" style={{ gap: 8 }}>
         <Text
           className="font-sans-medium text-xs"
           style={{ color: reached ? tokens.semantic.positive : fgColor }}
         >
           {percent}
         </Text>
-        {goal.targetDate ? (
-          <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-            {t('goals:row.targetByDate', {
-              date: formatDate(new Date(`${goal.targetDate}T00:00:00`), 'long', lang),
-            })}
-          </Text>
-        ) : null}
+        {goal.targetDate ? (() => {
+          const remaining = formatTimeUntil(goal.targetDate, lang);
+          return (
+            <View className="flex-row items-baseline" style={{ gap: 6, flexShrink: 1 }}>
+              <Text
+                className="font-sans text-xs"
+                style={{ color: mutedColor }}
+                numberOfLines={1}
+              >
+                {formatDate(new Date(`${goal.targetDate}T00:00:00`), 'long', lang)}
+              </Text>
+              <Text
+                className="font-sans-medium text-xs"
+                style={{ color: remaining.past ? tokens.semantic.danger : accent }}
+              >
+                {'· '}{remaining.label}
+              </Text>
+            </View>
+          );
+        })() : null}
       </View>
 
       {/* Contribute toggle / form */}

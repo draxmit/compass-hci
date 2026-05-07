@@ -25,7 +25,7 @@ import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
-import { formatDate } from '@/shared/utils/formatDate';
+import { formatDate, formatTimeUntil } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { convertToIDRMinor } from '@/shared/utils/fxRates';
 
@@ -877,35 +877,58 @@ function DashboardGoalRow({
               }}
             />
           </View>
-          <View className="flex-row items-baseline justify-between mt-1.5">
+          <View className="flex-row items-baseline justify-between mt-1.5" style={{ gap: 8 }}>
             <Text
               className="font-mono tabular-nums text-xs"
               style={{ color: mutedColor }}
+              numberOfLines={1}
             >
               {formatAmountForDisplay(goal.currentMinor, 'IDR', displayInIDR, lang).primary}
               {' / '}
               {formatAmountForDisplay(goal.targetMinor, 'IDR', displayInIDR, lang).primary}
             </Text>
-            {goal.targetDate ? (
-              <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-                {t('goals:row.targetByDate', {
-                  date: formatDate(new Date(`${goal.targetDate}T00:00:00`), 'long', lang),
-                })}
-              </Text>
-            ) : null}
+            {goal.targetDate ? (() => {
+              const remaining = formatTimeUntil(goal.targetDate, lang);
+              return (
+                <View className="flex-row items-baseline" style={{ gap: 4 }}>
+                  <Text
+                    className="font-sans text-xs"
+                    style={{ color: mutedColor }}
+                    numberOfLines={1}
+                  >
+                    {formatDate(new Date(`${goal.targetDate}T00:00:00`), 'medium', lang)}
+                  </Text>
+                  <Text
+                    className="font-sans-medium text-xs"
+                    style={{ color: remaining.past ? tokens.semantic.danger : accent }}
+                  >
+                    {'· '}{remaining.label}
+                  </Text>
+                </View>
+              );
+            })() : null}
           </View>
         </>
       ) : null}
       {/* Goals without a monetary target still benefit from showing
           the date deadline if one is set — render it as a thin line
           when there's no progress bar above. */}
-      {!hasTarget && goal.targetDate ? (
-        <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
-          {t('goals:row.targetByDate', {
-            date: formatDate(new Date(`${goal.targetDate}T00:00:00`), 'long', lang),
-          })}
-        </Text>
-      ) : null}
+      {!hasTarget && goal.targetDate ? (() => {
+        const remaining = formatTimeUntil(goal.targetDate, lang);
+        return (
+          <View className="flex-row items-baseline mt-1" style={{ gap: 4 }}>
+            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+              {formatDate(new Date(`${goal.targetDate}T00:00:00`), 'medium', lang)}
+            </Text>
+            <Text
+              className="font-sans-medium text-xs"
+              style={{ color: remaining.past ? tokens.semantic.danger : accent }}
+            >
+              {'· '}{remaining.label}
+            </Text>
+          </View>
+        );
+      })() : null}
     </Pressable>
   );
 }
