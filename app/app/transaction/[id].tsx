@@ -16,6 +16,7 @@ import {
   createTransaction, deleteTransaction, getTransaction, updateTransaction,
 } from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
+import { SplitsBlock } from '@/features/transactions/SplitsBlock';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -73,6 +74,11 @@ export default function EditTransactionScreen() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Splits state (ADR-14). Auto-detect mode on load: tx with > 1 split
+  // opens directly into multi mode so the user sees the full breakdown
+  // rather than silently losing rows past splits[0].
+  const [splitsMode, setSplitsMode] = useState<'single' | 'multi'>('single');
+  const [splitRows, setSplitRows] = useState<{ categoryId: string | null; amountText: string }[]>([]);
 
   // Subscriptions for the picker lists.
   useEffect(() => {
@@ -108,6 +114,17 @@ export default function EditTransactionScreen() {
         setToAccountId(tx.toAccountId);
         setCategoryId(tx.splits[0]?.categoryId ?? null);
         setDescription(tx.description);
+        // ADR-14: auto-detect multi-split. Multi-split txs open in
+        // multi mode so the user sees + can edit every split row.
+        if (tx.splits.length > 1) {
+          setSplitsMode('multi');
+          setSplitRows(
+            tx.splits.map((s) => ({
+              categoryId: s.categoryId,
+              amountText: minorToInputText(s.amount, lang),
+            })),
+          );
+        }
       })
       .catch((err: unknown) => {
         setLoadError(err instanceof Error ? err.message : t('transactions:entry.loadingFailed'));
@@ -128,10 +145,6 @@ export default function EditTransactionScreen() {
       appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingAccount'));
       return;
     }
-    if (type !== 'transfer' && !categoryId) {
-      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingCategory'));
-      return;
-    }
     if (type === 'transfer' && !toAccountId) {
       appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingToAccount'));
       return;
@@ -141,15 +154,45 @@ export default function EditTransactionScreen() {
       return;
     }
 
+    // Build splits[] payload (ADR-14) — single or multi mode.
+    let splits: Split[] = [];
+    if (type !== 'transfer') {
+      if (splitsMode === 'multi') {
+        const parsed = splitRows.map((r) => ({
+          categoryId: r.categoryId,
+          amount: parseAmountInput(r.amountText, lang),
+        }));
+        if (parsed.some((r) => !r.categoryId)) {
+          appAlert(t('transactions:entry.title'), t('transactions:entry.errors.splitsMissingCategory'));
+          return;
+        }
+        const sum = parsed.reduce((s, r) => s + r.amount, 0);
+        if (sum !== amount) {
+          appAlert(t('transactions:entry.title'), t('transactions:entry.errors.splitsMustSumToTotal'));
+          return;
+        }
+        splits = parsed.map((r) => ({ categoryId: r.categoryId as string, amount: r.amount }));
+      } else {
+        if (!categoryId) {
+          appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingCategory'));
+          return;
+        }
+        splits = [{ categoryId, amount } satisfies Split];
+      }
+    }
+
     // Diff financial fields. If only description changed we can use the
-    // cheap path; otherwise delete + recreate.
-    const oldCategoryId = loaded.splits[0]?.categoryId ?? null;
+    // cheap path; otherwise delete + recreate. For splits we compare the
+    // serialised shape — order matters.
+    const splitsKey = (s: Split[]) =>
+      s.map((x) => `${x.categoryId}:${x.amount}`).join('|');
+    const splitsChanged = splitsKey(splits) !== splitsKey(loaded.splits);
     const financialChanged =
       type !== loaded.type
       || amount !== loaded.amount
       || accountId !== loaded.accountId
       || (type === 'transfer' && toAccountId !== loaded.toAccountId)
-      || (type !== 'transfer' && categoryId !== oldCategoryId);
+      || (type !== 'transfer' && splitsChanged);
 
     setSaving(true);
     try {
@@ -168,7 +211,7 @@ export default function EditTransactionScreen() {
           accountId,
           toAccountId: type === 'transfer' ? toAccountId : null,
           amount,
-          splits: type === 'transfer' || !categoryId ? [] : [{ categoryId, amount } satisfies Split],
+          splits,
           description: description.trim(),
           source: 'manual',
           rawInput: null,
@@ -182,6 +225,36 @@ export default function EditTransactionScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const enterMultiMode = () => {
+    const totalAmount = parseAmountInput(amountText, lang);
+    setSplitRows([
+      {
+        categoryId: categoryId,
+        amountText: totalAmount > 0 ? minorToInputText(totalAmount, lang) : '',
+      },
+    ]);
+    setSplitsMode('multi');
+  };
+
+  const exitMultiMode = () => {
+    if (splitRows.length > 1) {
+      appAlert(t('transactions:entry.title'), t('transactions:entry.splits.collapseWarning'));
+    }
+    const first = splitRows[0];
+    if (first?.categoryId) setCategoryId(first.categoryId);
+    setSplitsMode('single');
+  };
+
+  const addSplitRow = () => {
+    setSplitRows((rows) => [...rows, { categoryId: null, amountText: '' }]);
+  };
+  const removeSplitRow = (idx: number) => {
+    setSplitRows((rows) => (rows.length <= 1 ? rows : rows.filter((_, i) => i !== idx)));
+  };
+  const updateSplitRow = (idx: number, patch: Partial<{ categoryId: string | null; amountText: string }>) => {
+    setSplitRows((rows) => rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   };
 
   const handleDelete = () => {
@@ -343,14 +416,59 @@ export default function EditTransactionScreen() {
           ) : null}
 
           {type !== 'transfer' ? (
-            <CategoryPicker
-              categories={categories}
-              selectedId={categoryId}
-              onSelect={setCategoryId}
-              isDark={isDark}
-              lang={lang}
-              t={t}
-            />
+            <>
+              {splitsMode === 'single' ? (
+                <CategoryPicker
+                  categories={categories}
+                  selectedId={categoryId}
+                  onSelect={setCategoryId}
+                  isDark={isDark}
+                  lang={lang}
+                  t={t}
+                />
+              ) : (
+                <SplitsBlock
+                  rows={splitRows}
+                  totalText={amountText}
+                  categories={categories}
+                  isDark={isDark}
+                  lang={lang}
+                  fgColor={fgColor}
+                  mutedColor={mutedColor}
+                  borderColor={borderColor}
+                  onAddRow={addSplitRow}
+                  onRemoveRow={removeSplitRow}
+                  onUpdateRow={updateSplitRow}
+                  t={t}
+                />
+              )}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  splitsMode === 'single'
+                    ? t('transactions:entry.splits.toggleToMulti')
+                    : t('transactions:entry.splits.toggleToSingle')
+                }
+                onPress={splitsMode === 'single' ? enterMultiMode : exitMultiMode}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  alignSelf: 'flex-start',
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  marginBottom: 16,
+                  marginTop: -4,
+                  borderRadius: 8,
+                }}
+              >
+                <Text className="font-sans-medium text-xs" style={{ color: tokens.accent.transactions }}>
+                  {splitsMode === 'single'
+                    ? t('transactions:entry.splits.toggleToMulti')
+                    : t('transactions:entry.splits.toggleToSingle')}
+                </Text>
+              </Pressable>
+            </>
           ) : null}
 
           {/* Description */}

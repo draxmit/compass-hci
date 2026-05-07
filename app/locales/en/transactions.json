@@ -42,7 +42,22 @@
       "missingCategory": "Category is required.",
       "missingToAccount": "Destination account is required.",
       "sameAccount": "From and to accounts must differ.",
-      "createFailed": "Failed to save transaction."
+      "createFailed": "Failed to save transaction.",
+      "splitsMustSumToTotal": "Splits don't add up: row amounts must equal the total.",
+      "splitsMissingCategory": "Pick a category for each row."
+    },
+    "splits": {
+      "toggleToMulti": "+ Split across categories",
+      "toggleToSingle": "← Use a single category",
+      "addRow": "+ Add category",
+      "removeRow": "Remove row",
+      "totalLine": "Total {{amount}}",
+      "sumLine": "Allocated {{amount}}",
+      "remainderUnallocated": "{{amount}} unallocated",
+      "remainderOver": "{{amount}} over total",
+      "remainderDone": "Balanced",
+      "splitsBadgeMore": "+{{count}}",
+      "collapseWarning": "Only the first category will be kept."
     },
     "actions": {
       "save": "Save",

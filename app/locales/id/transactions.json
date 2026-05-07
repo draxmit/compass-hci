@@ -42,7 +42,22 @@
       "missingCategory": "Kategori belum dipilih.",
       "missingToAccount": "Akun tujuan belum dipilih.",
       "sameAccount": "Akun asal & tujuan tidak boleh sama.",
-      "createFailed": "Gagal menyimpan transaksi."
+      "createFailed": "Gagal menyimpan transaksi.",
+      "splitsMustSumToTotal": "Pembagian belum pas: jumlah baris harus sama dengan total.",
+      "splitsMissingCategory": "Pilih kategori untuk tiap baris."
+    },
+    "splits": {
+      "toggleToMulti": "+ Bagi ke beberapa kategori",
+      "toggleToSingle": "← Pakai satu kategori",
+      "addRow": "+ Tambah kategori",
+      "removeRow": "Hapus baris",
+      "totalLine": "Total {{amount}}",
+      "sumLine": "Sudah dibagi {{amount}}",
+      "remainderUnallocated": "Sisa {{amount}} belum dikategorikan",
+      "remainderOver": "Lebih {{amount}} dari total",
+      "remainderDone": "Pas",
+      "splitsBadgeMore": "+{{count}}",
+      "collapseWarning": "Hanya kategori pertama yang akan disimpan."
     },
     "actions": {
       "save": "Simpan",
