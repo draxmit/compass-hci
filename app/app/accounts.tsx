@@ -585,7 +585,10 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
           </View>
         </View>
 
-        {/* Name */}
+        {/* ===== Basics group: Name + Type + Subtype =====
+            Three related fields that together define what this account
+            is. Combined into one Card with internal divider rules so
+            they read as a unit instead of three blocky cards stacked. */}
         <Card padding="lg" className="mb-4">
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
             {t('accounts:fields.name')}
@@ -598,42 +601,97 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
             autoCapitalize="words"
             returnKeyType="done"
           />
-        </Card>
 
-        {/* Type */}
-        <Card padding="lg" className="mb-4">
-          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
-            {t('accounts:fields.type')}
-          </Text>
-          {/* 2×2 grid — `flex: 1` across 4 buttons made the "Credit Card" /
-              "Kartu Kredit" label wrap awkwardly on narrow screens. Two
-              48%-wide rows give every label room to breathe. */}
-          <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-            {ACCOUNT_TYPES.map((typeKey) => {
-              const selected = type === typeKey;
+          <View
+            style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTopWidth: 1,
+              borderTopColor: borderColor,
+            }}
+          >
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+              {t('accounts:fields.type')}
+            </Text>
+            <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+              {ACCOUNT_TYPES.map((typeKey) => {
+                const selected = type === typeKey;
+                return (
+                  <Pressable
+                    key={typeKey}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => handleTypeChange(typeKey)}
+                    style={{
+                      width: '48%',
+                      paddingVertical: 12,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: 44,
+                      borderColor: selected ? tokens.accent.dashboard : borderColor,
+                      backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                    }}
+                  >
+                    <Text
+                      className="font-sans-medium text-sm"
+                      style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+                    >
+                      {t(`accounts:types.${typeKey}`)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View
+            style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTopWidth: 1,
+              borderTopColor: borderColor,
+            }}
+          >
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+              {t('accounts:fields.subtype')}
+            </Text>
+            {filteredSubtypes.map((meta) => {
+              const selected = meta.key === subtype;
+              const tint = resolveCategoryColor(meta.color, isDark ? 'dark' : 'light');
               return (
                 <Pressable
-                  key={typeKey}
+                  key={meta.key}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  onPress={() => handleTypeChange(typeKey)}
+                  onPress={() => handleSubtypeChange(meta.key)}
                   style={{
-                    width: '48%',
-                    paddingVertical: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 10,
                     borderRadius: 10,
                     borderWidth: 1,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: 44,
                     borderColor: selected ? tokens.accent.dashboard : borderColor,
                     backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                    marginBottom: 6,
                   }}
                 >
-                  <Text
-                    className="font-sans-medium text-sm"
-                    style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 6,
+                      backgroundColor: tint + '22',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: 10,
+                    }}
                   >
-                    {t(`accounts:types.${typeKey}`)}
+                    <CategoryIcon name={meta.icon} color={tint} size={14} />
+                  </View>
+                  <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }}>
+                    {t(`accounts:subtypes.${meta.key}`)}
                   </Text>
                 </Pressable>
               );
@@ -641,56 +699,9 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
           </View>
         </Card>
 
-        {/* Subtype */}
-        <Card padding="lg" className="mb-4">
-          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
-            {t('accounts:fields.subtype')}
-          </Text>
-          {filteredSubtypes.map((meta) => {
-            const selected = meta.key === subtype;
-            const tint = resolveCategoryColor(meta.color, isDark ? 'dark' : 'light');
-            return (
-              <Pressable
-                key={meta.key}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => handleSubtypeChange(meta.key)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  padding: 10,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: selected ? tokens.accent.dashboard : borderColor,
-                  backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
-                  marginBottom: 6,
-                }}
-              >
-                <View
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
-                    backgroundColor: tint + '22',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 10,
-                  }}
-                >
-                  <CategoryIcon name={meta.icon} color={tint} size={14} />
-                </View>
-                <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }}>
-                  {t(`accounts:subtypes.${meta.key}`)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </Card>
-
-        {/* Currency — locked after create time. Compact button opens
-            the full-screen CurrencyPickerModal (B redesign). On edit
-            the button is disabled so the choice is visible but not
-            mutable. */}
+        {/* ===== Money group: Currency + Balance + Net Worth toggle =====
+            Numerical / financial section. Currency is locked on edit;
+            the picker chevron flips to a Lock icon. */}
         <Card padding="lg" className="mb-4">
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
             {t('accounts:fields.currency')}
@@ -746,6 +757,70 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
               ? t('accounts:fields.currencyLockedHint')
               : t('accounts:fields.currencyHint')}
           </Text>
+
+          <View
+            style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTopWidth: 1,
+              borderTopColor: borderColor,
+            }}
+          >
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+              {t('accounts:fields.balance')}
+            </Text>
+            <TextField
+              label=""
+              value={balanceText}
+              onChangeText={(v) => setBalanceText(formatBalanceInput(v, lang))}
+              placeholder={t('accounts:fields.balancePlaceholder')}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+            <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>
+              {isEdit ? t('accounts:fields.balanceEditHint') : t('accounts:fields.balanceHint')}
+            </Text>
+          </View>
+
+          <View
+            style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTopWidth: 1,
+              borderTopColor: borderColor,
+            }}
+          >
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityState={{ checked: includedInNetWorth }}
+              onPress={() => setIncludedInNetWorth((v) => !v)}
+              className="flex-row items-center"
+            >
+              <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }}>
+                {t('accounts:fields.includedInNetWorth')}
+              </Text>
+              <View
+                style={{
+                  width: 44,
+                  height: 26,
+                  borderRadius: 13,
+                  backgroundColor: includedInNetWorth ? tokens.accent.dashboard : borderColor,
+                  padding: 3,
+                  alignItems: includedInNetWorth ? 'flex-end' : 'flex-start',
+                  justifyContent: 'center',
+                }}
+              >
+                <View
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    backgroundColor: '#fff',
+                  }}
+                />
+              </View>
+            </Pressable>
+          </View>
         </Card>
         <CurrencyPickerModal
           visible={currencyPickerOpen}
@@ -758,59 +833,7 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
           lang={lang}
         />
 
-        {/* Balance */}
-        <Card padding="lg" className="mb-4">
-          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
-            {t('accounts:fields.balance')}
-          </Text>
-          <TextField
-            label=""
-            value={balanceText}
-            onChangeText={(v) => setBalanceText(formatBalanceInput(v, lang))}
-            placeholder={t('accounts:fields.balancePlaceholder')}
-            keyboardType="numeric"
-            returnKeyType="done"
-          />
-          <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>
-            {isEdit ? t('accounts:fields.balanceEditHint') : t('accounts:fields.balanceHint')}
-          </Text>
-        </Card>
-
-        {/* Net-worth toggle */}
-        <Card padding="lg" className="mb-4">
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityState={{ checked: includedInNetWorth }}
-            onPress={() => setIncludedInNetWorth((v) => !v)}
-            className="flex-row items-center"
-          >
-            <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }}>
-              {t('accounts:fields.includedInNetWorth')}
-            </Text>
-            <View
-              style={{
-                width: 44,
-                height: 26,
-                borderRadius: 13,
-                backgroundColor: includedInNetWorth ? tokens.accent.dashboard : borderColor,
-                padding: 3,
-                alignItems: includedInNetWorth ? 'flex-end' : 'flex-start',
-                justifyContent: 'center',
-              }}
-            >
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
-                  backgroundColor: '#fff',
-                }}
-              />
-            </View>
-          </Pressable>
-        </Card>
-
-        {/* Icon */}
+        {/* ===== Appearance group: Icon + Color ===== */}
         <Card padding="lg" className="mb-4">
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
             {t('accounts:fields.icon')}
@@ -840,35 +863,41 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
               );
             })}
           </View>
-        </Card>
 
-        {/* Colour */}
-        <Card padding="lg" className="mb-4">
-          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
-            {t('accounts:fields.color')}
-          </Text>
-          <View className="flex-row flex-wrap" style={{ gap: 10 }}>
-            {CATEGORY_COLOR_KEYS.map((key) => {
-              const selected = key === color;
-              const swatch = resolveCategoryColor(key, isDark ? 'dark' : 'light');
-              return (
-                <Pressable
-                  key={key}
-                  accessibilityRole="button"
-                  accessibilityLabel={key}
-                  accessibilityState={{ selected }}
-                  onPress={() => setColor(key)}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: swatch,
-                    borderWidth: selected ? 3 : 0,
-                    borderColor: isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'],
-                  }}
-                />
-              );
-            })}
+          <View
+            style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTopWidth: 1,
+              borderTopColor: borderColor,
+            }}
+          >
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+              {t('accounts:fields.color')}
+            </Text>
+            <View className="flex-row flex-wrap" style={{ gap: 10 }}>
+              {CATEGORY_COLOR_KEYS.map((key) => {
+                const selected = key === color;
+                const swatch = resolveCategoryColor(key, isDark ? 'dark' : 'light');
+                return (
+                  <Pressable
+                    key={key}
+                    accessibilityRole="button"
+                    accessibilityLabel={key}
+                    accessibilityState={{ selected }}
+                    onPress={() => setColor(key)}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: swatch,
+                      borderWidth: selected ? 3 : 0,
+                      borderColor: isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'],
+                    }}
+                  />
+                );
+              })}
+            </View>
           </View>
         </Card>
 
