@@ -1,4 +1,6 @@
-import type { Currency, Split, Transaction, TransactionType } from '@compass/shared-types';
+import type {
+  Account, Currency, Split, Transaction, TransactionType,
+} from '@compass/shared-types';
 import {
   collection, doc, getCountFromServer, getDoc, getDocs, increment, onSnapshot,
   orderBy, limit as fsLimit, query, serverTimestamp, updateDoc, where, writeBatch,
@@ -8,6 +10,45 @@ import { convertToIDRMinor } from '@/shared/utils/fxRates';
 
 import { db } from '../firebase/client';
 import { addToCategoryMonthTotal } from './categoryMonthTotalsService';
+
+/**
+ * Liability vs asset (ADR-22). Credit cards are tracked as liability
+ * accounts: the stored `currentBalance` represents amount OWED, never
+ * negative. Sign semantics flip vs asset accounts:
+ *   - Spending on a card (outflow) INCREASES owed
+ *   - Paying a card (inflow / transfer-in) DECREASES owed
+ *   - Cash advance (transfer FROM card) INCREASES owed
+ *
+ * Asset accounts (cash/bank/ewallet) use the natural model: outflow
+ * subtracts, inflow adds. All accounts validate `balance >= 0` at
+ * write time — no account ever stores a negative number.
+ */
+function isLiabilityType(type: Account['type']): boolean {
+  return type === 'credit_card';
+}
+
+/**
+ * Compute the signed delta to apply to `currentBalance` for an
+ * outflow or inflow of `amount` on `accountType`.
+ */
+function balanceDelta(
+  amount: number,
+  accountType: Account['type'],
+  direction: 'in' | 'out',
+): number {
+  const isLiab = isLiabilityType(accountType);
+  if (direction === 'out') return isLiab ? amount : -amount;
+  return isLiab ? -amount : amount;
+}
+
+/** Custom error type so callers can detect validation failures vs
+ *  generic Firestore errors and surface a friendly i18n message. */
+export class InsufficientBalanceError extends Error {
+  constructor(public readonly accountId: string) {
+    super(`Insufficient balance for account ${accountId}`);
+    this.name = 'InsufficientBalanceError';
+  }
+}
 
 function transactionsCollection(wid: string) {
   return collection(db, 'workspaces', wid, 'transactions');
@@ -69,6 +110,50 @@ export async function createTransaction(
   // remain stable when rates update later. For IDR this is identity.
   const amountIDR = convertToIDRMinor(input.amount, currency);
 
+  // Read affected accounts upfront — needed for the liability sign-flip
+  // (credit_card type stores positive owed amounts) and the no-negative
+  // balance validation. Pre-batch reads aren't atomic with the write,
+  // but the validation is best-effort UX guard rail; the rare race
+  // (two concurrent txs draining the same account) is acceptable for
+  // a personal-finance app at v2 scale.
+  const sourceSnap = await getDoc(accountRef(wid, input.accountId));
+  if (!sourceSnap.exists()) {
+    throw new Error(`Source account ${input.accountId} not found`);
+  }
+  const sourceData = sourceSnap.data() as Account;
+
+  let destData: Account | null = null;
+  if (input.type === 'transfer' && input.toAccountId) {
+    const destSnap = await getDoc(accountRef(wid, input.toAccountId));
+    if (!destSnap.exists()) {
+      throw new Error(`Destination account ${input.toAccountId} not found`);
+    }
+    destData = destSnap.data() as Account;
+  }
+
+  // Compute deltas with sign-flip semantics for liability accounts.
+  let sourceDelta = 0;
+  let destDelta = 0;
+  if (input.type === 'expense') {
+    sourceDelta = balanceDelta(input.amount, sourceData.type, 'out');
+  } else if (input.type === 'income') {
+    sourceDelta = balanceDelta(input.amount, sourceData.type, 'in');
+  } else {
+    // transfer: outflow source + inflow dest
+    sourceDelta = balanceDelta(input.amount, sourceData.type, 'out');
+    if (destData) destDelta = balanceDelta(input.amount, destData.type, 'in');
+  }
+
+  // No-negative-balance gate (ADR-22). Asset accounts can't be drained
+  // below zero; liability accounts can't be paid below zero (overpaying
+  // a card doesn't make sense).
+  if (sourceData.currentBalance + sourceDelta < 0) {
+    throw new InsufficientBalanceError(input.accountId);
+  }
+  if (destData && destData.currentBalance + destDelta < 0) {
+    throw new InsufficientBalanceError(input.toAccountId!);
+  }
+
   const batch = writeBatch(db);
   batch.set(txRef, {
     type: input.type,
@@ -89,29 +174,15 @@ export async function createTransaction(
     updatedAt: serverTimestamp(),
   });
 
-  // Balance deltas
-  if (input.type === 'expense') {
-    batch.update(accountRef(wid, input.accountId), {
-      currentBalance: increment(-input.amount),
+  batch.update(accountRef(wid, input.accountId), {
+    currentBalance: increment(sourceDelta),
+    updatedAt: serverTimestamp(),
+  });
+  if (destData && input.toAccountId) {
+    batch.update(accountRef(wid, input.toAccountId), {
+      currentBalance: increment(destDelta),
       updatedAt: serverTimestamp(),
     });
-  } else if (input.type === 'income') {
-    batch.update(accountRef(wid, input.accountId), {
-      currentBalance: increment(input.amount),
-      updatedAt: serverTimestamp(),
-    });
-  } else {
-    // transfer: -from, +to
-    batch.update(accountRef(wid, input.accountId), {
-      currentBalance: increment(-input.amount),
-      updatedAt: serverTimestamp(),
-    });
-    if (input.toAccountId) {
-      batch.update(accountRef(wid, input.toAccountId), {
-        currentBalance: increment(input.amount),
-        updatedAt: serverTimestamp(),
-      });
-    }
   }
 
   // Category month totals (expense only) — denominated in IDR so the
@@ -250,14 +321,49 @@ export async function deleteTransaction(wid: string, id: string): Promise<void> 
   if (!snap.exists()) throw new Error(`Transaction ${id} not found`);
   const tx = snap.data() as Transaction;
 
+  // Read the affected accounts to know their type (asset vs liability)
+  // so the reversal applies the correct sign-flip — same logic as
+  // createTransaction, just inverted direction.
+  const sourceSnap = await getDoc(accountRef(wid, tx.accountId));
+  if (!sourceSnap.exists()) {
+    throw new Error(`Source account ${tx.accountId} not found on tx delete`);
+  }
+  const sourceData = sourceSnap.data() as Account;
+  let destData: Account | null = null;
+  if (tx.type === 'transfer' && tx.toAccountId) {
+    const destSnap = await getDoc(accountRef(wid, tx.toAccountId));
+    if (destSnap.exists()) destData = destSnap.data() as Account;
+  }
+
+  // Reversal deltas — direction inverted vs createTransaction.
+  // create:expense → outflow, delete:expense → inflow (give back).
+  let sourceDelta = 0;
+  let destDelta = 0;
+  if (tx.type === 'expense') {
+    sourceDelta = balanceDelta(tx.amount, sourceData.type, 'in');
+  } else if (tx.type === 'income') {
+    sourceDelta = balanceDelta(tx.amount, sourceData.type, 'out');
+  } else {
+    // transfer: original was out-of-source + into-dest; reverse both
+    sourceDelta = balanceDelta(tx.amount, sourceData.type, 'in');
+    if (destData) destDelta = balanceDelta(tx.amount, destData.type, 'out');
+  }
+
   const batch = writeBatch(db);
   batch.delete(transactionRef(wid, id));
 
-  if (tx.type === 'expense') {
-    batch.update(accountRef(wid, tx.accountId), {
-      currentBalance: increment(tx.amount),
+  batch.update(accountRef(wid, tx.accountId), {
+    currentBalance: increment(sourceDelta),
+    updatedAt: serverTimestamp(),
+  });
+  if (destData && tx.toAccountId) {
+    batch.update(accountRef(wid, tx.toAccountId), {
+      currentBalance: increment(destDelta),
       updatedAt: serverTimestamp(),
     });
+  }
+
+  if (tx.type === 'expense') {
     // Mirror the create-time proportional distribution so the reversal
     // exactly cancels the original increment, even on multi-split
     // non-IDR transactions. tx.amountIDR is the FX snapshot frozen at
@@ -268,23 +374,6 @@ export async function deleteTransaction(wid: string, id: string): Promise<void> 
         ? 0
         : Math.round(split.amount * (tx.amountIDR / tx.amount));
       addToCategoryMonthTotal(batch, wid, tx.yearMonth, split.categoryId, -splitIDR, -1);
-    }
-  } else if (tx.type === 'income') {
-    batch.update(accountRef(wid, tx.accountId), {
-      currentBalance: increment(-tx.amount),
-      updatedAt: serverTimestamp(),
-    });
-  } else {
-    // transfer reverse
-    batch.update(accountRef(wid, tx.accountId), {
-      currentBalance: increment(tx.amount),
-      updatedAt: serverTimestamp(),
-    });
-    if (tx.toAccountId) {
-      batch.update(accountRef(wid, tx.toAccountId), {
-        currentBalance: increment(-tx.amount),
-        updatedAt: serverTimestamp(),
-      });
     }
   }
 

@@ -165,6 +165,14 @@ export function useAuthSubscription(): void {
             ),
           )
           .then(() =>
+            // ADR-22 liability sign-flip migration. Flips negative
+            // credit_card balances → positive owed amounts. Idempotent
+            // via _liabilityModelV2 doc marker.
+            import('../firestore/accountsService').then(({ migrateAccountsToLiabilityModel }) =>
+              migrateAccountsToLiabilityModel(wid),
+            ),
+          )
+          .then(() =>
             // Migrate `users.primaryGoal` → real Goal doc + pinnedGoalId
             // (ADR-20). Idempotent — bails when pinnedGoalId is already
             // set, no-ops when there's no legacy text to migrate.

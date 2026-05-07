@@ -13,7 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
 import {
-  createTransaction, deleteTransaction, getTransaction, subscribeRecent, updateTransaction,
+  createTransaction, deleteTransaction, getTransaction,
+  InsufficientBalanceError, subscribeRecent, updateTransaction,
 } from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
 import { SplitsEditorModal } from '@/features/transactions/SplitsEditorModal';
@@ -250,8 +251,15 @@ export default function EditTransactionScreen() {
       }
       router.back();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('transactions:entry.errors.createFailed');
-      appAlert(t('transactions:entry.title'), msg);
+      if (err instanceof InsufficientBalanceError) {
+        appAlert(
+          t('transactions:entry.title'),
+          t('transactions:entry.errors.insufficientBalance'),
+        );
+      } else {
+        const msg = err instanceof Error ? err.message : t('transactions:entry.errors.createFailed');
+        appAlert(t('transactions:entry.title'), msg);
+      }
     } finally {
       setSaving(false);
     }

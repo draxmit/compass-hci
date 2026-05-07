@@ -46,7 +46,8 @@
       "createFailed": "Gagal menyimpan transaksi.",
       "splitsMustSumToTotal": "Pembagian belum pas: jumlah baris harus sama dengan total.",
       "splitsMissingCategory": "Pilih kategori untuk tiap baris.",
-      "splitsNeedTotal": "Isi jumlah total dulu, baru bisa dibagi ke beberapa kategori."
+      "splitsNeedTotal": "Isi jumlah total dulu, baru bisa dibagi ke beberapa kategori.",
+      "insufficientBalance": "Saldo akun tidak cukup. Coba jumlah yang lebih kecil atau pilih akun lain."
     },
     "voice": {
       "start": "Mulai dikte",

@@ -120,8 +120,10 @@ export async function createAccount(wid: string, input: CreateAccountInput): Pro
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       // Pre-mark new accounts as already-migrated so the migration helper
-      // doesn't double-multiply them on the next sign-in.
+      // doesn't double-multiply them on the next sign-in. Same for the
+      // ADR-22 liability sign-flip migration.
       [BALANCE_UNITS_MARKER]: true,
+      [LIABILITY_MODEL_MARKER]: true,
     })
     .commit();
   return ref.id;
@@ -219,6 +221,59 @@ export async function migrateAccountBalancesToMinorUnits(wid: string): Promise<v
       [BALANCE_UNITS_MARKER]: true,
       updatedAt: serverTimestamp(),
     });
+  }
+  await batch.commit();
+}
+
+const LIABILITY_MODEL_MARKER = '_liabilityModelV2' as const;
+
+/**
+ * One-shot migration to ADR-22's liability model. Pre-v2.x stored
+ * credit_card balances as negative numbers (debt = below zero). The
+ * new model stores them as positive owed amounts. This helper flips
+ * the sign for any credit_card account that hasn't been migrated yet.
+ *
+ * Idempotent via the `_liabilityModelV2: true` marker. New accounts
+ * created post-ADR-22 set the marker at create time so they skip
+ * this migration on subsequent sign-ins.
+ *
+ * Called from `useAuthSubscription` after the categories seed +
+ * minor-units migration, alongside the goal migration.
+ */
+export async function migrateAccountsToLiabilityModel(wid: string): Promise<void> {
+  const snap = await getDocs(accountsCollection(wid));
+  const candidates = snap.docs.filter((d) => {
+    const data = d.data() as Record<string, unknown>;
+    return data[LIABILITY_MODEL_MARKER] !== true;
+  });
+  if (candidates.length === 0) return;
+
+  const batch = writeBatch(db);
+  for (const d of candidates) {
+    const data = d.data() as Account;
+    // Only credit_card accounts need a sign flip; assets stay as-is.
+    // For credit_card with negative balance: flip to positive owed
+    // amount. Initial balance flips too so the audit-snapshot stays
+    // consistent.
+    if (data.type === 'credit_card') {
+      const newCurrent = (typeof data.currentBalance === 'number' && data.currentBalance < 0)
+        ? -data.currentBalance
+        : data.currentBalance;
+      const newInitial = (typeof data.initialBalance === 'number' && data.initialBalance < 0)
+        ? -data.initialBalance
+        : data.initialBalance;
+      batch.update(d.ref, {
+        currentBalance: newCurrent,
+        initialBalance: newInitial,
+        [LIABILITY_MODEL_MARKER]: true,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      batch.update(d.ref, {
+        [LIABILITY_MODEL_MARKER]: true,
+        updatedAt: serverTimestamp(),
+      });
+    }
   }
   await batch.commit();
 }

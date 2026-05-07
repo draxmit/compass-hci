@@ -10,7 +10,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
-import { createTransaction, subscribeRecent } from '@/services/firestore/transactionsService';
+import {
+  createTransaction, InsufficientBalanceError, subscribeRecent,
+} from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
 import { SplitsEditorModal } from '@/features/transactions/SplitsEditorModal';
 import { SplitsSummaryCard } from '@/features/transactions/SplitsSummaryCard';
@@ -254,8 +256,18 @@ export default function NewTransactionScreen() {
       });
       closeScreen();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('transactions:entry.errors.createFailed');
-      appAlert(t('transactions:entry.title'), msg);
+      // Friendly surface for the no-negative-balance gate (ADR-22).
+      // Generic Firestore failures fall through to the createFailed
+      // copy so we don't show raw stack traces.
+      if (err instanceof InsufficientBalanceError) {
+        appAlert(
+          t('transactions:entry.title'),
+          t('transactions:entry.errors.insufficientBalance'),
+        );
+      } else {
+        const msg = err instanceof Error ? err.message : t('transactions:entry.errors.createFailed');
+        appAlert(t('transactions:entry.title'), msg);
+      }
     } finally {
       setSaving(false);
     }

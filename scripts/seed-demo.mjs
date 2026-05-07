@@ -342,6 +342,11 @@ async function main() {
         icon: spec.icon,
         color: spec.color,
         order: order++,
+        // Mark seeded accounts as already-migrated for both the
+        // minor-units shift and the ADR-22 liability sign-flip so the
+        // auth-time migrations skip them on subsequent sign-ins.
+        _balanceUnitsV2: true,
+        _liabilityModelV2: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -407,18 +412,27 @@ async function main() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      // Balance delta
+      // Balance delta — applies ADR-22 liability sign-flip: credit_card
+      // accounts INCREMENT on outflow (debt grows) and DECREMENT on
+      // inflow (debt paid). Asset accounts use the natural model.
       const acctRef = doc(db, 'workspaces', wid, 'accounts', tx.accountId);
+      const sourceSpec = accountSpecs.find((s) => acctIds[s.localKey] === tx.accountId);
+      const sourceIsLiability = sourceSpec?.type === 'credit_card';
+      const sourceOutDelta = sourceIsLiability ? tx.amount : -tx.amount;
+      const sourceInDelta = sourceIsLiability ? -tx.amount : tx.amount;
       if (tx.type === 'expense') {
-        batch.update(acctRef, { currentBalance: increment(-tx.amount), updatedAt: serverTimestamp() });
+        batch.update(acctRef, { currentBalance: increment(sourceOutDelta), updatedAt: serverTimestamp() });
       } else if (tx.type === 'income') {
-        batch.update(acctRef, { currentBalance: increment(tx.amount), updatedAt: serverTimestamp() });
+        batch.update(acctRef, { currentBalance: increment(sourceInDelta), updatedAt: serverTimestamp() });
       } else {
         // transfer
-        batch.update(acctRef, { currentBalance: increment(-tx.amount), updatedAt: serverTimestamp() });
+        batch.update(acctRef, { currentBalance: increment(sourceOutDelta), updatedAt: serverTimestamp() });
         if (tx.toAccountId) {
+          const destSpec = accountSpecs.find((s) => acctIds[s.localKey] === tx.toAccountId);
+          const destIsLiability = destSpec?.type === 'credit_card';
+          const destInDelta = destIsLiability ? -tx.amount : tx.amount;
           batch.update(doc(db, 'workspaces', wid, 'accounts', tx.toAccountId), {
-            currentBalance: increment(tx.amount),
+            currentBalance: increment(destInDelta),
             updatedAt: serverTimestamp(),
           });
         }

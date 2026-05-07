@@ -83,26 +83,27 @@ export default function AccountsScreen() {
     })).filter((g) => g.accounts.length > 0);
   }, [accounts]);
 
-  // Total balance is always reported in IDR (the de-facto base currency
-  // throughout v2 — see ADR-16). Non-IDR accounts get their balance
-  // converted via the FX snapshot before summing. v2.1 will let users
-  // pick a base currency and re-anchor this; for now IDR is the rule.
+  // Net worth math (ADR-22): assets ADD, liabilities (credit_card)
+  // SUBTRACT. Both sides convert to IDR via FX snapshot for accounts
+  // in foreign currencies. credit_card balances are stored as positive
+  // owed amounts (no longer negative), so we subtract them explicitly.
   const totalBalance = useMemo(
     () => accounts
       .filter((a) => a.includedInNetWorth)
-      .reduce((sum, a) => sum + convertToIDRMinor(a.currentBalance, a.currency), 0),
+      .reduce((sum, a) => {
+        const idr = convertToIDRMinor(a.currentBalance, a.currency);
+        return a.type === 'credit_card' ? sum - idr : sum + idr;
+      }, 0),
     [accounts],
   );
 
-  // Sum of credit-card debts in IDR — used for the breakdown line
-  // under the total balance ("Rp X liabilities"). Liabilities are
-  // accounts where currentBalance < 0 (which v2 only credit cards
-  // hit by design — the model doesn't disallow it on cash/bank but
-  // the UI treats sub-zero balance as debt only for credit_card).
+  // Sum of credit-card debts in IDR. Cards now store positive owed
+  // amounts directly (post-ADR-22). Used for the 'After Rp X owed'
+  // subtitle under the Net Worth headline.
   const totalLiabilities = useMemo(
     () => accounts
-      .filter((a) => a.includedInNetWorth && a.type === 'credit_card' && a.currentBalance < 0)
-      .reduce((sum, a) => sum + convertToIDRMinor(Math.abs(a.currentBalance), a.currency), 0),
+      .filter((a) => a.includedInNetWorth && a.type === 'credit_card')
+      .reduce((sum, a) => sum + convertToIDRMinor(a.currentBalance, a.currency), 0),
     [accounts],
   );
 
@@ -322,19 +323,14 @@ function AccountGroup({ type, accounts, isDark, lang, displayInIDR, onEditAccoun
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               {(() => {
-                // Credit cards are tracked as liabilities — a negative
-                // balance means "you owe X". Render as a positive
-                // "owed" amount in the danger colour so the user
-                // doesn't have to mentally negate. Net Worth math is
-                // unaffected because it sums the raw currentBalance
-                // (negative liability already pulls it down correctly).
+                // Credit cards store positive 'owed' amounts directly
+                // (ADR-22). Render in danger colour with an 'owed'
+                // subtitle when the balance is non-zero so the
+                // semantics are explicit.
                 const isLiability = account.type === 'credit_card';
-                const owed = isLiability && account.currentBalance < 0;
-                const displayValue = owed
-                  ? Math.abs(account.currentBalance)
-                  : account.currentBalance;
+                const owed = isLiability && account.currentBalance > 0;
                 const display = formatAmountForDisplay(
-                  displayValue, account.currency, displayInIDR, lang,
+                  account.currentBalance, account.currency, displayInIDR, lang,
                 );
                 return (
                   <>

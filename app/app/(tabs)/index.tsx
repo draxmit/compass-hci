@@ -130,14 +130,14 @@ export default function DashboardScreen() {
     [accounts],
   );
   // Net worth is always IDR-denominated. Each non-IDR balance is
-  // converted via the FX snapshot before summing — keeps the value
-  // meaningful for users with mixed-currency accounts (e.g. an IDR
-  // BCA + a USD savings).
+  // converted via the FX snapshot before summing. Credit cards are
+  // liabilities (ADR-22) — their positive 'owed' balance subtracts
+  // from net worth.
   const netWorth = useMemo(
-    () => includedAccounts.reduce(
-      (s, a) => s + convertToIDRMinor(a.currentBalance, a.currency),
-      0,
-    ),
+    () => includedAccounts.reduce((s, a) => {
+      const idr = convertToIDRMinor(a.currentBalance, a.currency);
+      return a.type === 'credit_card' ? s - idr : s + idr;
+    }, 0),
     [includedAccounts],
   );
 
