@@ -35,6 +35,12 @@ export type CreateTransactionInput = {
   amount: number;              // integer minor units in `currency`
   splits: Split[];             // length 1 in v1; [] for transfers; in `currency`
   description: string;
+  /**
+   * Optional tags array. Caller passes tags already normalised
+   * (lower-cased, deduped, trimmed). Service writes the array
+   * unchanged; downstream readers + filters trust the normalisation.
+   */
+  tags?: string[];
   source: 'manual' | 'nlp';
   rawInput: string | null;
   confidence: number | null;
@@ -75,6 +81,7 @@ export async function createTransaction(
     amountIDR,
     splits: input.splits,
     description: input.description,
+    tags: input.tags ?? [],
     source: input.source,
     rawInput: input.rawInput,
     confidence: input.confidence,
@@ -199,9 +206,13 @@ export async function getTransaction(wid: string, id: string): Promise<Transacti
  * non-financial metadata (ADR-08 §1). Editing amount / account / category /
  * type goes through `deleteTransaction` + `createTransaction` so the
  * atomic-write invariant for balance + month totals stays intact.
+ *
+ * Tags (ADR-17) are non-financial — they don't affect balances or
+ * monthly totals — so they ride this path too.
  */
 export type UpdateTransactionInput = {
   description?: string;
+  tags?: string[];
 };
 
 /**

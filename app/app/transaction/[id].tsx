@@ -13,10 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
 import {
-  createTransaction, deleteTransaction, getTransaction, updateTransaction,
+  createTransaction, deleteTransaction, getTransaction, subscribeRecent, updateTransaction,
 } from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
 import { SplitsBlock } from '@/features/transactions/SplitsBlock';
+import { TagsInput } from '@/features/transactions/TagsInput';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -30,6 +31,7 @@ import {
   formatAmountInput, minorToInputText, parseAmountInput,
 } from '@/shared/utils/amountInput';
 import { formatIDR } from '@/shared/utils/formatIDR';
+import { collectTagFrequencies, normaliseTagList } from '@/shared/utils/tags';
 
 const TYPES: readonly TransactionType[] = ['expense', 'income', 'transfer'];
 
@@ -72,6 +74,8 @@ export default function EditTransactionScreen() {
   const [toAccountId, setToAccountId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [recentTagSet, setRecentTagSet] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // Splits state (ADR-14). Auto-detect mode on load: tx with > 1 split
@@ -80,12 +84,16 @@ export default function EditTransactionScreen() {
   const [splitsMode, setSplitsMode] = useState<'single' | 'multi'>('single');
   const [splitRows, setSplitRows] = useState<{ categoryId: string | null; amountText: string }[]>([]);
 
-  // Subscriptions for the picker lists.
+  // Subscriptions for the picker lists + recent-50 tag suggestions.
   useEffect(() => {
     if (!wid) return;
     const unsubA = subscribeAccounts(wid, setAccounts);
     const unsubC = subscribeCategories(wid, setCategories);
-    return () => { unsubA(); unsubC(); };
+    const unsubR = subscribeRecent(wid, 50, (txs) => {
+      const freq = collectTagFrequencies(txs);
+      setRecentTagSet([...freq.keys()]);
+    });
+    return () => { unsubA(); unsubC(); unsubR(); };
   }, [wid]);
 
   // Hardware back closes without saving.
@@ -114,6 +122,9 @@ export default function EditTransactionScreen() {
         setToAccountId(tx.toAccountId);
         setCategoryId(tx.splits[0]?.categoryId ?? null);
         setDescription(tx.description);
+        // Pre-populate tags. Defensive `?? []` because legacy v1 docs
+        // don't have the field.
+        setTags(tx.tags ?? []);
         // ADR-14: auto-detect multi-split. Multi-split txs open in
         // multi mode so the user sees + can edit every split row.
         if (tx.splits.length > 1) {
@@ -194,15 +205,27 @@ export default function EditTransactionScreen() {
       || (type === 'transfer' && toAccountId !== loaded.toAccountId)
       || (type !== 'transfer' && splitsChanged);
 
+    // Detect non-financial changes (description / tags) so we can take
+    // the cheap updateTransaction path when financial fields are
+    // unchanged. Tags compare order-independently — applied order is
+    // not user-meaningful.
+    const normalisedTags = normaliseTagList(tags);
+    const sortedJoin = (arr: string[]) => [...arr].sort().join(',');
+    const tagsChanged = sortedJoin(normalisedTags) !== sortedJoin(loaded.tags ?? []);
+    const descriptionChanged = description.trim() !== loaded.description;
+
     setSaving(true);
     try {
       if (!financialChanged) {
-        if (description.trim() === loaded.description) {
+        if (!descriptionChanged && !tagsChanged) {
           // Nothing changed — just close.
           router.back();
           return;
         }
-        await updateTransaction(wid, loaded.id, { description: description.trim() });
+        await updateTransaction(wid, loaded.id, {
+          ...(descriptionChanged ? { description: description.trim() } : {}),
+          ...(tagsChanged ? { tags: normalisedTags } : {}),
+        });
       } else {
         const sourceAccount = accounts.find((a) => a.id === accountId);
         await deleteTransaction(wid, loaded.id);
@@ -215,6 +238,7 @@ export default function EditTransactionScreen() {
           amount,
           splits,
           description: description.trim(),
+          tags: normalisedTags,
           source: 'manual',
           rawInput: null,
           confidence: null,
@@ -485,6 +509,20 @@ export default function EditTransactionScreen() {
               placeholder={t('transactions:entry.fields.descriptionPlaceholder')}
               autoCapitalize="sentences"
               returnKeyType="done"
+            />
+          </Card>
+
+          {/* Tags (ADR-17) — non-financial metadata. Saved via the cheap
+              updateTransaction path when nothing financial changed. */}
+          <Card padding="lg" className="mb-4">
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+              {t('transactions:entry.fields.tags')}
+            </Text>
+            <TagsInput
+              value={tags}
+              onChange={setTags}
+              suggestions={recentTagSet}
+              accent={tokens.accent.transactions}
             />
           </Card>
 

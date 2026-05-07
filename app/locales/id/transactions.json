@@ -23,7 +23,8 @@
       "toAccount": "Ke akun",
       "category": "Kategori",
       "description": "Catatan",
-      "descriptionPlaceholder": "Opsional"
+      "descriptionPlaceholder": "Opsional",
+      "tags": "Label"
     },
     "types": {
       "expense": "Pengeluaran",
@@ -67,6 +68,12 @@
       "splitsBadgeMore": "+{{count}}",
       "collapseWarning": "Hanya kategori pertama yang akan disimpan."
     },
+    "tags": {
+      "placeholder": "Tambah label — misal lebaran-2027, dinas",
+      "placeholderMore": "Tambah label lain",
+      "remove": "Hapus label {{tag}}",
+      "add": "Tambah label {{tag}}"
+    },
     "actions": {
       "save": "Simpan",
       "saving": "Menyimpan…",
@@ -87,6 +94,14 @@
     "lastMonth": "Bulan lalu",
     "allTime": "Semua waktu",
     "clear": "Reset filter",
-    "noResults": "Tidak ada transaksi yang cocok dengan filter."
+    "noResults": "Tidak ada transaksi yang cocok dengan filter.",
+    "tagsLabel": "Label",
+    "tagsAll": "Semua label",
+    "tagsCount_one": "{{count}} label",
+    "tagsCount_other": "{{count}} label",
+    "tagsPickerTitle": "Filter berdasarkan label",
+    "tagsPickerEmpty": "Belum ada label. Tambahkan label di transaksi dulu.",
+    "tagsPickerCount_one": "{{count}} tx",
+    "tagsPickerCount_other": "{{count}} tx"
   }
 }

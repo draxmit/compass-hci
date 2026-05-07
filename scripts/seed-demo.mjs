@@ -368,6 +368,10 @@ async function main() {
         amountIDR: tx.amount,
         splits: tx.type === 'transfer' ? [] : [{ categoryId: tx.categoryId, amount: tx.amount }],
         description: tx.description,
+        // Demo seed engineers a few tags so the new tag UI has something
+        // to render: `dinas`, `nongki`, `lebaran-2027`, `bandung-trip`,
+        // applied via tx.tags from buildDemoTransactions's tag helpers.
+        tags: tx.tags ?? [],
         source: 'manual',
         rawInput: null,
         confidence: null,
@@ -540,12 +544,13 @@ function buildDemoTransactions({
   txs.push({ type: 'expense', date: date(yyyy, mm, 20), accountId: A.cash,  categoryId: catId('Warteg'),     amount: 35_000_00,    description: 'Warteg' });
   txs.push({ type: 'expense', date: date(yyyy, mm, 23), accountId: A.cash,  categoryId: catId('Warteg'),     amount: 28_000_00,    description: 'Warteg' });
 
-  // Cafe ~Rp 340k
-  txs.push({ type: 'expense', date: date(yyyy, mm, 3),  accountId: A.card,  categoryId: catId('Cafe'),       amount: 65_000_00,    description: 'Kopi Janji Jiwa' });
-  txs.push({ type: 'expense', date: date(yyyy, mm, 5),  accountId: A.card,  categoryId: catId('Cafe'),       amount: 78_000_00,    description: 'Cafe meeting' });
-  txs.push({ type: 'expense', date: date(yyyy, mm, 8),  accountId: A.gopay, categoryId: catId('Cafe'),       amount: 55_000_00,    description: 'Starbucks' });
+  // Cafe ~Rp 340k. Tag a few `nongki` so the demo's tag-frequency
+  // table has a second meaningful entry beyond `bandung-trip`.
+  txs.push({ type: 'expense', date: date(yyyy, mm, 3),  accountId: A.card,  categoryId: catId('Cafe'),       amount: 65_000_00,    description: 'Kopi Janji Jiwa', tags: ['nongki'] });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 5),  accountId: A.card,  categoryId: catId('Cafe'),       amount: 78_000_00,    description: 'Cafe meeting',    tags: ['dinas'] });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 8),  accountId: A.gopay, categoryId: catId('Cafe'),       amount: 55_000_00,    description: 'Starbucks',       tags: ['nongki'] });
   txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.card,  categoryId: catId('Cafe'),       amount: 72_000_00,    description: 'Cafe sambil kerja' });
-  txs.push({ type: 'expense', date: date(yyyy, mm, 19), accountId: A.gopay, categoryId: catId('Cafe'),       amount: 70_000_00,    description: 'Kopi Kenangan' });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 19), accountId: A.gopay, categoryId: catId('Cafe'),       amount: 70_000_00,    description: 'Kopi Kenangan',   tags: ['nongki'] });
 
   // Grab ~Rp 380k
   txs.push({ type: 'expense', date: date(yyyy, mm, 2),  accountId: A.gopay, categoryId: catId('Grab'),       amount: 35_000_00,    description: 'Grab ke kantor' });
@@ -587,10 +592,12 @@ function buildDemoTransactions({
   }
   // One particularly heavy day early in the month for the heatmap
   // (multiple expensive transactions cluster on day 14, a single
-  // weekend day-trip).
-  txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.gopay, categoryId: catId('Restoran'), amount: 380_000_00, description: 'Day-trip Bandung — makan siang' });
-  txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.bca,   categoryId: catId('BBM'),     amount: 250_000_00, description: 'Pertamax Bandung' });
-  txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.cash,  categoryId: catId('Tol'),     amount: 95_000_00,  description: 'Tol PP' });
+  // weekend day-trip). Tag-seeded so the new Tags filter (ADR-17) has
+  // a clear "show me everything from the Bandung trip" use-case ready
+  // for the demo.
+  txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.gopay, categoryId: catId('Restoran'), amount: 380_000_00, description: 'Day-trip Bandung — makan siang', tags: ['bandung-trip'] });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.bca,   categoryId: catId('BBM'),     amount: 250_000_00, description: 'Pertamax Bandung',           tags: ['bandung-trip'] });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.cash,  categoryId: catId('Tol'),     amount: 95_000_00,  description: 'Tol PP',                     tags: ['bandung-trip'] });
 
   // Delivery + Restoran + Jajan
   txs.push({ type: 'expense', date: date(yyyy, mm, 11), accountId: A.gopay, categoryId: catId('Delivery'),   amount: 120_000_00,   description: 'GoFood weekend' });

@@ -23,7 +23,8 @@
       "toAccount": "To account",
       "category": "Category",
       "description": "Note",
-      "descriptionPlaceholder": "Optional"
+      "descriptionPlaceholder": "Optional",
+      "tags": "Tags"
     },
     "types": {
       "expense": "Expense",
@@ -67,6 +68,12 @@
       "splitsBadgeMore": "+{{count}}",
       "collapseWarning": "Only the first category will be kept."
     },
+    "tags": {
+      "placeholder": "Add tag — e.g. lebaran-2027, work-trip",
+      "placeholderMore": "Add another tag",
+      "remove": "Remove tag {{tag}}",
+      "add": "Add tag {{tag}}"
+    },
     "actions": {
       "save": "Save",
       "saving": "Saving…",
@@ -87,6 +94,14 @@
     "lastMonth": "Last month",
     "allTime": "All time",
     "clear": "Clear filters",
-    "noResults": "No transactions match the current filters."
+    "noResults": "No transactions match the current filters.",
+    "tagsLabel": "Tags",
+    "tagsAll": "Any tag",
+    "tagsCount_one": "{{count}} tag",
+    "tagsCount_other": "{{count}} tags",
+    "tagsPickerTitle": "Filter by tags",
+    "tagsPickerEmpty": "No tags applied yet. Add tags to a transaction first.",
+    "tagsPickerCount_one": "{{count}} tx",
+    "tagsPickerCount_other": "{{count}} txs"
   }
 }

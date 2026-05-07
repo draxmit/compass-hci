@@ -256,6 +256,16 @@ export type Transaction = {
   amountIDR: number;
   splits: Split[];       // length 1 in v1; [] for transfers
   description: string;
+  /**
+   * Free-text user tags (v2 / ADR-17). Always present, default `[]`.
+   * Tags are normalised to lower-case at write time (`grab`, not `Grab`)
+   * so case differences don't fragment the global tag list. Used for
+   * cross-cutting categorisation that sits orthogonal to the
+   * category tree — e.g. `lebaran-2027`, `split-with-andy`,
+   * `business-trip`. Cap of ~10 tags per tx is enforced by the UI;
+   * the service has no hard limit.
+   */
+  tags: string[];
   source: 'manual' | 'nlp';
   rawInput: string | null;
   confidence: number | null;

@@ -21,6 +21,7 @@ import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatDate } from '@/shared/utils/formatDate';
 import { formatCurrency } from '@/shared/utils/formatCurrency';
+import { collectTagFrequencies } from '@/shared/utils/tags';
 
 type TypeFilter = 'all' | TransactionType;
 type DateFilter = 'this_month' | 'last_month' | 'all_time';
@@ -57,9 +58,14 @@ export default function TransactionsScreen() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('this_month');
+  // Selected tags — AND-semantics with the other filters; ANY-semantics
+  // within: a tx matches if ANY of the selected tags appears in its
+  // tag list. (Most users picking 2+ tags want "either/or" not "both",
+  // matching how email-client tag filters work.)
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   // Which filter pill (if any) is currently expanded. Only one open at a
   // time — Mercury/Linear-style dropdown chip pattern.
-  const [openFilter, setOpenFilter] = useState<'type' | 'date' | null>(null);
+  const [openFilter, setOpenFilter] = useState<'type' | 'date' | 'tags' | null>(null);
 
   useEffect(() => {
     if (!wid) return;
@@ -87,9 +93,20 @@ export default function TransactionsScreen() {
       if (dateFilter === 'this_month' && tx.yearMonth !== thisYearMonth) return false;
       if (dateFilter === 'last_month' && tx.yearMonth !== lastYearMonth) return false;
       if (lower && !tx.description.toLowerCase().includes(lower)) return false;
+      if (tagFilter.length > 0) {
+        const txTags = tx.tags ?? [];
+        const anyMatch = tagFilter.some((t) => txTags.includes(t));
+        if (!anyMatch) return false;
+      }
       return true;
     });
-  }, [txs, typeFilter, dateFilter, search]);
+  }, [txs, typeFilter, dateFilter, search, tagFilter]);
+
+  // Tag-suggestion list for the tag-filter picker — frequencies across
+  // ALL loaded txs (the recent-50 slice), not just the currently
+  // filtered set. Otherwise applying one tag filter would empty the
+  // "available tags" list.
+  const tagFrequencies = useMemo(() => collectTagFrequencies(txs), [txs]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, Transaction[]>();
@@ -105,7 +122,8 @@ export default function TransactionsScreen() {
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
-  const filtersDirty = search.trim() !== '' || typeFilter !== 'all' || dateFilter !== 'this_month';
+  const filtersDirty =
+    search.trim() !== '' || typeFilter !== 'all' || dateFilter !== 'this_month' || tagFilter.length > 0;
 
   const typeChips: { key: TypeFilter; label: string }[] = [
     { key: 'all', label: t('transactions:filters.allTypes') },
@@ -160,6 +178,15 @@ export default function TransactionsScreen() {
             onPress={() => setOpenFilter((cur) => (cur === 'date' ? null : 'date'))}
             isDark={isDark}
           />
+          <FilterPill
+            label={t('transactions:filters.tagsLabel')}
+            value={tagFilter.length === 0
+              ? t('transactions:filters.tagsAll')
+              : t('transactions:filters.tagsCount', { count: tagFilter.length, context: tagFilter.length === 1 ? 'one' : 'other' })}
+            open={openFilter === 'tags'}
+            onPress={() => setOpenFilter((cur) => (cur === 'tags' ? null : 'tags'))}
+            isDark={isDark}
+          />
           {filtersDirty ? (
             <Pressable
               accessibilityRole="button"
@@ -168,6 +195,7 @@ export default function TransactionsScreen() {
                 setSearch('');
                 setTypeFilter('all');
                 setDateFilter('this_month');
+                setTagFilter([]);
                 setOpenFilter(null);
               }}
               hitSlop={6}
@@ -208,6 +236,19 @@ export default function TransactionsScreen() {
               setOpenFilter(null);
             }}
             isDark={isDark}
+          />
+        ) : null}
+        {openFilter === 'tags' ? (
+          <TagFilterPanel
+            tagFrequencies={tagFrequencies}
+            selectedTags={tagFilter}
+            onToggle={(tag) => {
+              setTagFilter((cur) => (cur.includes(tag)
+                ? cur.filter((t) => t !== tag)
+                : [...cur, tag]));
+            }}
+            isDark={isDark}
+            t={t}
           />
         ) : null}
 
@@ -416,6 +457,81 @@ function FilterOptionPanel<K extends string>({
   );
 }
 
+type TagFilterPanelProps = {
+  tagFrequencies: Map<string, number>;
+  selectedTags: string[];
+  onToggle: (tag: string) => void;
+  isDark: boolean;
+  t: TFunction;
+};
+
+/**
+ * Multi-select tag picker (ADR-17). Renders the tag list ordered by
+ * usage frequency (most-used first), with a small `· N` count next to
+ * each tag so the user can see what's worth picking. Selected tags get
+ * the accent treatment; tap toggles. Empty state when no tags exist
+ * yet — explicit hint that they need to add tags before this filter
+ * does anything.
+ */
+function TagFilterPanel({ tagFrequencies, selectedTags, onToggle, isDark, t }: TagFilterPanelProps) {
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+  const tagList = [...tagFrequencies.entries()];
+  return (
+    <View
+      style={{
+        padding: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor,
+        marginBottom: 12,
+      }}
+    >
+      {tagList.length === 0 ? (
+        <Text className="font-sans text-xs" style={{ color: mutedColor, padding: 8 }}>
+          {t('transactions:filters.tagsPickerEmpty')}
+        </Text>
+      ) : (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {tagList.map(([tag, count]) => {
+            const selected = selectedTags.includes(tag);
+            return (
+              <Pressable
+                key={tag}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => onToggle(tag)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: selected ? tokens.accent.dashboard : borderColor,
+                  backgroundColor: selected ? tokens.accent.dashboard + '14' : 'transparent',
+                }}
+              >
+                <Text
+                  className="font-sans-medium text-xs"
+                  style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+                >
+                  {tag}
+                </Text>
+                <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+                  · {count}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
 type TransactionRowProps = {
   tx: Transaction;
   accountsById: Map<string, Account>;
@@ -495,6 +611,36 @@ function TransactionRow({
         <Text className="font-sans text-xs" style={{ color: mutedColor }} numberOfLines={1}>
           {secondary}
         </Text>
+        {/* Tag chips (ADR-17). Cap visible to 3 per row + overflow
+            "+N"; full list available on tap-to-edit. */}
+        {Array.isArray(tx.tags) && tx.tags.length > 0 ? (
+          <View className="flex-row flex-wrap mt-1" style={{ gap: 4 }}>
+            {tx.tags.slice(0, 3).map((tag) => (
+              <View
+                key={tag}
+                style={{
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                  borderRadius: 4,
+                  borderWidth: 1,
+                  borderColor,
+                }}
+              >
+                <Text
+                  className="font-sans"
+                  style={{ color: mutedColor, fontSize: 10, letterSpacing: 0.3 }}
+                >
+                  {tag}
+                </Text>
+              </View>
+            ))}
+            {tx.tags.length > 3 ? (
+              <Text className="font-sans" style={{ color: mutedColor, fontSize: 10 }}>
+                +{tx.tags.length - 3}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
       <Text
         className="font-mono tabular-nums text-base font-sans-semibold"

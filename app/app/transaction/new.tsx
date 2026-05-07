@@ -10,9 +10,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
-import { createTransaction } from '@/services/firestore/transactionsService';
+import { createTransaction, subscribeRecent } from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
 import { SplitsBlock } from '@/features/transactions/SplitsBlock';
+import { TagsInput } from '@/features/transactions/TagsInput';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -28,6 +29,7 @@ import {
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { parseTransaction } from '@/shared/utils/nlpParser';
 import type { NlpResult } from '@/shared/utils/nlpParser';
+import { collectTagFrequencies, normaliseTagList } from '@/shared/utils/tags';
 import { useVoiceInput } from '@/shared/utils/voiceInput';
 
 const TYPES: readonly TransactionType[] = ['expense', 'income', 'transfer'];
@@ -77,6 +79,12 @@ export default function NewTransactionScreen() {
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  // Recent transactions feed the tag-suggestion list. Subscribing to
+  // the same `recent 50` slice the Transactions tab uses keeps the
+  // suggestion list responsive to newly-applied tags without a
+  // separate query path. Cap of 50 is more than enough to surface
+  // ~10–15 distinct tags.
+  const [recentTagSet, setRecentTagSet] = useState<string[]>([]);
 
   // Form state — populated by NLP, overrideable by user.
   const [type, setType] = useState<TransactionType>('expense');
@@ -85,6 +93,7 @@ export default function NewTransactionScreen() {
   const [toAccountId, setToAccountId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [description, setDescription] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [date] = useState(new Date().toISOString().slice(0, 10));  // T6 v1 = today only; T7 will add date picker
   const [nlpInput, setNlpInput] = useState('');
   const [confidence, setConfidence] = useState(0);
@@ -118,7 +127,14 @@ export default function NewTransactionScreen() {
     if (!wid) return;
     const unsubA = subscribeAccounts(wid, setAccounts);
     const unsubC = subscribeCategories(wid, setCategories);
-    return () => { unsubA(); unsubC(); };
+    // Pull recent 50 to seed tag suggestions. We only need the `tags`
+    // field but the service doesn't have a projection helper; the 50
+    // doc cap keeps the read cheap (~50 reads × 1 string array each).
+    const unsubR = subscribeRecent(wid, 50, (txs) => {
+      const freq = collectTagFrequencies(txs);
+      setRecentTagSet([...freq.keys()]);
+    });
+    return () => { unsubA(); unsubC(); unsubR(); };
   }, [wid]);
 
   // Hardware back: same fallback as Profile — we may have arrived here via
@@ -223,6 +239,10 @@ export default function NewTransactionScreen() {
         amount,
         splits,
         description: description.trim() || (nlpInput.trim() || ''),
+        // Defensive normalisation at the boundary in case the chip
+        // input ever lets through an unnormalised value (e.g.
+        // pasted-from-clipboard text).
+        tags: normaliseTagList(tags),
         source: nlpInput.trim() ? 'nlp' : 'manual',
         rawInput: nlpInput.trim() || null,
         confidence: nlpInput.trim() ? confidence : null,
@@ -534,6 +554,20 @@ export default function NewTransactionScreen() {
               placeholder={t('transactions:entry.fields.descriptionPlaceholder')}
               autoCapitalize="sentences"
               returnKeyType="done"
+            />
+          </Card>
+
+          {/* Tags (ADR-17) — optional metadata for cross-cutting
+              filters. Suggestions come from the recent-50 tx slice. */}
+          <Card padding="lg" className="mb-4">
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+              {t('transactions:entry.fields.tags')}
+            </Text>
+            <TagsInput
+              value={tags}
+              onChange={setTags}
+              suggestions={recentTagSet}
+              accent={tokens.accent.transactions}
             />
           </Card>
 
