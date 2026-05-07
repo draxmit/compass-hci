@@ -1,6 +1,6 @@
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, Tag, Target, Wallet, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, FileSpreadsheet, Pencil, Settings as SettingsIcon, Sparkles, Tag, Target, Wallet, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +22,7 @@ import { formatDate } from '@/shared/utils/formatDate';
 // (desktop) or the avatar in MobileTopBar (mobile). Settings is reached
 // from a link card inside this screen.
 export default function ProfileScreen() {
-  const { t } = useTranslation(['settings', 'common', 'categories', 'accounts', 'goals']);
+  const { t } = useTranslation(['settings', 'common', 'categories', 'accounts', 'goals', 'csvImport']);
   const { resolvedScheme } = useTheme();
   const router = useRouter();
   const appAlert = useAppAlert();
@@ -511,6 +511,28 @@ export default function ProfileScreen() {
             <Text className="font-sans-medium">{t('categories:title')}</Text>
             <Text className="font-sans text-xs" style={{ color: mutedColor }}>
               {t('categories:tagline')}
+            </Text>
+          </View>
+          <ChevronRight size={18} color={mutedColor} />
+        </Pressable>
+      </Card>
+
+      {/* CSV import — bulk-add transactions from a bank statement. Lives
+          in Profile next to the data-management cluster (Accounts /
+          Goals / Categories) since "import" is fundamentally a data
+          operation, not a preference. */}
+      <Card padding="none" className="mb-4 w-full">
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('csvImport:title')}
+          onPress={() => router.push('/import-csv')}
+          className="flex-row items-center px-5 py-4 min-h-[44px]"
+        >
+          <FileSpreadsheet size={20} color={mutedColor} />
+          <View className="ml-3 flex-1">
+            <Text className="font-sans-medium">{t('csvImport:title')}</Text>
+            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+              {t('csvImport:subtitle')}
             </Text>
           </View>
           <ChevronRight size={18} color={mutedColor} />

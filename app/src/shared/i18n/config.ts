@@ -7,6 +7,7 @@ import authEn from '../../../locales/en/auth.json';
 import budgetsEn from '../../../locales/en/budgets.json';
 import categoriesEn from '../../../locales/en/categories.json';
 import commonEn from '../../../locales/en/common.json';
+import csvImportEn from '../../../locales/en/csvImport.json';
 import dashboardEn from '../../../locales/en/dashboard.json';
 import goalsEn from '../../../locales/en/goals.json';
 import insightsEn from '../../../locales/en/insights.json';
@@ -19,6 +20,7 @@ import authId from '../../../locales/id/auth.json';
 import budgetsId from '../../../locales/id/budgets.json';
 import categoriesId from '../../../locales/id/categories.json';
 import commonId from '../../../locales/id/common.json';
+import csvImportId from '../../../locales/id/csvImport.json';
 import dashboardId from '../../../locales/id/dashboard.json';
 import goalsId from '../../../locales/id/goals.json';
 import insightsId from '../../../locales/id/insights.json';
@@ -43,6 +45,7 @@ const NAMESPACES = [
   'onboarding',
   'insights',
   'goals',
+  'csvImport',
 ] as const;
 
 const resources = {
@@ -59,6 +62,7 @@ const resources = {
     onboarding: onboardingId,
     insights: insightsId,
     goals: goalsId,
+    csvImport: csvImportId,
   },
   en: {
     common: commonEn,
@@ -73,6 +77,7 @@ const resources = {
     onboarding: onboardingEn,
     insights: insightsEn,
     goals: goalsEn,
+    csvImport: csvImportEn,
   },
 } as const;
 

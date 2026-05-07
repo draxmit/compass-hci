@@ -38,6 +38,7 @@
     "i18next": "^23.0.0",
     "lucide-react-native": "^0.460.0",
     "nativewind": "^4.1.23",
+    "papaparse": "^5.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-i18next": "^14.0.0",
@@ -53,6 +54,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "~19.1.0",
     "@types/react-dom": "~19.1.0",
     "eslint": "^9.0.0",

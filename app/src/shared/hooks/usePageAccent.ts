@@ -39,6 +39,7 @@ export function usePageAccent(): { key: AccentKey; color: string } {
     'accounts': 'neutral',
     'categories': 'neutral',
     'goals': 'neutral',
+    'import-csv': 'neutral',
   };
 
   // Default: 'dashboard'. The (auth) screens depend on this for brand
