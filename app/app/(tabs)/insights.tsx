@@ -101,7 +101,12 @@ export default function InsightsScreen() {
         const currentYm = yearMonths[0] ?? '';
         const [cmts, txs, cats] = await Promise.all([
           Promise.all(cmtPromises),
-          listTransactions(wid, { yearMonth: currentYm }),
+          // orderByDate: false — Insights filters by day-of-month and by
+          // category, never reads txs in date order. Skipping the orderBy
+          // means the query doesn't need the (yearMonth, date) composite
+          // index, so cold-open works on a fresh project before any
+          // index deploy.
+          listTransactions(wid, { yearMonth: currentYm, orderByDate: false }),
           listCategories(wid),
         ]);
         if (cancelled) return;

@@ -105,17 +105,24 @@ export async function createTransaction(
 }
 
 /**
- * One-shot list. Filter shape kept narrow for v1 — T7 will expand for the
- * transactions list screen with chip filters. yearMonth filter uses the
- * denormalised field for index efficiency.
+ * One-shot list. Filter shape kept narrow for v1.
+ *
+ * Note on `orderByDate`: combining `where('yearMonth', '==')` with
+ * `orderBy('date', 'desc')` requires a composite index on
+ * `(yearMonth ASC, date DESC)`. We DO declare that index in
+ * `firestore.indexes.json` for the report screen. Insights doesn't
+ * need date order (it filters by day-of-month + by category), so it
+ * passes `orderByDate: false` and sorts client-side if needed —
+ * dodging the index dependency for callers that don't care.
  */
 export async function listTransactions(
   wid: string,
-  opts: { yearMonth?: string; limit?: number } = {},
+  opts: { yearMonth?: string; limit?: number; orderByDate?: boolean } = {},
 ): Promise<Transaction[]> {
+  const orderByDate = opts.orderByDate !== false;   // default true
   const constraints = [];
   if (opts.yearMonth) constraints.push(where('yearMonth', '==', opts.yearMonth));
-  constraints.push(orderBy('date', 'desc'));
+  if (orderByDate) constraints.push(orderBy('date', 'desc'));
   if (opts.limit) constraints.push(fsLimit(opts.limit));
   const snap = await getDocs(query(transactionsCollection(wid), ...constraints));
   return snap.docs.map((d) => ({ ...(d.data() as Omit<Transaction, 'id'>), id: d.id }));
