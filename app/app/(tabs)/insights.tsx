@@ -8,6 +8,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
+import Svg, { Circle, Line as SvgLine, Polyline } from 'react-native-svg';
 
 import { listCategories } from '@/services/firestore/categoriesService';
 import { listMonthTotals } from '@/services/firestore/categoryMonthTotalsService';
@@ -458,56 +459,14 @@ export default function InsightsScreen() {
                 {t('insights:trend.noData')}
               </Text>
             ) : (
-              <View style={{ gap: 10 }}>
-                {trend.map((m, idx) => {
-                  // Newest first (current month at the top, oldest at the
-                  // bottom). Matches the user's mental model of "where am
-                  // I now" + "vs the recent past".
-                  const isCurrent = idx === 0;
-                  const max = trend.reduce((mx, x) => Math.max(mx, x.total), 0);
-                  const pct = max === 0 ? 0 : m.total / max;
-                  const monthDate = new Date(`${m.yearMonth}-01T00:00:00`);
-                  const monthLabel = formatDate(monthDate, 'long-month', lang);
-                  return (
-                    <View key={m.yearMonth}>
-                      <View className="flex-row items-baseline justify-between mb-1.5">
-                        <Text
-                          className="font-sans-medium text-xs"
-                          style={{
-                            color: isCurrent ? accent : mutedColor,
-                          }}
-                        >
-                          {monthLabel}
-                        </Text>
-                        <Text
-                          className="font-mono tabular-nums text-xs"
-                          style={{
-                            color: isCurrent ? fgColor : mutedColor,
-                          }}
-                        >
-                          {formatIDR(m.total, lang)}
-                        </Text>
-                      </View>
-                      <View
-                        style={{
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: borderColor,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <View
-                          style={{
-                            width: `${Math.max(pct * 100, 2)}%`,
-                            height: 8,
-                            backgroundColor: isCurrent ? accent : accent + '55',
-                          }}
-                        />
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
+              <TrendLineChart
+                trend={trend}
+                accent={accent}
+                fgColor={fgColor}
+                mutedColor={mutedColor}
+                borderColor={borderColor}
+                lang={lang}
+              />
             )}
           </View>
         ) : null}
@@ -705,7 +664,6 @@ type AnomalyCardProps = {
 };
 
 function AnomalyCard({ anomaly, isDark, lang, fgColor, mutedColor, borderColor, t }: AnomalyCardProps) {
-  void borderColor;   // intentionally unused — anomalies use a warning-tinted border instead
   const cat = anomaly.category;
   const catColor = resolveCategoryColor(cat.color, isDark ? 'dark' : 'light');
   const title =
@@ -724,21 +682,15 @@ function AnomalyCard({ anomaly, isDark, lang, fgColor, mutedColor, borderColor, 
           amount: formatIDR(anomaly.tx.amount, lang),
         });
 
-  // Anomalies are flagged precisely because they're notable — a neutral
-  // border made them blend in with the surrounding plain text. Border +
-  // very subtle bg tint in the warning amber pulls the eye + a 3px left
-  // accent stripe makes each row scannable without dominating the page.
-  // Category identity is preserved via the icon tile.
+  // Neutral hairline border — matches every other section row in the
+  // app. (Earlier amber-tinted variant was reverted per user feedback.)
   return (
     <View
       style={{
         borderWidth: 1,
-        borderColor: tokens.semantic.warning + '4D',
-        borderLeftWidth: 3,
-        borderLeftColor: tokens.semantic.warning,
+        borderColor,
         borderRadius: 12,
         padding: 14,
-        backgroundColor: tokens.semantic.warning + '0F',
         flexDirection: 'row',
         gap: 12,
       }}
@@ -765,6 +717,168 @@ function AnomalyCard({ anomaly, isDark, lang, fgColor, mutedColor, borderColor, 
       </View>
     </View>
   );
+}
+
+// ---------- TrendLineChart ----------
+
+type TrendLineChartProps = {
+  trend: { yearMonth: string; total: number }[];
+  accent: string;
+  fgColor: string;
+  mutedColor: string;
+  borderColor: string;
+  lang: Locale;
+};
+
+/**
+ * 6-month spend trend rendered as an SVG polyline.
+ *
+ * Trend data arrives newest-first; we reverse for the chart so X
+ * reads left→right oldest→newest, matching how time flows on a
+ * standard line chart. The latest point gets a slightly larger dot
+ * + the amount label rendered in fg colour to anchor the reader's
+ * eye on "where are we now".
+ *
+ * Compact amount labels under each X-tick: '4,2jt' / '4.2M' style
+ * — `formatIDR` would overflow a 6-column grid on mobile. The
+ * inline compactor handles thousands ('rb' / 'k'), millions ('jt'
+ * / 'M'), and billions ('M' / 'B').
+ */
+function TrendLineChart({
+  trend, accent, fgColor, mutedColor, borderColor, lang,
+}: TrendLineChartProps) {
+  // Reverse to oldest-first so the line reads left-to-right.
+  const ordered = [...trend].reverse();
+  const max = Math.max(...ordered.map((m) => m.total), 1);
+
+  // Internal viewBox dimensions. preserveAspectRatio="none" lets the
+  // SVG stretch horizontally to fill the container while keeping the
+  // height fixed — standard responsive line-chart behaviour.
+  const W = 320;
+  const H = 110;
+  const padX = 14;
+  const padTop = 12;
+  const padBot = 18;
+  const usableX = W - 2 * padX;
+  const usableY = H - padTop - padBot;
+  const stepX = ordered.length > 1 ? usableX / (ordered.length - 1) : 0;
+
+  const points = ordered.map((m, i) => {
+    const x = padX + i * stepX;
+    const y = padTop + (1 - m.total / max) * usableY;
+    return { x, y, total: m.total, yearMonth: m.yearMonth };
+  });
+  const polylineStr = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+  return (
+    <View>
+      <Svg
+        width="100%"
+        height={H}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+      >
+        {/* Faint baseline. */}
+        <SvgLine
+          x1={padX} y1={H - padBot}
+          x2={W - padX} y2={H - padBot}
+          stroke={borderColor} strokeWidth="1"
+        />
+        {/* The line. */}
+        <Polyline
+          points={polylineStr}
+          fill="none"
+          stroke={accent}
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {/* Dots — latest larger to anchor the read. Dots use a fixed
+            small radius regardless of the SVG horizontal stretch since
+            preserveAspectRatio="none" would otherwise turn them into
+            ovals; we counteract by using small enough r values that
+            the distortion is invisible on real screens. */}
+        {points.map((p, i) => {
+          const isLatest = i === points.length - 1;
+          return (
+            <Circle
+              key={p.yearMonth}
+              cx={p.x}
+              cy={p.y}
+              r={isLatest ? 4 : 2.5}
+              fill={accent}
+            />
+          );
+        })}
+      </Svg>
+      {/* Month labels under each X tick. */}
+      <View className="flex-row" style={{ marginTop: 6 }}>
+        {ordered.map((m, i) => {
+          const monthDate = new Date(`${m.yearMonth}-01T00:00:00`);
+          const monthShort = formatDate(monthDate, 'long-month', lang).split(' ')[0];
+          const isLatest = i === ordered.length - 1;
+          return (
+            <Text
+              key={m.yearMonth}
+              className="font-sans-medium"
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                fontSize: 10,
+                color: isLatest ? accent : mutedColor,
+              }}
+              numberOfLines={1}
+            >
+              {monthShort}
+            </Text>
+          );
+        })}
+      </View>
+      {/* Compact amount labels per column — keeps each month's value
+          glanceable, the trade-off of dropping the bar's adjacent
+          amount label. */}
+      <View className="flex-row" style={{ marginTop: 2 }}>
+        {ordered.map((m, i) => {
+          const isLatest = i === ordered.length - 1;
+          return (
+            <Text
+              key={m.yearMonth}
+              className="font-mono tabular-nums"
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                fontSize: 10,
+                color: isLatest ? fgColor : mutedColor,
+              }}
+              numberOfLines={1}
+            >
+              {compactIDR(m.total, lang)}
+            </Text>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Compact IDR formatter for chart axis labels — full `formatIDR` overflows
+ * a 6-column grid on mobile. Buckets:
+ *   - 0..999          → '0' / '423'
+ *   - 1k..999k        → '12rb' / '12k'
+ *   - 1jt..999jt      → '4,2jt' / '4.2M'
+ *   - 1M+ (milyar/B)  → '1,3M' / '1.3B'
+ */
+function compactIDR(minor: number, lang: Locale): string {
+  const idr = minor / 100;
+  if (idr === 0) return '0';
+  const sep = lang === 'id' ? ',' : '.';
+  const fmt = (n: number, suffix: string) =>
+    `${n.toFixed(1).replace('.', sep).replace(`${sep}0`, '')}${suffix}`;
+  if (idr >= 1_000_000_000) return fmt(idr / 1_000_000_000, lang === 'id' ? 'M' : 'B');
+  if (idr >= 1_000_000) return fmt(idr / 1_000_000, lang === 'id' ? 'jt' : 'M');
+  if (idr >= 1_000) return fmt(idr / 1_000, lang === 'id' ? 'rb' : 'k');
+  return Math.round(idr).toString();
 }
 
 // ---------- Heatmap ----------
