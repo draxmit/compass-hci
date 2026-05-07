@@ -11,7 +11,9 @@
     "vsLastMonth": "vs bulan lalu",
     "topCategories": "Kategori teratas",
     "recent": "Terbaru",
-    "seeAll": "Lihat semua"
+    "seeAll": "Lihat semua",
+    "projection_one": "Dengan ritme ini: ~{{amount}} di akhir bulan ({{days}} hari lagi)",
+    "projection_other": "Dengan ritme ini: ~{{amount}} di akhir bulan ({{days}} hari lagi)"
   },
   "delta": {
     "up": "↑ {{amount}} lebih banyak",

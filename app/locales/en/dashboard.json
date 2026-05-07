@@ -11,7 +11,9 @@
     "vsLastMonth": "vs last month",
     "topCategories": "Top categories",
     "recent": "Recent",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "projection_one": "At this rate: ~{{amount}} by month-end ({{days}} day left)",
+    "projection_other": "At this rate: ~{{amount}} by month-end ({{days}} days left)"
   },
   "delta": {
     "up": "↑ {{amount}} more",

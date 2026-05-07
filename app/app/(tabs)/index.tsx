@@ -24,6 +24,7 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
+import { computeCashflowProjection } from '@/shared/utils/cashflowProjection';
 import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
 import { formatDate, formatTimeUntil } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
@@ -162,6 +163,18 @@ export default function DashboardScreen() {
     [lastMonthTotals],
   );
   const monthDelta = thisMonthSpent - lastMonthSpent;
+
+  // End-of-month projection (v3 phase A — 2). Linear extrapolation of
+  // the current pace. Returns null in the first 7 days of the month
+  // (too noisy to trust) and on the last day (no remaining days). We
+  // don't memoise on `new Date()` directly — that would change every
+  // render; instead we tie it to thisYearMonth + thisMonthSpent which
+  // captures every time the projection's inputs change.
+  const cashflowProjection = useMemo(
+    () => computeCashflowProjection(thisMonthSpent),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [thisYearMonth, thisMonthSpent],
+  );
 
   const top3 = useMemo(
     () => [...monthTotals].sort((a, b) => b.totalIDR - a.totalIDR).slice(0, 3),
@@ -514,6 +527,23 @@ export default function DashboardScreen() {
                 mutedColor={mutedColor}
                 t={t}
               />
+              {/* End-of-month projection — only renders when 7+ days of
+                  data exist AND there are days remaining in the month.
+                  Renders one line, muted, below the delta to keep the
+                  glance hierarchy: realised total > delta > projection. */}
+              {cashflowProjection ? (
+                <Text
+                  className="font-sans text-xs mt-1.5"
+                  style={{ color: mutedColor }}
+                  numberOfLines={1}
+                >
+                  {t('dashboard:cards.projection', {
+                    amount: formatIDR(cashflowProjection.projectedMinor, lang),
+                    days: cashflowProjection.daysRemaining,
+                    count: cashflowProjection.daysRemaining,
+                  })}
+                </Text>
+              ) : null}
             </>
           )}
         </View>
