@@ -77,14 +77,14 @@ export function SplitsBlock({
         : tokens.semantic.warning;
 
   return (
-    <Card padding="lg" className="mb-4">
+    <Card padding="md" className="mb-2">
       <Text
-        className="font-sans-medium text-xs uppercase tracking-wider mb-3"
+        className="font-sans-medium text-xs uppercase tracking-wider mb-2"
         style={{ color: mutedColor }}
       >
         {t('transactions:entry.fields.category')}
       </Text>
-      <View style={{ gap: 8 }}>
+      <View style={{ gap: 10 }}>
         {rows.map((row, idx) => (
           <SplitRow
             key={idx}
@@ -220,14 +220,21 @@ function SplitRow({
 
   return (
     <View>
-      <View className="flex-row items-stretch" style={{ gap: 6 }}>
+      {/* Stacked layout: category picker on its own row (full width)
+          + amount field on the row below alongside the optional X
+          delete. The previous side-by-side layout left the amount
+          field too narrow on mobile to read the number ('couldn't
+          even see numbers' user feedback). Stacking gives both fields
+          full readable width at the cost of slightly more vertical
+          space per row. */}
+      <View className="flex-row items-center" style={{ gap: 6 }}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={selectedCat ? selectedCat.name[lang] : t('transactions:entry.fields.category')}
           accessibilityState={{ expanded: isExpanded }}
           onPress={onToggleExpanded}
           style={{
-            flex: 1.4,
+            flex: 1,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 6,
@@ -266,7 +273,19 @@ function SplitRow({
             <ChevronDown size={14} color={mutedColor} />
           )}
         </Pressable>
+      </View>
 
+      {/* Amount row — full-width number field with optional × delete
+          alongside. Stacked under the category picker so the number
+          gets the entire row width to read on mobile.
+          × delete is only useful when there's more than one row.
+          With a single row, the user can just blank the amount or
+          change categories — removing the only row leaves the form
+          in an invalid state anyway. Hidden until rows.length >= 2. */}
+      <View
+        className="flex-row items-center"
+        style={{ gap: 6, marginTop: 6 }}
+      >
         <View style={{ flex: 1 }}>
           <TextField
             label=""
@@ -276,18 +295,13 @@ function SplitRow({
             keyboardType="numeric"
           />
         </View>
-
-        {/* × delete is only useful when there's more than one row. With
-            a single row, the user can just blank the amount or change
-            categories — removing the only row leaves the form in an
-            invalid state anyway. Hidden until rows.length >= 2. (D3) */}
         {canRemove ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('transactions:entry.splits.removeRow')}
             onPress={onRemove}
             style={{
-              width: 40, height: 40, borderRadius: 10,
+              width: 36, height: 36, borderRadius: 8,
               borderWidth: 1, borderColor,
               alignItems: 'center', justifyContent: 'center',
             }}

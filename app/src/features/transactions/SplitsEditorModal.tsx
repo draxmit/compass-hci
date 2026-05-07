@@ -78,9 +78,9 @@ export function SplitsEditorModal({
         style={{
           flex: 1,
           backgroundColor: 'rgba(0,0,0,0.55)',
-          paddingTop: insets.top + 24,
-          paddingBottom: insets.bottom + 24,
-          paddingHorizontal: 16,
+          paddingTop: insets.top + 16,
+          paddingBottom: insets.bottom + 16,
+          paddingHorizontal: 8,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -165,9 +165,10 @@ export function SplitsEditorModal({
           </View>
         ) : null}
 
-        {/* Body — SplitsBlock reused as-is. */}
+        {/* Body — SplitsBlock reused as-is. Tight padding so the
+            stacked amount field gets all the room it needs on mobile. */}
         <ScrollView
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={{ padding: 8 }}
           keyboardShouldPersistTaps="handled"
         >
           <SplitsBlock
