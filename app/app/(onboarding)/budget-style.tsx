@@ -14,11 +14,20 @@ import { Text } from '@/shared/ui/Text';
 
 type StyleKey = 'monthlyLimit' | 'envelope' | 'fiftyThirtyTwenty';
 
+// All three styles selectable as of v2 (ADR-21). Kept the `enabled`
+// flag in the table since the OnboardingShell layout still references
+// it; just true now.
 const STYLES: { readonly key: StyleKey; readonly enabled: boolean }[] = [
-  { key: 'monthlyLimit',     enabled: true  },
-  { key: 'envelope',         enabled: false },
-  { key: 'fiftyThirtyTwenty', enabled: false },
+  { key: 'monthlyLimit',      enabled: true },
+  { key: 'envelope',          enabled: true },
+  { key: 'fiftyThirtyTwenty', enabled: true },
 ];
+
+const STYLE_KEY_TO_DOC: Record<StyleKey, 'monthly_limit' | 'envelope' | 'fifty_thirty_twenty'> = {
+  monthlyLimit: 'monthly_limit',
+  envelope: 'envelope',
+  fiftyThirtyTwenty: 'fifty_thirty_twenty',
+};
 
 /**
  * Step 2 — Pick budget style. v1 only `monthlyLimit` is selectable; the
@@ -58,11 +67,9 @@ export default function BudgetStyleStep() {
     try {
       const uid = useAuthStore.getState().uid;
       if (uid) {
-        // v1 always writes monthly_limit (the only selectable option).
-        // The state variable is decorative until v2 unlocks the other
-        // two — kept in case we want to log analytics on which option
-        // the user gravitated to.
-        await updateUserDoc(uid, { budgetStyle: 'monthly_limit' });
+        // Persists the user's selection to the userDoc; /budgets reads
+        // it back and renders the matching view.
+        await updateUserDoc(uid, { budgetStyle: STYLE_KEY_TO_DOC[selected] });
       }
       router.push('/(onboarding)/account');
     } catch (err) {

@@ -19,7 +19,23 @@
     "of": "dari",
     "addLimit": "Tambah batas",
     "limitPlaceholder": "0",
-    "overBudget": "Lewat budget {{amount}}"
+    "overBudget": "Lewat budget {{amount}}",
+    "rollover": "{{base}} bulan ini + {{rollover}} sisa bulan lalu"
+  },
+  "fiftyThirtyTwenty": {
+    "incomeLabel": "Pemasukan bulan ini",
+    "incomeHint": "Target di bawah adalah 50 / 30 / 20 dari pemasukanmu.",
+    "incomeEmpty": "Catat transaksi pemasukan untuk mengatur target ember.",
+    "groups": {
+      "needs": "Kebutuhan",
+      "wants": "Keinginan",
+      "savings": "Tabungan"
+    },
+    "hints": {
+      "needs": "Esensial — sewa, belanja dapur, listrik, transportasi.",
+      "wants": "Diskresioner — makan di luar, hiburan, hobi.",
+      "savings": "Tabungan, investasi, bayar utang di atas minimum."
+    }
   },
   "actions": {
     "save": "Simpan",

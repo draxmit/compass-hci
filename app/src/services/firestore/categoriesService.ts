@@ -1,4 +1,6 @@
-import type { Category, CategoryColor, CategoryIcon, CategoryName } from '@compass/shared-types';
+import type {
+  BudgetGroup, Category, CategoryColor, CategoryIcon, CategoryName,
+} from '@compass/shared-types';
 import {
   collection, doc, getDocs, onSnapshot,
   serverTimestamp, updateDoc, writeBatch,
@@ -22,6 +24,9 @@ export type CreateCategoryInput = {
   name: CategoryName;
   icon: CategoryIcon;
   color: CategoryColor;
+  /** 50/30/20 group designation (ADR-21). Optional — defaults to
+   * `null` (= treated as 'wants' by the 50/30/20 view). */
+  budgetGroup?: BudgetGroup | null;
 };
 
 export type UpdateCategoryInput = Partial<CreateCategoryInput>;
@@ -147,6 +152,9 @@ export async function createCategory(wid: string, input: CreateCategoryInput): P
       name: input.name,
       icon: input.icon,
       color: input.color,
+      // 50/30/20 group — caller passes the group, otherwise null
+      // (read layer treats null as 'wants' for aggregation).
+      budgetGroup: input.budgetGroup ?? null,
       isPreset: false,
       isArchived: false,
       order: nextOrder,
@@ -201,6 +209,10 @@ export function seedPresets(batch: WriteBatch, wid: string): void {
       name: preset.name,
       icon: preset.icon,
       color: preset.color,
+      // 50/30/20 group designation (ADR-21). Defaults from the preset
+      // table; persisted as `null` for income/parent rows that aren't
+      // budgeted under 50/30/20.
+      budgetGroup: preset.budgetGroup ?? null,
       isPreset: true,
       isArchived: false,
       order: order++,

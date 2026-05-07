@@ -470,6 +470,36 @@ async function main() {
     await batch.commit();
   }
 
+  // ---- Seed last-month budgets so the Envelope view has carryover ----
+  // Slightly wider limits last month so a couple categories carry
+  // surplus into this month — gives the envelope-rollover line
+  // something to show. Last-month spending generally undershot
+  // (see buildDemoTransactions).
+  log('Seeding last-month budgets for envelope carryover…');
+  {
+    const batch = writeBatch(db);
+    const lastBudgetSpecs = [
+      { categoryName: 'Warteg',   limitMinor: 350_000_00 },
+      { categoryName: 'Grab',     limitMinor: 600_000_00 },
+      { categoryName: 'Pulsa',    limitMinor: 200_000_00 },
+      { categoryName: 'Cafe',     limitMinor: 500_000_00 },
+    ];
+    for (const b of lastBudgetSpecs) {
+      const cid = catId(b.categoryName);
+      const id = `${lastYM}_${cid}`;
+      batch.set(doc(db, 'workspaces', wid, 'budgets', id), {
+        yearMonth: lastYM,
+        categoryId: cid,
+        style: 'envelope',
+        limitMinor: b.limitMinor,
+        rolloverPolicy: 'carry_over',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    }
+    await batch.commit();
+  }
+
   log('');
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   log(' Demo data seeded. Sign in to the app with:');

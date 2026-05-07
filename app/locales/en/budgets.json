@@ -19,7 +19,23 @@
     "of": "of",
     "addLimit": "Add limit",
     "limitPlaceholder": "0",
-    "overBudget": "Over by {{amount}}"
+    "overBudget": "Over by {{amount}}",
+    "rollover": "{{base}} this month + {{rollover}} from last month"
+  },
+  "fiftyThirtyTwenty": {
+    "incomeLabel": "Income this month",
+    "incomeHint": "Targets below are 50 / 30 / 20 of your income.",
+    "incomeEmpty": "Log income transactions to set bucket targets.",
+    "groups": {
+      "needs": "Needs",
+      "wants": "Wants",
+      "savings": "Savings"
+    },
+    "hints": {
+      "needs": "Essentials — rent, groceries, utilities, transport.",
+      "wants": "Discretionary — dining, entertainment, hobbies.",
+      "savings": "Savings, investments, beyond-minimum debt paydown."
+    }
   },
   "actions": {
     "save": "Save",

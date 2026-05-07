@@ -17,7 +17,14 @@ export type UserDoc = {
   locale: 'id' | 'en';
   theme: 'light' | 'dark' | 'system';
   baseCurrency: 'IDR' | 'USD';
-  budgetStyle: 'monthly_limit' | 'envelope';
+  /**
+   * Active budget style for the /budgets screen view (ADR-21).
+   * Reuses the {@link BudgetStyle} union — all three values are
+   * selectable in v2. Forward-declared here as an inline union so
+   * UserDoc doesn't have to import BudgetStyle from later in the
+   * file (BudgetStyle is declared further down).
+   */
+  budgetStyle: 'monthly_limit' | 'envelope' | 'fifty_thirty_twenty';
   biometricEnabled: boolean;
   /**
    * v2 multi-currency display preference. When `true`, every amount
@@ -131,6 +138,21 @@ export type CategoryColor =
  * Soft delete: `isArchived = true` hides from the default view but preserves
  * the doc id so transactions retain a stable reference.
  */
+/**
+ * 50/30/20 budget designation (ADR-21). Each leaf category gets
+ * tagged as one of:
+ *  - 'needs'   — essentials (rent, groceries, utilities, transport)
+ *  - 'wants'   — discretionary (cafe, dining, entertainment, hobbies)
+ *  - 'savings' — savings + investments + debt-paydown beyond minimums
+ *  - null      — unassigned (legacy + user opt-out). Treated as 'wants'
+ *                in 50/30/20 calculations to avoid disappearing
+ *                spending; the user can re-tag from /categories.
+ *
+ * Only the `fifty_thirty_twenty` budget style consults this field.
+ * `monthly_limit` and `envelope` ignore it entirely.
+ */
+export type BudgetGroup = 'needs' | 'wants' | 'savings';
+
 export type Category = {
   id: string;
   parentId: string | null;
@@ -140,6 +162,13 @@ export type Category = {
   isPreset: boolean;
   isArchived: boolean;
   order: number;
+  /**
+   * 50/30/20 group. Optional on the doc so legacy categories
+   * (created before v2.0) read as null and the read layer treats
+   * them as 'wants' for aggregation. New categories default to
+   * the preset's `defaultBudgetGroup` at create time.
+   */
+  budgetGroup?: BudgetGroup | null;
   createdAt: unknown;
 };
 

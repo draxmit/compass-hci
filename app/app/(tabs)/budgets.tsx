@@ -1,4 +1,6 @@
-import type { Budget, BudgetStyle, Category, CategoryMonthTotal } from '@compass/shared-types';
+import type {
+  Budget, BudgetGroup, BudgetStyle, Category, CategoryMonthTotal,
+} from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
@@ -7,10 +9,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { subscribeBudgets, deleteBudget, upsertBudget } from '@/services/firestore/budgetsService';
+import { updateUserDoc } from '@/services/firebase';
+import { listBudgets, subscribeBudgets, deleteBudget, upsertBudget } from '@/services/firestore/budgetsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
-import { subscribeMonthTotals } from '@/services/firestore/categoryMonthTotalsService';
-import { useAuthUser } from '@/stores/authStore';
+import { listMonthTotals, subscribeMonthTotals } from '@/services/firestore/categoryMonthTotalsService';
+import { listTransactions } from '@/services/firestore/transactionsService';
+import { useAuthStore, useAuthUser, useUserDoc } from '@/stores/authStore';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -21,6 +25,10 @@ import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatAmountInput, minorToInputText, parseAmountInput } from '@/shared/utils/amountInput';
+import {
+  computeEnvelopeBalances, computeFiftyThirtyTwentyBuckets, sumMonthIncome,
+} from '@/shared/utils/budgetStyles';
+import type { EnvelopeBalance } from '@/shared/utils/budgetStyles';
 import { formatDate } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { formatPercent } from '@/shared/utils/formatPercent';
@@ -73,7 +81,23 @@ export default function BudgetsScreen() {
 
   // Single expanded-row id; tapping a different row collapses the previous.
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
-  const [selectedStyle, setSelectedStyle] = useState<BudgetStyle>('monthly_limit');
+  // Budget style is now persisted on userDoc (ADR-21). Falls back to
+  // 'monthly_limit' until the doc is loaded — that's also the v1 default
+  // for legacy users.
+  const userDoc = useUserDoc();
+  const selectedStyle: BudgetStyle = userDoc?.budgetStyle ?? 'monthly_limit';
+
+  // Auxiliary data needed by the envelope + 50/30/20 views, fetched
+  // one-shot since they're snapshot reads (last month is immutable).
+  const [lastMonthBudgets, setLastMonthBudgets] = useState<Budget[]>([]);
+  const [lastMonthTotals, setLastMonthTotals] = useState<CategoryMonthTotal[]>([]);
+  const [monthIncomeMinor, setMonthIncomeMinor] = useState<number>(0);
+
+  const lastYearMonth = useMemo(() => {
+    const d = new Date(`${yearMonth}-01T00:00:00`);
+    d.setMonth(d.getMonth() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, [yearMonth]);
 
   useEffect(() => {
     if (!wid) return;
@@ -91,6 +115,40 @@ export default function BudgetsScreen() {
     });
     return () => { unsubB(); unsubM(); unsubC(); };
   }, [wid, yearMonth]);
+
+  // Last month's budgets + totals — one-shot, used by envelope view to
+  // compute carryover. The data is immutable past this month, so a
+  // realtime subscription is wasteful.
+  useEffect(() => {
+    if (!wid || selectedStyle !== 'envelope') return;
+    let cancelled = false;
+    void Promise.all([
+      listBudgets(wid, lastYearMonth),
+      listMonthTotals(wid, lastYearMonth),
+    ]).then(([lb, lt]) => {
+      if (cancelled) return;
+      setLastMonthBudgets(lb);
+      setLastMonthTotals(lt);
+    }).catch((err: unknown) => {
+      console.warn('[budgets] envelope last-month fetch failed', err);
+    });
+    return () => { cancelled = true; };
+  }, [wid, selectedStyle, lastYearMonth]);
+
+  // This-month income — one-shot, drives the 50/30/20 bucket targets.
+  // The 50-tx subscription on Recent isn't enough (income txs often fall
+  // outside the recent slice), so we read by yearMonth here.
+  useEffect(() => {
+    if (!wid || selectedStyle !== 'fifty_thirty_twenty') return;
+    let cancelled = false;
+    void listTransactions(wid, { yearMonth }).then((txs) => {
+      if (cancelled) return;
+      setMonthIncomeMinor(sumMonthIncome(txs, yearMonth));
+    }).catch((err: unknown) => {
+      console.warn('[budgets] 50/30/20 income fetch failed', err);
+    });
+    return () => { cancelled = true; };
+  }, [wid, selectedStyle, yearMonth]);
 
   const allLoaded = budgetsLoaded && monthTotalsLoaded && categoriesLoaded;
 
@@ -124,14 +182,14 @@ export default function BudgetsScreen() {
   );
 
   const handleStylePress = (style: BudgetStyle) => {
-    if (style === 'monthly_limit') {
-      setSelectedStyle('monthly_limit');
-      return;
-    }
-    appAlert(
-      t(`budgets:styles.${style === 'envelope' ? 'envelope' : 'fiftyThirtyTwenty'}`),
-      t('budgets:styles.comingSoon'),
-    );
+    const uid = useAuthStore.getState().uid;
+    if (!uid || style === selectedStyle) return;
+    // Optimistic — the userDoc subscription will reconcile if the
+    // write fails. selectedStyle is read directly from userDoc so the
+    // next render reflects whatever the doc actually says.
+    void updateUserDoc(uid, { budgetStyle: style }).catch((err: unknown) => {
+      console.warn('[budgets] style write failed', err);
+    });
   };
 
   const handleSave = async (categoryId: string, limitMinor: number) => {
@@ -141,12 +199,16 @@ export default function BudgetsScreen() {
       return;
     }
     try {
+      // Tag the budget with the active style + matching rollover policy
+      // so the category_month_totals join can later be interpreted
+      // correctly. Envelope = carry_over; monthly_limit = none. The
+      // 50/30/20 view doesn't write per-category budgets at all.
       await upsertBudget(wid, {
         yearMonth,
         categoryId,
-        style: 'monthly_limit',
+        style: selectedStyle === 'envelope' ? 'envelope' : 'monthly_limit',
         limitMinor,
-        rolloverPolicy: 'none',
+        rolloverPolicy: selectedStyle === 'envelope' ? 'carry_over' : 'none',
       });
       setExpandedCategoryId(null);
     } catch (err) {
@@ -182,6 +244,23 @@ export default function BudgetsScreen() {
   const totallyEmpty = allLoaded && eligibleCategories.length === 0;
   const noBudgetsYet = allLoaded && budgetedCategories.length === 0 && eligibleCategories.length > 0;
 
+  // Envelope balances — only computed when the envelope style is
+  // active. Includes per-category (limit + rollover - spent).
+  const envelopeBalances = useMemo<Map<string, EnvelopeBalance>>(() => {
+    if (selectedStyle !== 'envelope') return new Map();
+    return computeEnvelopeBalances(
+      budgets, lastMonthBudgets, monthTotals, lastMonthTotals,
+    );
+  }, [selectedStyle, budgets, lastMonthBudgets, monthTotals, lastMonthTotals]);
+
+  // 50/30/20 buckets — only computed when that style is active.
+  const fiftyBuckets = useMemo(() => {
+    if (selectedStyle !== 'fifty_thirty_twenty') return [];
+    return computeFiftyThirtyTwentyBuckets(
+      monthIncomeMinor, monthTotals, categories,
+    );
+  }, [selectedStyle, monthIncomeMinor, monthTotals, categories]);
+
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md lg:max-w-3xl">
@@ -202,13 +281,12 @@ export default function BudgetsScreen() {
           }}
         >
           {STYLES.map((style) => {
-            const enabled = style === 'monthly_limit';
             const active = selectedStyle === style;
             return (
               <Pressable
                 key={style}
                 accessibilityRole="button"
-                accessibilityState={{ selected: active, disabled: !enabled }}
+                accessibilityState={{ selected: active }}
                 onPress={() => handleStylePress(style)}
                 style={{
                   flex: 1,
@@ -217,7 +295,6 @@ export default function BudgetsScreen() {
                   paddingVertical: 8,
                   borderRadius: 8,
                   backgroundColor: active ? tokens.accent.budgets + '22' : 'transparent',
-                  opacity: enabled ? 1 : 0.45,
                 }}
               >
                 <Text
@@ -247,7 +324,51 @@ export default function BudgetsScreen() {
           </Card>
         ) : null}
 
-        {!totallyEmpty && allLoaded ? (
+        {!totallyEmpty && allLoaded && selectedStyle === 'fifty_thirty_twenty' ? (
+          /* 50/30/20 view — three bucket cards + income header. The
+              per-category budgeted/unbudgeted lists are hidden in this
+              style; budgets are by group, not by category. */
+          <View>
+            {/* Income header */}
+            <Card padding="lg" className="mb-4">
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
+                {t('budgets:fiftyThirtyTwenty.incomeLabel')}
+              </Text>
+              <Text
+                className="font-mono tabular-nums text-2xl"
+                style={{ color: fgColor }}
+              >
+                {formatIDR(monthIncomeMinor, lang)}
+              </Text>
+              <Text
+                className="font-sans text-xs mt-1"
+                style={{ color: mutedColor }}
+              >
+                {monthIncomeMinor > 0
+                  ? t('budgets:fiftyThirtyTwenty.incomeHint')
+                  : t('budgets:fiftyThirtyTwenty.incomeEmpty')}
+              </Text>
+            </Card>
+            {/* Three bucket cards */}
+            {fiftyBuckets.map((bucket) => (
+              <BucketCard
+                key={bucket.group}
+                group={bucket.group}
+                ratio={bucket.ratio}
+                targetMinor={bucket.targetMinor}
+                spentMinor={bucket.spentMinor}
+                isDark={isDark}
+                lang={lang}
+                fgColor={fgColor}
+                mutedColor={mutedColor}
+                borderColor={borderColor}
+                t={t}
+              />
+            ))}
+          </View>
+        ) : null}
+
+        {!totallyEmpty && allLoaded && selectedStyle !== 'fifty_thirty_twenty' ? (
           <>
             {/* Budgeted section */}
             {budgetedCategories.length > 0 ? (
@@ -262,6 +383,12 @@ export default function BudgetsScreen() {
                       category={cat}
                       budget={budgetsByCategory.get(cat.id)!}
                       spentMinor={spendByCategory.get(cat.id) ?? 0}
+                      rolloverMinor={
+                        selectedStyle === 'envelope'
+                          ? envelopeBalances.get(cat.id)?.rolloverMinor ?? 0
+                          : 0
+                      }
+                      showRollover={selectedStyle === 'envelope'}
                       expanded={expandedCategoryId === cat.id}
                       onToggle={() =>
                         setExpandedCategoryId((cur) => (cur === cat.id ? null : cat.id))
@@ -371,6 +498,12 @@ type BudgetRowProps = {
   category: Category;
   budget: Budget;
   spentMinor: number;
+  /** Rollover from last month (envelope only). 0 when not in
+   * envelope mode or no rollover available. */
+  rolloverMinor: number;
+  /** Whether to show the rollover subtitle line. Set true only for
+   * the envelope budget style; false for monthly_limit. */
+  showRollover: boolean;
   expanded: boolean;
   onToggle: () => void;
   onSave: (limitMinor: number) => void;
@@ -385,7 +518,8 @@ type BudgetRowProps = {
 };
 
 function BudgetRow({
-  category, budget, spentMinor, expanded, onToggle, onSave, onDelete,
+  category, budget, spentMinor, rolloverMinor, showRollover,
+  expanded, onToggle, onSave, onDelete,
   showDivider, isDark, lang, fgColor, mutedColor, borderColor, t,
 }: BudgetRowProps) {
   const [draft, setDraft] = useState('');
@@ -397,9 +531,12 @@ function BudgetRow({
     else setDraft('');
   }, [expanded, budget.limitMinor, lang]);
 
-  const ratio = budget.limitMinor === 0 ? 0 : spentMinor / budget.limitMinor;
+  // Effective limit for envelope = base + rollover. monthly_limit
+  // ignores rolloverMinor (caller passes 0 / showRollover=false).
+  const effectiveLimitMinor = budget.limitMinor + (showRollover ? rolloverMinor : 0);
+  const ratio = effectiveLimitMinor === 0 ? 0 : spentMinor / effectiveLimitMinor;
   const overBudget = ratio > 1;
-  const overByMinor = overBudget ? spentMinor - budget.limitMinor : 0;
+  const overByMinor = overBudget ? spentMinor - effectiveLimitMinor : 0;
   const fillRatio = Math.min(ratio, 1);
   const overflowRatio = overBudget ? Math.min(ratio - 1, 0.5) : 0; // cap visual overflow at +50%
 
@@ -444,8 +581,18 @@ function BudgetRow({
           <Text className="font-mono tabular-nums text-xs mt-0.5" style={{ color: mutedColor }}>
             {formatIDR(spentMinor, lang)}{' '}
             <Text style={{ color: mutedColor }}>{t('budgets:row.of')}</Text>{' '}
-            {formatIDR(budget.limitMinor, lang)}
+            {formatIDR(effectiveLimitMinor, lang)}
           </Text>
+          {/* Rollover line — envelope only. Shows base limit + rollover
+              source when there's any unspent surplus from last month. */}
+          {showRollover && rolloverMinor > 0 ? (
+            <Text className="font-sans text-xs mt-0.5" style={{ color: tokens.semantic.positive }}>
+              {t('budgets:row.rollover', {
+                base: formatIDR(budget.limitMinor, lang),
+                rollover: formatIDR(rolloverMinor, lang),
+              })}
+            </Text>
+          ) : null}
         </View>
         <Text
           className="font-mono tabular-nums text-sm"
@@ -692,5 +839,115 @@ function UnbudgetedRow({
         </View>
       ) : null}
     </View>
+  );
+}
+
+// ---------- BucketCard (50/30/20 view) ----------
+
+type BucketCardProps = {
+  group: BudgetGroup;
+  ratio: number;
+  targetMinor: number;
+  spentMinor: number;
+  isDark: boolean;
+  lang: Locale;
+  fgColor: string;
+  mutedColor: string;
+  borderColor: string;
+  t: TFunction;
+};
+
+/**
+ * One of the three 50/30/20 bucket cards — Needs (50%), Wants (30%),
+ * or Savings (20%). Renders title + ratio chip + spend/target +
+ * progress bar. Shares visual conventions with BudgetRow's progress
+ * bar (capped overflow sliver in danger when over target).
+ */
+function BucketCard({
+  group, ratio, targetMinor, spentMinor,
+  isDark, lang, fgColor, mutedColor, borderColor, t,
+}: BucketCardProps) {
+  const dangerColor = tokens.semantic.danger;
+  const accent = tokens.accent.budgets;
+
+  const pct = targetMinor === 0 ? 0 : spentMinor / targetMinor;
+  const overTarget = pct > 1;
+  const overByMinor = overTarget ? spentMinor - targetMinor : 0;
+  const fillRatio = targetMinor === 0 ? 0 : Math.min(pct, 1);
+  const overflowRatio = overTarget ? Math.min(pct - 1, 0.5) : 0;
+  const fillColor = overTarget ? dangerColor : accent;
+
+  return (
+    <Card padding="lg" className="mb-3">
+      <View className="flex-row items-center justify-between mb-2">
+        <View className="flex-row items-center" style={{ gap: 8 }}>
+          <Text className="font-sans-semibold text-base" style={{ color: fgColor }}>
+            {t(`budgets:fiftyThirtyTwenty.groups.${group}`)}
+          </Text>
+          <View
+            style={{
+              paddingHorizontal: 6,
+              paddingVertical: 1,
+              borderRadius: 4,
+              borderWidth: 1,
+              borderColor,
+            }}
+          >
+            <Text className="font-sans-semibold" style={{ color: mutedColor, fontSize: 10 }}>
+              {Math.round(ratio * 100)}%
+            </Text>
+          </View>
+        </View>
+        <Text
+          className="font-mono tabular-nums text-sm"
+          style={{ color: overTarget ? dangerColor : fgColor }}
+        >
+          {targetMinor > 0 ? formatPercent(pct, lang) : '—'}
+        </Text>
+      </View>
+
+      <Text className="font-mono tabular-nums text-xs" style={{ color: mutedColor }}>
+        {formatIDR(spentMinor, lang)}{' '}
+        <Text>{t('budgets:row.of')}</Text>{' '}
+        {formatIDR(targetMinor, lang)}
+      </Text>
+
+      <View
+        style={{
+          height: 6,
+          marginTop: 10,
+          borderRadius: 3,
+          backgroundColor: borderColor,
+          overflow: 'hidden',
+          flexDirection: 'row',
+        }}
+      >
+        <View
+          style={{
+            width: `${fillRatio * 100}%`,
+            backgroundColor: fillColor,
+          }}
+        />
+        {overflowRatio > 0 ? (
+          <View
+            style={{
+              width: `${overflowRatio * 100}%`,
+              backgroundColor: dangerColor,
+              opacity: 0.5,
+            }}
+          />
+        ) : null}
+      </View>
+
+      {overTarget ? (
+        <Text className="font-sans text-xs mt-2" style={{ color: dangerColor }}>
+          {t('budgets:row.overBudget', { amount: formatIDR(overByMinor, lang) })}
+        </Text>
+      ) : null}
+
+      <Text className="font-sans text-xs mt-3" style={{ color: mutedColor, lineHeight: 16 }}>
+        {t(`budgets:fiftyThirtyTwenty.hints.${group}`)}
+      </Text>
+    </Card>
   );
 }
