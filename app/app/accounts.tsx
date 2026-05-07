@@ -3,7 +3,7 @@ import type {
   CategoryIcon as CategoryIconKey, Currency,
 } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Plus } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft, Lock, Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
@@ -25,7 +25,8 @@ import { Card } from '@/shared/ui/Card';
 import { CATEGORY_ICON_KEYS, CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
-import { CURRENCIES, CURRENCY_META } from '@/shared/utils/currencyMeta';
+import { CurrencyPickerModal } from '@/features/accounts/CurrencyPickerModal';
+import { CURRENCY_META } from '@/shared/utils/currencyMeta';
 import { formatCurrency } from '@/shared/utils/formatCurrency';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { convertToIDRMinor } from '@/shared/utils/fxRates';
@@ -397,6 +398,7 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
   // Currency is set once at create time and locked thereafter — see comment
   // on the picker below for why edits don't allow changes.
   const [currency, setCurrency] = useState<Currency>(editing?.currency ?? 'IDR');
+  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [balanceText, setBalanceText] = useState(
     editing ? minorUnitsToInputText(editing.currentBalance, lang) : '',
   );
@@ -660,65 +662,76 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
           })}
         </Card>
 
-        {/* Currency — locked after create time. Editing the currency of
-            an existing account would invalidate currentBalance (still in
-            the old currency) and break historical aggregations, so we
-            simply don't allow it. The picker still renders on edit, in
-            read-only form, so the user knows what currency is set. */}
+        {/* Currency — locked after create time. Compact button opens
+            the full-screen CurrencyPickerModal (B redesign). On edit
+            the button is disabled so the choice is visible but not
+            mutable. */}
         <Card padding="lg" className="mb-4">
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
             {t('accounts:fields.currency')}
           </Text>
-          <View className="flex-row flex-wrap" style={{ gap: 6 }}>
-            {CURRENCIES.map((code) => {
-              const meta = CURRENCY_META[code];
-              const selected = currency === code;
-              const disabled = isEdit && !selected;
-              return (
-                <Pressable
-                  key={code}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected, disabled }}
-                  disabled={disabled}
-                  onPress={() => setCurrency(code)}
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 8,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    minHeight: 36,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    borderColor: selected ? tokens.accent.dashboard : borderColor,
-                    backgroundColor: selected
-                      ? tokens.accent.dashboard + '14'
-                      : 'transparent',
-                    opacity: disabled ? 0.4 : 1,
-                  }}
-                >
-                  <Text
-                    className="font-sans-semibold text-xs"
-                    style={{ color: selected ? tokens.accent.dashboard : mutedColor }}
-                  >
-                    {code}
-                  </Text>
-                  <Text
-                    className="font-sans text-xs"
-                    style={{ color: selected ? tokens.accent.dashboard : fgColor }}
-                  >
-                    {meta.label[lang]}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text className="font-sans text-xs mt-3" style={{ color: mutedColor }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isEdit }}
+            disabled={isEdit}
+            onPress={() => setCurrencyPickerOpen(true)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor,
+              minHeight: 48,
+              opacity: isEdit ? 0.7 : 1,
+            }}
+          >
+            <View
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: 6,
+                backgroundColor: tokens.accent.dashboard + '22',
+              }}
+            >
+              <Text
+                className="font-sans-bold text-xs"
+                style={{ color: tokens.accent.dashboard }}
+              >
+                {currency}
+              </Text>
+            </View>
+            <Text
+              className="font-sans-medium text-sm flex-1"
+              style={{ color: fgColor }}
+              numberOfLines={1}
+            >
+              {CURRENCY_META[currency].label[lang]}
+            </Text>
+            {isEdit ? (
+              <Lock size={14} color={mutedColor} />
+            ) : (
+              <ChevronDown size={16} color={mutedColor} />
+            )}
+          </Pressable>
+          <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>
             {isEdit
               ? t('accounts:fields.currencyLockedHint')
               : t('accounts:fields.currencyHint')}
           </Text>
         </Card>
+        <CurrencyPickerModal
+          visible={currencyPickerOpen}
+          selected={currency}
+          onSelect={(next) => {
+            setCurrency(next);
+            setCurrencyPickerOpen(false);
+          }}
+          onClose={() => setCurrencyPickerOpen(false)}
+          lang={lang}
+        />
 
         {/* Balance */}
         <Card padding="lg" className="mb-4">
