@@ -512,10 +512,11 @@ export default function TransactionsScreen() {
             at a time. Hidden when there are no transactions to filter. */}
         {txs.length > 0 ? (
         <>
-        <View className="flex-row flex-wrap items-center mb-2" style={{ gap: 8 }}>
+        <View className="flex-row flex-wrap items-center mb-2" style={{ gap: 6 }}>
           <FilterPill
             label={t('transactions:entry.fields.type')}
             value={typeChips.find((c) => c.key === typeFilter)?.label ?? ''}
+            isActive={typeFilter !== 'all'}
             open={openFilter === 'type'}
             onPress={() => setOpenFilter((cur) => (cur === 'type' ? null : 'type'))}
             isDark={isDark}
@@ -523,6 +524,7 @@ export default function TransactionsScreen() {
           <FilterPill
             label={t('transactions:entry.fields.date')}
             value={dateChips.find((c) => c.key === dateFilter)?.label ?? ''}
+            isActive={dateFilter !== 'this_month'}
             open={openFilter === 'date'}
             onPress={() => setOpenFilter((cur) => (cur === 'date' ? null : 'date'))}
             isDark={isDark}
@@ -532,6 +534,7 @@ export default function TransactionsScreen() {
             value={tagFilter.length === 0
               ? t('transactions:filters.tagsAll')
               : t('transactions:filters.tagsCount', { count: tagFilter.length, context: tagFilter.length === 1 ? 'one' : 'other' })}
+            isActive={tagFilter.length > 0}
             open={openFilter === 'tags'}
             onPress={() => setOpenFilter((cur) => (cur === 'tags' ? null : 'tags'))}
             isDark={isDark}
@@ -544,6 +547,7 @@ export default function TransactionsScreen() {
             value={categoryFilter.length === 0
               ? t('transactions:filters.categoryAll')
               : t('transactions:filters.categoryCount', { count: categoryFilter.length, context: categoryFilter.length === 1 ? 'one' : 'other' })}
+            isActive={categoryFilter.length > 0}
             open={openFilter === 'category'}
             onPress={() => setOpenFilter((cur) => (cur === 'category' ? null : 'category'))}
             isDark={isDark}
@@ -553,6 +557,7 @@ export default function TransactionsScreen() {
             value={accountFilter.length === 0
               ? t('transactions:filters.accountAll')
               : t('transactions:filters.accountCount', { count: accountFilter.length, context: accountFilter.length === 1 ? 'one' : 'other' })}
+            isActive={accountFilter.length > 0}
             open={openFilter === 'account'}
             onPress={() => setOpenFilter((cur) => (cur === 'account' ? null : 'account'))}
             isDark={isDark}
@@ -562,11 +567,11 @@ export default function TransactionsScreen() {
               accessibilityRole="button"
               accessibilityLabel={t('transactions:filters.clear')}
               onPress={resetFilters}
-              hitSlop={6}
+              hitSlop={8}
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
+                width: 28,
+                height: 28,
+                borderRadius: 14,
                 borderWidth: 1,
                 borderColor,
                 alignItems: 'center',
@@ -574,7 +579,7 @@ export default function TransactionsScreen() {
                 marginLeft: 'auto',
               }}
             >
-              <X size={14} color={mutedColor} />
+              <X size={12} color={mutedColor} />
             </Pressable>
           ) : null}
         </View>
@@ -769,17 +774,35 @@ export default function TransactionsScreen() {
 }
 
 type FilterPillProps = {
-  label: string;            // dimension name (e.g. "Type")
-  value: string;            // current selection (e.g. "All")
+  label: string;            // dimension name (e.g. "Type") — shown at default state
+  value: string;            // current selection (e.g. "Expense") — shown when active
+  isActive: boolean;        // true when filter diverges from default
   open: boolean;
   onPress: () => void;
   isDark: boolean;
 };
 
-function FilterPill({ label, value, open, onPress, isDark }: FilterPillProps) {
-  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+/**
+ * Compact filter pill (mobile-density redesign).
+ *
+ * Default state: shows ONLY the dimension name (e.g. "Type"). Filter
+ * is at default ("All", "This month", etc.) so we don't need to spell
+ * it out — it's the implicit baseline.
+ *
+ * Active state: shows the selected value with accent-tinted bg + bold
+ * text, so the user can scan the pill row and see at a glance which
+ * dimensions are filtering. Mobile-density: smaller paddings + 30px
+ * minHeight (was 36px).
+ */
+function FilterPill({ label, value, isActive, open, onPress, isDark }: FilterPillProps) {
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+  const accent = tokens.accent.dashboard;
+
+  // What text the pill shows: dimension name when at default, value
+  // when filtering. Keeps the row scannable.
+  const displayText = isActive ? value : label;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -789,25 +812,25 @@ function FilterPill({ label, value, open, onPress, isDark }: FilterPillProps) {
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 16,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 14,
         borderWidth: 1,
-        borderColor: open ? tokens.accent.dashboard : borderColor,
-        backgroundColor: open ? tokens.accent.dashboard + '14' : 'transparent',
-        minHeight: 36,
+        borderColor: open || isActive ? accent : borderColor,
+        backgroundColor: open || isActive ? accent + '14' : 'transparent',
+        minHeight: 30,
         gap: 4,
       }}
     >
-      <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-        {label}:
-      </Text>
-      <Text className="font-sans-medium text-xs" style={{ color: fgColor }}>
-        {value}
+      <Text
+        className="font-sans-medium text-xs"
+        style={{ color: open || isActive ? accent : mutedColor }}
+      >
+        {displayText}
       </Text>
       <ChevronDown
-        size={14}
-        color={open ? tokens.accent.dashboard : mutedColor}
+        size={12}
+        color={open || isActive ? accent : mutedColor}
         style={{
           transform: [{ rotate: open ? '180deg' : '0deg' }],
         }}

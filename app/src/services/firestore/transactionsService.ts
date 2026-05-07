@@ -214,14 +214,35 @@ export async function createTransaction(
  * need date order (it filters by day-of-month + by category), so it
  * passes `orderByDate: false` and sorts client-side if needed —
  * dodging the index dependency for callers that don't care.
+ *
+ * `yearMonthIn` is a v3 phase A — 6 addition for the year heatmap.
+ * Replaces 12 sequential per-month queries with a single
+ * `where('yearMonth', 'in', [...])` query. Firestore caps `in` at
+ * 30 values; for our 12-month window that's plenty. Mutually
+ * exclusive with `yearMonth` — caller picks one.
  */
 export async function listTransactions(
   wid: string,
-  opts: { yearMonth?: string; limit?: number; orderByDate?: boolean } = {},
+  opts: {
+    yearMonth?: string;
+    yearMonthIn?: string[];
+    limit?: number;
+    orderByDate?: boolean;
+  } = {},
 ): Promise<Transaction[]> {
   const orderByDate = opts.orderByDate !== false;   // default true
   const constraints = [];
-  if (opts.yearMonth) constraints.push(where('yearMonth', '==', opts.yearMonth));
+  if (opts.yearMonth) {
+    constraints.push(where('yearMonth', '==', opts.yearMonth));
+  } else if (opts.yearMonthIn && opts.yearMonthIn.length > 0) {
+    // Firestore `in` queries cap at 30 values; we cap at 30 here to
+    // surface the limit rather than silently truncate. Caller must
+    // chunk if they need more.
+    if (opts.yearMonthIn.length > 30) {
+      throw new Error(`yearMonthIn capped at 30 values (got ${opts.yearMonthIn.length})`);
+    }
+    constraints.push(where('yearMonth', 'in', opts.yearMonthIn));
+  }
   if (orderByDate) constraints.push(orderBy('date', 'desc'));
   if (opts.limit) constraints.push(fsLimit(opts.limit));
   const snap = await getDocs(query(transactionsCollection(wid), ...constraints));

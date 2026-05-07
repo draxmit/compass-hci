@@ -289,14 +289,20 @@ export default function InsightsScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const txsList = await Promise.all(
-          yearMonthsList.map((ym) =>
-            listTransactions(wid, { yearMonth: ym, orderByDate: false }),
-          ),
-        );
+        // Single Firestore query covers all 12 months via `where(
+        // 'yearMonth', 'in', [...])` — replaces the prior 12 sequential
+        // queries that took several seconds on slow networks.
+        const allTxs = await listTransactions(wid, {
+          yearMonthIn: yearMonthsList,
+          orderByDate: false,
+        });
         if (cancelled) return;
         const map = new Map<string, Transaction[]>();
-        yearMonthsList.forEach((ym, i) => map.set(ym, txsList[i] ?? []));
+        for (const ym of yearMonthsList) map.set(ym, []);
+        for (const tx of allTxs) {
+          const list = map.get(tx.yearMonth);
+          if (list) list.push(tx);
+        }
         setYearTxsByMonth(map);
       } catch (err) {
         if (cancelled) return;
@@ -891,6 +897,14 @@ function TrendLineChart({
   const ordered = [...trend].reverse();
   const max = Math.max(...ordered.map((m) => m.total), 1);
 
+  // Tap-to-inspect: user taps a column to see that month's exact
+  // amount in the hero line above the chart. Defaults to null so the
+  // hero shows the LATEST month on first paint; tap once to inspect,
+  // tap the same column again to deselect (returns to latest).
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const displayIdx = selectedIdx ?? ordered.length - 1;
+  const displayPoint = ordered[displayIdx];
+
   // Internal viewBox dimensions. preserveAspectRatio="none" lets the
   // SVG stretch horizontally to fill the container while keeping the
   // height fixed — standard responsive line-chart behaviour.
@@ -912,50 +926,107 @@ function TrendLineChart({
 
   return (
     <View>
-      <Svg
-        width="100%"
-        height={H}
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-      >
-        {/* Faint baseline. */}
-        <SvgLine
-          x1={padX} y1={H - padBot}
-          x2={W - padX} y2={H - padBot}
-          stroke={borderColor} strokeWidth="1"
-        />
-        {/* The line. */}
-        <Polyline
-          points={polylineStr}
-          fill="none"
-          stroke={accent}
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-        {/* Dots — latest larger to anchor the read. Dots use a fixed
-            small radius regardless of the SVG horizontal stretch since
-            preserveAspectRatio="none" would otherwise turn them into
-            ovals; we counteract by using small enough r values that
-            the distortion is invisible on real screens. */}
-        {points.map((p, i) => {
-          const isLatest = i === points.length - 1;
-          return (
-            <Circle
-              key={p.yearMonth}
-              cx={p.x}
-              cy={p.y}
-              r={isLatest ? 4 : 2.5}
-              fill={accent}
+      {/* Hero line: selected month's full amount. Always shows
+          something — defaults to the latest month, swaps to whatever
+          the user tapped. */}
+      {displayPoint ? (
+        <View className="flex-row items-baseline justify-between mb-2">
+          <Text
+            className="font-sans-medium text-xs"
+            style={{ color: selectedIdx !== null ? accent : mutedColor }}
+            numberOfLines={1}
+          >
+            {formatDate(new Date(`${displayPoint.yearMonth}-01T00:00:00`), 'long-month', lang)}
+          </Text>
+          <Text
+            className="font-mono tabular-nums text-base"
+            style={{ color: fgColor }}
+            numberOfLines={1}
+          >
+            {formatIDR(displayPoint.total, lang)}
+          </Text>
+        </View>
+      ) : null}
+      {/* SVG + tap-zone overlay. The SVG draws the line + dots; the
+          row of Pressables on top divides the chart into N equal
+          vertical strips so any tap inside a column selects that
+          month. Cleaner than wiring onPress on tiny SVG circles
+          (which are far smaller than a fingertip target). */}
+      <View style={{ position: 'relative' }}>
+        <Svg
+          width="100%"
+          height={H}
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+        >
+          {/* Faint baseline. */}
+          <SvgLine
+            x1={padX} y1={H - padBot}
+            x2={W - padX} y2={H - padBot}
+            stroke={borderColor} strokeWidth="1"
+          />
+          {/* The line. */}
+          <Polyline
+            points={polylineStr}
+            fill="none"
+            stroke={accent}
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          {/* Dots — selected dot biggest, latest mid-size, others small.
+              Dots use a fixed small radius regardless of the SVG
+              horizontal stretch since preserveAspectRatio="none" would
+              otherwise turn them into ovals. */}
+          {points.map((p, i) => {
+            const isSelected = i === selectedIdx;
+            const isLatest = i === points.length - 1;
+            const r = isSelected ? 5 : isLatest ? 4 : 2.5;
+            return (
+              <Circle
+                key={p.yearMonth}
+                cx={p.x}
+                cy={p.y}
+                r={r}
+                fill={accent}
+              />
+            );
+          })}
+        </Svg>
+        {/* Tap-zone overlay. Each column is a flex:1 Pressable that
+            toggles selection for its index. Width matches the SVG
+            container width via the relative parent; height is the
+            full chart so users can tap anywhere in the column. */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            flexDirection: 'row',
+          }}
+          pointerEvents="box-none"
+        >
+          {ordered.map((m, i) => (
+            <Pressable
+              key={`tap-${m.yearMonth}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${formatDate(new Date(`${m.yearMonth}-01T00:00:00`), 'long-month', lang)}: ${formatIDR(m.total, lang)}`}
+              onPress={() =>
+                setSelectedIdx((cur) => (cur === i ? null : i))
+              }
+              style={{ flex: 1, height: '100%' }}
             />
-          );
-        })}
-      </Svg>
+          ))}
+        </View>
+      </View>
       {/* Month labels under each X tick. */}
       <View className="flex-row" style={{ marginTop: 6 }}>
         {ordered.map((m, i) => {
           const monthDate = new Date(`${m.yearMonth}-01T00:00:00`);
           const monthShort = formatDate(monthDate, 'long-month', lang).split(' ')[0];
+          const isSelected = i === selectedIdx;
           const isLatest = i === ordered.length - 1;
           return (
             <Text
@@ -965,7 +1036,7 @@ function TrendLineChart({
                 flex: 1,
                 textAlign: 'center',
                 fontSize: 10,
-                color: isLatest ? accent : mutedColor,
+                color: isSelected || (selectedIdx === null && isLatest) ? accent : mutedColor,
               }}
               numberOfLines={1}
             >
@@ -974,11 +1045,10 @@ function TrendLineChart({
           );
         })}
       </View>
-      {/* Compact amount labels per column — keeps each month's value
-          glanceable, the trade-off of dropping the bar's adjacent
-          amount label. */}
+      {/* Compact amount labels per column. */}
       <View className="flex-row" style={{ marginTop: 2 }}>
         {ordered.map((m, i) => {
+          const isSelected = i === selectedIdx;
           const isLatest = i === ordered.length - 1;
           return (
             <Text
@@ -988,7 +1058,7 @@ function TrendLineChart({
                 flex: 1,
                 textAlign: 'center',
                 fontSize: 10,
-                color: isLatest ? fgColor : mutedColor,
+                color: isSelected || (selectedIdx === null && isLatest) ? fgColor : mutedColor,
               }}
               numberOfLines={1}
             >
