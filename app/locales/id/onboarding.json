@@ -1,0 +1,49 @@
+{
+  "steps": {
+    "stepOf": "Langkah {{current}} dari {{total}}"
+  },
+  "actions": {
+    "next": "Lanjut",
+    "done": "Selesai",
+    "skip": "Lewati",
+    "saving": "Menyimpan…"
+  },
+  "errors": {
+    "saveFailed": "Gagal menyimpan. Coba lagi."
+  },
+  "welcome": {
+    "title": "Selamat datang di Compass",
+    "body": "Compass bantu kamu lihat ke mana uangmu pergi. Mulai dari pertanyaan ringan: lagi nabung untuk apa?",
+    "fieldLabel": "Lagi nabung untuk",
+    "fieldPlaceholder": "Lebaran 2027",
+    "fieldHint": "Bebas isi apa pun. Bisa diubah nanti."
+  },
+  "budgetStyle": {
+    "title": "Pilih gaya budget",
+    "body": "Cara kamu menjaga pengeluaran tetap terkendali. Bisa diubah nanti di Pengaturan.",
+    "monthlyLimit": "Batas bulanan",
+    "monthlyLimitHint": "Tentukan batas IDR per kategori. Cocok untuk pemula.",
+    "envelope": "Amplop",
+    "envelopeHint": "Sisihkan dana per kategori di awal bulan.",
+    "fiftyThirtyTwenty": "50 / 30 / 20",
+    "fiftyThirtyTwentyHint": "50% kebutuhan, 30% keinginan, 20% tabungan.",
+    "comingSoonNote": "Hadir di v2"
+  },
+  "account": {
+    "title": "Tambah akun pertama",
+    "body": "Akun adalah tempat uangmu disimpan — rekening bank, e-wallet, kartu kredit, atau tunai. Bisa tambah lebih banyak nanti.",
+    "namePlaceholder": "Misal: BCA Tabungan",
+    "balanceLabel": "Saldo awal",
+    "balancePlaceholder": "0",
+    "typeLabel": "Jenis akun",
+    "subtypeLabel": "Detail",
+    "createFailed": "Gagal membuat akun."
+  },
+  "firstBudget": {
+    "title": "Atur batas bulan ini",
+    "body": "Pilih beberapa kategori populer dan tentukan batasnya. Kosongkan yang tidak relevan — bisa diisi kapan saja.",
+    "perCategoryHint": "Batas IDR",
+    "skipHint": "Bisa diatur nanti dari tab Budget.",
+    "createFailed": "Gagal menyimpan budget."
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "steps": {
+    "stepOf": "Step {{current}} of {{total}}"
+  },
+  "actions": {
+    "next": "Next",
+    "done": "Done",
+    "skip": "Skip",
+    "saving": "Saving…"
+  },
+  "errors": {
+    "saveFailed": "Couldn't save. Try again."
+  },
+  "welcome": {
+    "title": "Welcome to Compass",
+    "body": "Compass helps you see where your money goes. Let's start with the gentlest question: what are you saving for?",
+    "fieldLabel": "Saving for",
+    "fieldPlaceholder": "Lebaran 2027",
+    "fieldHint": "Anything works. You can change it later."
+  },
+  "budgetStyle": {
+    "title": "Pick a budget style",
+    "body": "How you'd like to keep spending in check. Changeable later from Settings.",
+    "monthlyLimit": "Monthly limit",
+    "monthlyLimitHint": "Set an IDR cap per category. The simple, friendly default.",
+    "envelope": "Envelope",
+    "envelopeHint": "Pre-allocate cash per category at the start of the month.",
+    "fiftyThirtyTwenty": "50 / 30 / 20",
+    "fiftyThirtyTwentyHint": "50% needs, 30% wants, 20% savings.",
+    "comingSoonNote": "Coming in v2"
+  },
+  "account": {
+    "title": "Add your first account",
+    "body": "Accounts are where your money lives — bank, e-wallet, credit card, cash. You can add more later.",
+    "namePlaceholder": "e.g. BCA Savings",
+    "balanceLabel": "Starting balance",
+    "balancePlaceholder": "0",
+    "typeLabel": "Account type",
+    "subtypeLabel": "Details",
+    "createFailed": "Couldn't create account."
+  },
+  "firstBudget": {
+    "title": "Set this month's limits",
+    "body": "Pick a few popular categories and set their limits. Leave whatever doesn't apply blank — you can come back any time.",
+    "perCategoryHint": "IDR limit",
+    "skipHint": "You can set these later from the Budgets tab.",
+    "createFailed": "Couldn't save budgets."
+  }
+}

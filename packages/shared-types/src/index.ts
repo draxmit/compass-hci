@@ -21,6 +21,14 @@ export type UserDoc = {
   biometricEnabled: boolean;
   fcmTokens: string[];
   onboardingComplete: boolean;
+  /**
+   * Free-text goal the user enters in the onboarding wizard's first step
+   * ("what are you saving for?"). T10 (ADR-11). Rendered as the goal pill
+   * on Dashboard. `null` until step 1 completes; if the user skips the
+   * step, stays `null` and the pill is hidden. v2 will migrate to a
+   * `goals/` sub-collection when sinking funds + habits + templates land.
+   */
+  primaryGoal: string | null;
   createdAt: unknown;
   defaultWorkspaceId: string;
   workspaceIds: string[];

@@ -15,7 +15,7 @@ import {
   listMonthTotals, subscribeMonthTotals,
 } from '@/services/firestore/categoryMonthTotalsService';
 import { subscribeRecent } from '@/services/firestore/transactionsService';
-import { useAuthUser } from '@/stores/authStore';
+import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -49,6 +49,8 @@ export default function DashboardScreen() {
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
   const user = useAuthUser();
   const wid = user ? `solo-${user.uid}` : null;
+  const userDoc = useUserDoc();
+  const goalText = userDoc?.primaryGoal?.trim() ?? '';
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -464,19 +466,23 @@ export default function DashboardScreen() {
           </>
         )}
 
-        {/* Goal placeholder — T10 fills in the real value. */}
-        <View
-          className="self-center px-3 py-2 rounded-full mt-2"
-          style={{
-            backgroundColor: tokens.accent.dashboard + '14',
-            borderWidth: 1,
-            borderColor: tokens.accent.dashboard + '33',
-          }}
-        >
-          <Text className="font-sans text-xs" style={{ color: tokens.accent.dashboard }}>
-            {t('dashboard:goal.placeholder')}
-          </Text>
-        </View>
+        {/* Goal pill — reads users.primaryGoal (set by T10 onboarding step 1).
+            Hidden if null/empty. No "set goal" CTA in v1; T11+ adds an
+            edit affordance via /profile/goal. */}
+        {goalText.length > 0 ? (
+          <View
+            className="self-center px-3 py-2 rounded-full mt-2"
+            style={{
+              backgroundColor: tokens.accent.dashboard + '14',
+              borderWidth: 1,
+              borderColor: tokens.accent.dashboard + '33',
+            }}
+          >
+            <Text className="font-sans text-xs" style={{ color: tokens.accent.dashboard }}>
+              {t('dashboard:goal.savingFor', { goal: goalText })}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );

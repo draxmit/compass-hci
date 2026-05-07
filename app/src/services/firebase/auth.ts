@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 
 import { auth } from './client';
-import { ensureUserDoc } from './firestore';
+import { ensureUserDoc, subscribeUserDoc } from './firestore';
 import { useGoogleSignIn } from './google-signin';
 
 /**
@@ -117,6 +117,17 @@ export function useAuthSubscription(): void {
   useEffect(() => {
     const setUser = useAuthStore.getState().setUser;
     const setLoading = useAuthStore.getState().setLoading;
+    const setUserDoc = useAuthStore.getState().setUserDoc;
+
+    // Per-uid Firestore subscription handle so we can swap it cleanly when
+    // auth flips users (sign out → sign in different account).
+    let unsubUserDoc: (() => void) | null = null;
+    function clearUserDocSub() {
+      if (unsubUserDoc) {
+        unsubUserDoc();
+        unsubUserDoc = null;
+      }
+    }
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(
@@ -130,6 +141,9 @@ export function useAuthSubscription(): void {
           : null,
       );
       setLoading(false);
+
+      // Tear down the previous user-doc listener regardless of next state.
+      clearUserDocSub();
 
       if (user) {
         const wid = `solo-${user.uid}`;
@@ -153,9 +167,25 @@ export function useAuthSubscription(): void {
           .catch((err: unknown) => {
             console.warn('[firebase] post-auth setup failed', err);
           });
+
+        // Mirror users/{uid} into the auth store so AuthGate can read
+        // `onboardingComplete` and Dashboard can read `primaryGoal`
+        // reactively. Set up after ensureUserDoc kicks off — the first
+        // emission may race with ensureUserDoc's batch commit, but the
+        // listener fires again once the doc lands.
+        unsubUserDoc = subscribeUserDoc(user.uid, (doc) => {
+          setUserDoc(doc);
+        });
+      } else {
+        // Signed out: clear the user doc immediately so AuthGate doesn't
+        // make decisions off the previous user's flags.
+        setUserDoc(null);
       }
     });
 
-    return unsubscribe;
+    return () => {
+      clearUserDocSub();
+      unsubscribe();
+    };
   }, []);
 }

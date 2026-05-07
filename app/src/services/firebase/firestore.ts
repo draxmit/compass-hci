@@ -1,6 +1,6 @@
 import type { UserDoc, WorkspaceDoc } from '@compass/shared-types';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 
 import { db } from './client';
 import { seedPresets } from '../firestore/categoriesService';
@@ -45,6 +45,7 @@ export async function ensureUserDoc(user: FirebaseUser): Promise<UserDoc> {
     biometricEnabled: false,
     fcmTokens: [],
     onboardingComplete: false,
+    primaryGoal: null,            // T10 / ADR-11 — set by onboarding step 1
     createdAt: serverTimestamp(),
     defaultWorkspaceId: workspaceId,
     workspaceIds: [workspaceId],
@@ -68,4 +69,31 @@ export async function ensureUserDoc(user: FirebaseUser): Promise<UserDoc> {
   await batch.commit();
 
   return newUser;
+}
+
+/**
+ * Realtime subscription to a user's profile doc. Used by the auth store
+ * to keep `userDoc.onboardingComplete` + `primaryGoal` fresh in client
+ * state, so AuthGate redirects + the Dashboard goal pill react to writes
+ * from the onboarding wizard without refetching.
+ */
+export function subscribeUserDoc(
+  uid: string,
+  cb: (user: UserDoc | null) => void,
+): () => void {
+  return onSnapshot(doc(db, 'users', uid), (snap) => {
+    cb(snap.exists() ? (snap.data() as UserDoc) : null);
+  });
+}
+
+/**
+ * Patch fields on the user doc. Used by the onboarding wizard to write
+ * `primaryGoal`, `budgetStyle`, and `onboardingComplete` step-by-step
+ * without overwriting the rest of the doc.
+ */
+export async function updateUserDoc(
+  uid: string,
+  patch: Partial<Pick<UserDoc, 'primaryGoal' | 'budgetStyle' | 'onboardingComplete' | 'displayName' | 'locale' | 'theme'>>,
+): Promise<void> {
+  await updateDoc(doc(db, 'users', uid), patch);
 }

@@ -180,26 +180,31 @@ async function main() {
   const wid = `solo-${uid}`;
 
   // ---- Ensure user + workspace + preset categories ----
+  // Merge-style upsert so re-runs of the script also refresh the demo
+  // user's profile fields (e.g., when we add new fields like primaryGoal
+  // in T10). The categories seed only happens on first creation.
   const userRef = doc(db, 'users', uid);
   const userSnap = await getDoc(userRef);
+  const userData = {
+    uid,
+    email: DEMO_EMAIL,
+    displayName: 'Demo Compass',
+    locale: 'id',
+    theme: 'system',
+    baseCurrency: 'IDR',
+    budgetStyle: 'monthly_limit',
+    biometricEnabled: false,
+    fcmTokens: [],
+    onboardingComplete: true,    // skip onboarding for the demo
+    primaryGoal: 'Lebaran 2027', // T10 / ADR-11 — surfaces as Dashboard goal pill
+    createdAt: serverTimestamp(),
+    defaultWorkspaceId: wid,
+    workspaceIds: [wid],
+  };
   if (!userSnap.exists()) {
     log('Seeding user + workspace + preset categories…');
     const batch = writeBatch(db);
-    batch.set(userRef, {
-      uid,
-      email: DEMO_EMAIL,
-      displayName: 'Demo Compass',
-      locale: 'id',
-      theme: 'system',
-      baseCurrency: 'IDR',
-      budgetStyle: 'monthly_limit',
-      biometricEnabled: false,
-      fcmTokens: [],
-      onboardingComplete: true,    // skip onboarding for the demo
-      createdAt: serverTimestamp(),
-      defaultWorkspaceId: wid,
-      workspaceIds: [wid],
-    });
+    batch.set(userRef, userData);
     batch.set(doc(db, 'workspaces', wid), {
       id: wid,
       ownerId: uid,
@@ -231,7 +236,14 @@ async function main() {
     await batch.commit();
     log(`Seeded ${CATEGORY_PRESETS.length} preset categories.`);
   } else {
-    log('User doc already exists; skipping ensureUserDoc.');
+    log('User doc already exists; refreshing profile fields (merge)…');
+    // Refresh the user doc with the latest field set without clobbering
+    // anything else. Specifically picks up primaryGoal added in T10.
+    await setDoc(userRef, {
+      onboardingComplete: true,
+      primaryGoal: 'Lebaran 2027',
+      displayName: 'Demo Compass',
+    }, { merge: true });
   }
 
   // ---- Wipe existing accounts / transactions / budgets / month totals ----

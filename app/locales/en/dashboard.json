@@ -26,6 +26,7 @@
     "recent": "No transactions yet."
   },
   "goal": {
+    "savingFor": "Saving for: {{goal}}",
     "placeholder": "Saving for: Lebaran 2027",
     "fromOnboarding": "Set in T10"
   },

@@ -20,7 +20,7 @@ import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import { AppShell } from '@/shared/ui/AppShell';
 import { Splash } from '@/shared/ui/Splash';
-import { useAuthLoading, useIsAuthed } from '@/stores/authStore';
+import { useAuthLoading, useIsAuthed, useUserDoc } from '@/stores/authStore';
 import { detectLowEndMode, useUiStore } from '@/stores/uiStore';
 
 // Synchronous init at module load so the first render already has translations.
@@ -137,12 +137,18 @@ function StackTree() {
  * while we're still resolving the initial auth state to avoid a flash of
  * sign-in → tabs.
  *
- * TODO(T10): also redirect to (onboarding) if !user.onboardingComplete.
+ * T10 (ADR-11) added the onboarding redirect: authed users with
+ * `onboardingComplete === false` get pushed to `/(onboarding)/welcome`
+ * unless they're already inside the (onboarding) group. The user-doc is
+ * subscribed by `useAuthSubscription` and mirrored into the auth store —
+ * `null` while it's still loading, at which point we wait (no redirect)
+ * to avoid bouncing the user mid-load.
  */
 function AuthGate({ children }: { children: ReactNode }) {
   useAuthSubscription();
   const isLoading = useAuthLoading();
   const isAuthed = useIsAuthed();
+  const userDoc = useUserDoc();
   const segments = useSegments();
 
   if (isLoading) {
@@ -150,10 +156,30 @@ function AuthGate({ children }: { children: ReactNode }) {
   }
 
   const inAuthGroup = segments[0] === '(auth)';
+  const inOnboardingGroup = segments[0] === '(onboarding)';
   if (!isAuthed && !inAuthGroup) {
     return <Redirect href="/(auth)/sign-in" />;
   }
   if (isAuthed && inAuthGroup) {
+    return <Redirect href="/(tabs)" />;
+  }
+  // Onboarding redirect — only fire once the user doc has loaded so we
+  // don't bounce mid-fetch. If `userDoc` is null while signed in, the
+  // subscription is still in flight; render Splash until it resolves.
+  if (isAuthed && !userDoc) {
+    return <Splash />;
+  }
+  if (
+    isAuthed &&
+    userDoc &&
+    !userDoc.onboardingComplete &&
+    !inOnboardingGroup
+  ) {
+    return <Redirect href="/(onboarding)/welcome" />;
+  }
+  // Conversely: a user who's completed onboarding but lands inside the
+  // (onboarding) group (e.g., back-navigated) gets bounced to /tabs.
+  if (isAuthed && userDoc?.onboardingComplete && inOnboardingGroup) {
     return <Redirect href="/(tabs)" />;
   }
   return <>{children}</>;
