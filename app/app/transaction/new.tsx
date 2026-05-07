@@ -1,7 +1,7 @@
 import type { Account, Category, TransactionType } from '@compass/shared-types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
-import { ChevronDown, ChevronLeft, ChevronRight, Mic, MicOff } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft, ChevronRight, Layers, Mic, MicOff } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -12,7 +12,8 @@ import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
 import { createTransaction, subscribeRecent } from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
-import { SplitsBlock } from '@/features/transactions/SplitsBlock';
+import { SplitsEditorModal } from '@/features/transactions/SplitsEditorModal';
+import { SplitsSummaryCard } from '@/features/transactions/SplitsSummaryCard';
 import { TagsInput } from '@/features/transactions/TagsInput';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
@@ -105,6 +106,10 @@ export default function NewTransactionScreen() {
   // current total amount, then the user adds rows.
   const [splitsMode, setSplitsMode] = useState<'single' | 'multi'>('single');
   const [splitRows, setSplitRows] = useState<{ categoryId: string | null; amountText: string }[]>([]);
+  // Modal-open state for the splits editor (D4 redesign — multi-split
+  // editing is no longer inline). When `multi` mode is active and the
+  // modal is closed, the form shows a compact summary card instead.
+  const [splitsModalOpen, setSplitsModalOpen] = useState(false);
 
   // Voice input → NLP field. Web only in v2 launch (native variant
   // requires expo-speech-recognition + EAS dev client; v2.5 polish).
@@ -266,6 +271,7 @@ export default function NewTransactionScreen() {
       },
     ]);
     setSplitsMode('multi');
+    setSplitsModalOpen(true);
   };
 
   const exitMultiMode = () => {
@@ -281,6 +287,7 @@ export default function NewTransactionScreen() {
       setCategoryId(first.categoryId);
     }
     setSplitsMode('single');
+    setSplitsModalOpen(false);
   };
 
   const addSplitRow = () => {
@@ -308,7 +315,7 @@ export default function NewTransactionScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="self-center w-full max-w-md">
+        <View className="self-center w-full max-w-md lg:max-w-3xl">
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t('common:actions.back')}
@@ -482,9 +489,9 @@ export default function NewTransactionScreen() {
           ) : null}
 
           {/* Category (expense / income only). Single mode shows the
-              full chip grid; multi mode replaces it with the SplitsBlock
-              (per ADR-14 §2). The toggle button lives below either
-              variant. */}
+              full chip grid; multi mode replaces it with a compact
+              summary card + Edit button — actual editing now happens
+              in a modal (D4 redesign). */}
           {type !== 'transfer' ? (
             <>
               {splitsMode === 'single' ? (
@@ -497,49 +504,71 @@ export default function NewTransactionScreen() {
                   t={t}
                 />
               ) : (
-                <SplitsBlock
+                <SplitsSummaryCard
                   rows={splitRows}
-                  totalText={amountText}
                   categories={categories}
                   isDark={isDark}
                   lang={lang}
-                  fgColor={fgColor}
-                  mutedColor={mutedColor}
-                  borderColor={borderColor}
-                  onAddRow={addSplitRow}
-                  onRemoveRow={removeSplitRow}
-                  onUpdateRow={updateSplitRow}
+                  onEdit={() => setSplitsModalOpen(true)}
+                  onCollapse={exitMultiMode}
                   t={t}
                 />
               )}
 
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  splitsMode === 'single'
-                    ? t('transactions:entry.splits.toggleToMulti')
-                    : t('transactions:entry.splits.toggleToSingle')
-                }
-                onPress={splitsMode === 'single' ? enterMultiMode : exitMultiMode}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  alignSelf: 'flex-start',
-                  gap: 6,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  marginBottom: 16,
-                  marginTop: -4,
-                  borderRadius: 8,
-                }}
-              >
-                <Text className="font-sans-medium text-xs" style={{ color: tokens.accent.transactions }}>
-                  {splitsMode === 'single'
-                    ? t('transactions:entry.splits.toggleToMulti')
-                    : t('transactions:entry.splits.toggleToSingle')}
-                </Text>
-              </Pressable>
+              {/* Single-mode CTA — proper outlined button, transactions-
+                  accent border + label. Replaces the prior cyan link
+                  (D1 feedback). Only visible in single mode; multi mode
+                  has its own Edit / Back buttons inside the summary
+                  card. */}
+              {splitsMode === 'single' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('transactions:entry.splits.toggleToMulti')}
+                  onPress={enterMultiMode}
+                  style={{
+                    flexDirection: 'row',
+                    alignSelf: 'flex-start',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    marginBottom: 16,
+                    marginTop: -4,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: tokens.accent.transactions,
+                    backgroundColor: tokens.accent.transactions + '14',
+                    minHeight: 40,
+                  }}
+                >
+                  <Layers size={14} color={tokens.accent.transactions} />
+                  <Text
+                    className="font-sans-medium text-sm"
+                    style={{ color: tokens.accent.transactions }}
+                  >
+                    {t('transactions:entry.splits.toggleToMulti')}
+                  </Text>
+                </Pressable>
+              ) : null}
             </>
+          ) : null}
+
+          {/* Splits editor modal — opened by enterMultiMode + the Edit
+              button inside SplitsSummaryCard. */}
+          {type !== 'transfer' ? (
+            <SplitsEditorModal
+              visible={splitsModalOpen}
+              onClose={() => setSplitsModalOpen(false)}
+              onConfirm={() => setSplitsModalOpen(false)}
+              rows={splitRows}
+              totalText={amountText}
+              categories={categories}
+              lang={lang}
+              onAddRow={addSplitRow}
+              onRemoveRow={removeSplitRow}
+              onUpdateRow={updateSplitRow}
+              t={t}
+            />
           ) : null}
 
           {/* Description */}

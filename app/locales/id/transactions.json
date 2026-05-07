@@ -56,8 +56,8 @@
       "unavailableBrowser": "Browser ini belum dukung input suara. Coba pakai Chrome, Edge, atau Safari."
     },
     "splits": {
-      "toggleToMulti": "+ Bagi ke beberapa kategori",
-      "toggleToSingle": "← Pakai satu kategori",
+      "toggleToMulti": "Bagi ke beberapa kategori",
+      "toggleToSingle": "Pakai satu kategori",
       "addRow": "+ Tambah kategori",
       "removeRow": "Hapus baris",
       "totalLine": "Total {{amount}}",
@@ -66,7 +66,11 @@
       "remainderOver": "Lebih {{amount}} dari total",
       "remainderDone": "Pas",
       "splitsBadgeMore": "+{{count}}",
-      "collapseWarning": "Hanya kategori pertama yang akan disimpan."
+      "collapseWarning": "Hanya kategori pertama yang akan disimpan.",
+      "modalTitle": "Bagi transaksi",
+      "summaryCount_one": "{{count}} kategori",
+      "summaryCount_other": "{{count}} kategori",
+      "editSplits": "Ubah pembagian"
     },
     "tags": {
       "placeholder": "Tambah label — misal lebaran-2027, dinas",

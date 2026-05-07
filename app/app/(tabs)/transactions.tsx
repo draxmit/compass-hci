@@ -408,7 +408,7 @@ export default function TransactionsScreen() {
             at a time. Hidden when there are no transactions to filter. */}
         {txs.length > 0 ? (
         <>
-        <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
+        <View className="flex-row flex-wrap items-center mb-2" style={{ gap: 8 }}>
           <FilterPill
             label={t('transactions:entry.fields.type')}
             value={typeChips.find((c) => c.key === typeFilter)?.label ?? ''}

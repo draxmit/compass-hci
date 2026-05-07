@@ -602,7 +602,7 @@ function GoalEditPanel({
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="self-center w-full max-w-md">
+        <View className="self-center w-full max-w-md lg:max-w-3xl">
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t('common:actions.back')}

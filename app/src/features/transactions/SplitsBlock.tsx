@@ -117,33 +117,39 @@ export function SplitsBlock({
         </Text>
       </Pressable>
 
-      <View
-        style={{
-          marginTop: 14,
-          paddingTop: 12,
-          borderTopWidth: 1,
-          borderTopColor: borderColor,
-        }}
-      >
-        <View className="flex-row items-baseline justify-between">
-          <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-            {t('transactions:entry.splits.totalLine', { amount: formatIDR(total, lang) })}
-          </Text>
-          <Text className="font-mono tabular-nums text-xs" style={{ color: mutedColor }}>
-            {t('transactions:entry.splits.sumLine', { amount: formatIDR(sum, lang) })}
+      {/* Footer (Total / Allocated / remainder) is only meaningful once
+          we have 2+ rows — with a single row, sum trivially equals total
+          and the line is just noise. Hidden until the user adds a second
+          row. (D2) */}
+      {rows.length > 1 ? (
+        <View
+          style={{
+            marginTop: 14,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: borderColor,
+          }}
+        >
+          <View className="flex-row items-baseline justify-between">
+            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+              {t('transactions:entry.splits.totalLine', { amount: formatIDR(total, lang) })}
+            </Text>
+            <Text className="font-mono tabular-nums text-xs" style={{ color: mutedColor }}>
+              {t('transactions:entry.splits.sumLine', { amount: formatIDR(sum, lang) })}
+            </Text>
+          </View>
+          <Text
+            className="font-sans-medium text-xs mt-1"
+            style={{ color: remainderColor }}
+          >
+            {remainderState === 'done'
+              ? t('transactions:entry.splits.remainderDone')
+              : remainderState === 'over'
+                ? t('transactions:entry.splits.remainderOver', { amount: formatIDR(Math.abs(remainder), lang) })
+                : t('transactions:entry.splits.remainderUnallocated', { amount: formatIDR(remainder, lang) })}
           </Text>
         </View>
-        <Text
-          className="font-sans-medium text-xs mt-1"
-          style={{ color: remainderColor }}
-        >
-          {remainderState === 'done'
-            ? t('transactions:entry.splits.remainderDone')
-            : remainderState === 'over'
-              ? t('transactions:entry.splits.remainderOver', { amount: formatIDR(Math.abs(remainder), lang) })
-              : t('transactions:entry.splits.remainderUnallocated', { amount: formatIDR(remainder, lang) })}
-        </Text>
-      </View>
+      ) : null}
     </Card>
   );
 }
@@ -239,21 +245,24 @@ function SplitRow({
           />
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('transactions:entry.splits.removeRow')}
-          accessibilityState={{ disabled: !canRemove }}
-          disabled={!canRemove}
-          onPress={onRemove}
-          style={{
-            width: 40, height: 40, borderRadius: 10,
-            borderWidth: 1, borderColor,
-            alignItems: 'center', justifyContent: 'center',
-            opacity: canRemove ? 1 : 0.3,
-          }}
-        >
-          <X size={14} color={tokens.semantic.danger} />
-        </Pressable>
+        {/* × delete is only useful when there's more than one row. With
+            a single row, the user can just blank the amount or change
+            categories — removing the only row leaves the form in an
+            invalid state anyway. Hidden until rows.length >= 2. (D3) */}
+        {canRemove ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('transactions:entry.splits.removeRow')}
+            onPress={onRemove}
+            style={{
+              width: 40, height: 40, borderRadius: 10,
+              borderWidth: 1, borderColor,
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <X size={14} color={tokens.semantic.danger} />
+          </Pressable>
+        ) : null}
       </View>
 
       {isExpanded ? (

@@ -4,7 +4,7 @@ import type {
 } from '@compass/shared-types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft, ChevronRight, Layers } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
@@ -16,7 +16,8 @@ import {
   createTransaction, deleteTransaction, getTransaction, subscribeRecent, updateTransaction,
 } from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
-import { SplitsBlock } from '@/features/transactions/SplitsBlock';
+import { SplitsEditorModal } from '@/features/transactions/SplitsEditorModal';
+import { SplitsSummaryCard } from '@/features/transactions/SplitsSummaryCard';
 import { TagsInput } from '@/features/transactions/TagsInput';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
@@ -83,6 +84,9 @@ export default function EditTransactionScreen() {
   // rather than silently losing rows past splits[0].
   const [splitsMode, setSplitsMode] = useState<'single' | 'multi'>('single');
   const [splitRows, setSplitRows] = useState<{ categoryId: string | null; amountText: string }[]>([]);
+  // D4 redesign — multi-split editing happens in a modal now. Form
+  // shows a SplitsSummaryCard while modal is closed.
+  const [splitsModalOpen, setSplitsModalOpen] = useState(false);
 
   // Subscriptions for the picker lists + recent-50 tag suggestions.
   useEffect(() => {
@@ -262,6 +266,7 @@ export default function EditTransactionScreen() {
       },
     ]);
     setSplitsMode('multi');
+    setSplitsModalOpen(true);
   };
 
   const exitMultiMode = () => {
@@ -271,6 +276,7 @@ export default function EditTransactionScreen() {
     const first = splitRows[0];
     if (first?.categoryId) setCategoryId(first.categoryId);
     setSplitsMode('single');
+    setSplitsModalOpen(false);
   };
 
   const addSplitRow = () => {
@@ -346,7 +352,7 @@ export default function EditTransactionScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View className="self-center w-full max-w-md">
+        <View className="self-center w-full max-w-md lg:max-w-3xl">
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={t('common:actions.back')}
@@ -360,7 +366,7 @@ export default function EditTransactionScreen() {
             </Text>
           </Pressable>
 
-          <Text className="font-sans-bold text-3xl mb-4">{t('transactions:editTitle')}</Text>
+          <Text className="font-sans-bold text-3xl mb-4">{t('transactions:entry.editTitle')}</Text>
 
           {/* Type */}
           <Card padding="lg" className="mb-4">
@@ -453,48 +459,64 @@ export default function EditTransactionScreen() {
                   t={t}
                 />
               ) : (
-                <SplitsBlock
+                <SplitsSummaryCard
                   rows={splitRows}
-                  totalText={amountText}
                   categories={categories}
                   isDark={isDark}
                   lang={lang}
-                  fgColor={fgColor}
-                  mutedColor={mutedColor}
-                  borderColor={borderColor}
-                  onAddRow={addSplitRow}
-                  onRemoveRow={removeSplitRow}
-                  onUpdateRow={updateSplitRow}
+                  onEdit={() => setSplitsModalOpen(true)}
+                  onCollapse={exitMultiMode}
                   t={t}
                 />
               )}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={
-                  splitsMode === 'single'
-                    ? t('transactions:entry.splits.toggleToMulti')
-                    : t('transactions:entry.splits.toggleToSingle')
-                }
-                onPress={splitsMode === 'single' ? enterMultiMode : exitMultiMode}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  alignSelf: 'flex-start',
-                  gap: 6,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  marginBottom: 16,
-                  marginTop: -4,
-                  borderRadius: 8,
-                }}
-              >
-                <Text className="font-sans-medium text-xs" style={{ color: tokens.accent.transactions }}>
-                  {splitsMode === 'single'
-                    ? t('transactions:entry.splits.toggleToMulti')
-                    : t('transactions:entry.splits.toggleToSingle')}
-                </Text>
-              </Pressable>
+              {splitsMode === 'single' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('transactions:entry.splits.toggleToMulti')}
+                  onPress={enterMultiMode}
+                  style={{
+                    flexDirection: 'row',
+                    alignSelf: 'flex-start',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    marginBottom: 16,
+                    marginTop: -4,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: tokens.accent.transactions,
+                    backgroundColor: tokens.accent.transactions + '14',
+                    minHeight: 40,
+                  }}
+                >
+                  <Layers size={14} color={tokens.accent.transactions} />
+                  <Text
+                    className="font-sans-medium text-sm"
+                    style={{ color: tokens.accent.transactions }}
+                  >
+                    {t('transactions:entry.splits.toggleToMulti')}
+                  </Text>
+                </Pressable>
+              ) : null}
             </>
+          ) : null}
+
+          {/* Splits editor modal — opened by Edit button + enterMultiMode. */}
+          {type !== 'transfer' ? (
+            <SplitsEditorModal
+              visible={splitsModalOpen}
+              onClose={() => setSplitsModalOpen(false)}
+              onConfirm={() => setSplitsModalOpen(false)}
+              rows={splitRows}
+              totalText={amountText}
+              categories={categories}
+              lang={lang}
+              onAddRow={addSplitRow}
+              onRemoveRow={removeSplitRow}
+              onUpdateRow={updateSplitRow}
+              t={t}
+            />
           ) : null}
 
           {/* Description */}

@@ -56,8 +56,8 @@
       "unavailableBrowser": "This browser doesn't support voice input. Try Chrome, Edge, or Safari."
     },
     "splits": {
-      "toggleToMulti": "+ Split across categories",
-      "toggleToSingle": "← Use a single category",
+      "toggleToMulti": "Split across categories",
+      "toggleToSingle": "Back to single category",
       "addRow": "+ Add category",
       "removeRow": "Remove row",
       "totalLine": "Total {{amount}}",
@@ -66,7 +66,11 @@
       "remainderOver": "{{amount}} over total",
       "remainderDone": "Balanced",
       "splitsBadgeMore": "+{{count}}",
-      "collapseWarning": "Only the first category will be kept."
+      "collapseWarning": "Only the first category will be kept.",
+      "modalTitle": "Split transaction",
+      "summaryCount_one": "{{count}} category",
+      "summaryCount_other": "{{count}} categories",
+      "editSplits": "Edit splits"
     },
     "tags": {
       "placeholder": "Add tag — e.g. lebaran-2027, work-trip",
