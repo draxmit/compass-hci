@@ -4,7 +4,7 @@ import type {
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { Plus, Sparkles } from 'lucide-react-native';
+import { Plus, Sparkles, Target } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -59,7 +59,6 @@ export default function DashboardScreen() {
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
-  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -303,36 +302,64 @@ export default function DashboardScreen() {
                   context: includedAccounts.length === 1 ? 'one' : 'other',
                 })}
               </Text>
-              {/* Goal subtitle — pinned goal as a thin block tucked
-                  under the Net Worth hero. Single tap routes to /goals.
-                  Replaces the prior bottom-of-screen GoalPill card.
-                  Keeps the goal in the user's visibility column without
-                  inflating it into a separate card. */}
+              {/* Goal block — pinpointed with an accent-tinted surface +
+                  Target icon so it visually reads as 'here's why I'm
+                  tracking', distinct from the Net Worth row above. Sits
+                  inside the Net Worth section but with its own card-
+                  within-card chrome (subtle background, rounded). */}
               {pinnedGoal ? (
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel={t('dashboard:goal.savingFor', { goal: pinnedGoal.name })}
                   onPress={() => router.push('/goals')}
                   style={{
-                    marginTop: 14,
-                    paddingTop: 12,
-                    borderTopWidth: 1,
-                    borderTopColor: borderColor,
+                    marginTop: 16,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: tokens.accent.dashboard + '44',
+                    backgroundColor: tokens.accent.dashboard + '14',
                   }}
                 >
-                  <Text
-                    className="font-sans-medium text-xs"
-                    style={{ color: tokens.accent.dashboard }}
-                    numberOfLines={1}
-                  >
-                    {t('dashboard:goal.savingFor', { goal: pinnedGoal.name })}
-                  </Text>
+                  <View className="flex-row items-center" style={{ gap: 8 }}>
+                    <View
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        backgroundColor: tokens.accent.dashboard + '22',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Target size={14} color={tokens.accent.dashboard} />
+                    </View>
+                    <Text
+                      className="font-sans-semibold text-sm flex-1"
+                      style={{ color: tokens.accent.dashboard }}
+                      numberOfLines={1}
+                    >
+                      {t('dashboard:goal.savingFor', { goal: pinnedGoal.name })}
+                    </Text>
+                    {pinnedGoal.targetMinor > 0 ? (
+                      <Text
+                        className="font-mono tabular-nums text-xs font-sans-semibold"
+                        style={{ color: tokens.accent.dashboard }}
+                      >
+                        {Math.round(
+                          Math.min(1, Math.max(0, pinnedGoal.currentMinor / pinnedGoal.targetMinor)) * 100,
+                        )}
+                        {'%'}
+                      </Text>
+                    ) : null}
+                  </View>
                   {pinnedGoal.targetMinor > 0 ? (
                     <>
                       <View
                         style={{
-                          marginTop: 6,
-                          height: 4,
+                          marginTop: 10,
+                          height: 5,
                           borderRadius: 999,
                           backgroundColor: tokens.accent.dashboard + '22',
                           overflow: 'hidden',
@@ -349,7 +376,7 @@ export default function DashboardScreen() {
                         />
                       </View>
                       <Text
-                        className="font-mono tabular-nums text-xs mt-1.5"
+                        className="font-mono tabular-nums text-xs mt-2"
                         style={{ color: mutedColor }}
                       >
                         {formatAmountForDisplay(pinnedGoal.currentMinor, 'IDR', displayInIDR, lang).primary}

@@ -1,5 +1,6 @@
 import type { Category } from '@compass/shared-types';
 import type { TFunction } from 'i18next';
+import { AlertTriangle } from 'lucide-react-native';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -50,6 +51,15 @@ export function SplitsEditorModal({
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
   const overlayBg = isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'];
 
+  // Validation gate — Done is blocked while any row is missing its
+  // category. Prevents the form-save handler from later rejecting the
+  // tx (the previous user-flagged ambiguity: "why empty category is
+  // allowed in split categories"). Empty-amount rows are NOT blocked
+  // here because zero-amount is still valid as 'I'll fill it in';
+  // the sum-mismatch check at form-save catches that.
+  const hasEmptyCategory = rows.some((r) => !r.categoryId);
+  const canConfirm = !hasEmptyCategory;
+
   return (
     <Modal
       visible={visible}
@@ -83,9 +93,15 @@ export function SplitsEditorModal({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('common:actions.done')}
+            accessibilityState={{ disabled: !canConfirm }}
             onPress={onConfirm}
+            disabled={!canConfirm}
             hitSlop={8}
-            style={{ minHeight: 36, justifyContent: 'center' }}
+            style={{
+              minHeight: 36,
+              justifyContent: 'center',
+              opacity: canConfirm ? 1 : 0.4,
+            }}
           >
             <Text
               className="font-sans-semibold text-sm"
@@ -95,6 +111,32 @@ export function SplitsEditorModal({
             </Text>
           </Pressable>
         </View>
+
+        {/* Inline error bar — surfaces at the top of the body when any
+            row is missing its category. Mirrors the pattern in form
+            validation; explicit so the user knows why Done is greyed. */}
+        {hasEmptyCategory ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              paddingHorizontal: 24,
+              paddingVertical: 10,
+              backgroundColor: tokens.semantic.warning + '14',
+              borderBottomWidth: 1,
+              borderBottomColor: tokens.semantic.warning + '33',
+            }}
+          >
+            <AlertTriangle size={14} color={tokens.semantic.warning} />
+            <Text
+              className="font-sans text-xs flex-1"
+              style={{ color: tokens.semantic.warning }}
+            >
+              {t('transactions:entry.errors.splitsMissingCategory')}
+            </Text>
+          </View>
+        ) : null}
 
         {/* Body — SplitsBlock reused as-is. No `Card` wrap here because
             the block already provides its own. */}

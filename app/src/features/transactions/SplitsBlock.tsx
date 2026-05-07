@@ -1,7 +1,7 @@
 import type { Category } from '@compass/shared-types';
 import type { TFunction } from 'i18next';
 import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import type { Locale } from '@/shared/i18n';
@@ -52,6 +52,18 @@ export function SplitsBlock({
 }: SplitsBlockProps) {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
+  // Auto-expand the picker for a freshly-added row (rows.length grew
+  // since the last render). Without this, "+ Add row" creates an
+  // invisible empty row — the user has to tap the row to find out it
+  // needs a category.
+  const prevRowsLength = useRef(rows.length);
+  useEffect(() => {
+    if (rows.length > prevRowsLength.current) {
+      setOpenIdx(rows.length - 1);
+    }
+    prevRowsLength.current = rows.length;
+  }, [rows.length]);
+
   const total = parseAmountInput(totalText, lang);
   const sum = rows.reduce((s, r) => s + parseAmountInput(r.amountText, lang), 0);
   const remainder = total - sum;
@@ -93,29 +105,40 @@ export function SplitsBlock({
         ))}
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('transactions:entry.splits.addRow')}
-        onPress={onAddRow}
-        style={{
-          flexDirection: 'row',
-          alignSelf: 'flex-start',
-          alignItems: 'center',
-          gap: 6,
-          paddingVertical: 10,
-          paddingHorizontal: 12,
-          marginTop: 12,
-          borderRadius: 10,
-          borderWidth: 1,
-          borderColor,
-          minHeight: 40,
-        }}
-      >
-        <Plus size={14} color={fgColor} />
-        <Text className="font-sans-medium text-xs" style={{ color: fgColor }}>
-          {t('transactions:entry.splits.addRow')}
-        </Text>
-      </Pressable>
+      {/* + Add row — disabled when any current row still has no
+          category. Otherwise the user could pile up incomplete rows.
+          Greyed out + tap blocked when invalid. */}
+      {(() => {
+        const canAddRow = rows.every((r) => !!r.categoryId);
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('transactions:entry.splits.addRow')}
+            accessibilityState={{ disabled: !canAddRow }}
+            disabled={!canAddRow}
+            onPress={onAddRow}
+            style={{
+              flexDirection: 'row',
+              alignSelf: 'flex-start',
+              alignItems: 'center',
+              gap: 6,
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+              marginTop: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor,
+              minHeight: 40,
+              opacity: canAddRow ? 1 : 0.4,
+            }}
+          >
+            <Plus size={14} color={fgColor} />
+            <Text className="font-sans-medium text-xs" style={{ color: fgColor }}>
+              {t('transactions:entry.splits.addRow')}
+            </Text>
+          </Pressable>
+        );
+      })()}
 
       {/* Footer (Total / Allocated / remainder) is only meaningful once
           we have 2+ rows — with a single row, sum trivially equals total
@@ -187,6 +210,14 @@ function SplitRow({
     [categories],
   );
 
+  // Empty-categoryId rows get a warning border so the user sees at a
+  // glance which row needs attention. Picker auto-expanded by SplitsBlock
+  // for the new row, but the warning persists until a category is picked.
+  const isEmpty = !selectedCat;
+  const pickerBorder = isEmpty
+    ? tokens.semantic.warning
+    : borderColor;
+
   return (
     <View>
       <View className="flex-row items-stretch" style={{ gap: 6 }}>
@@ -204,7 +235,8 @@ function SplitRow({
             paddingVertical: 8,
             borderRadius: 10,
             borderWidth: 1,
-            borderColor,
+            borderColor: pickerBorder,
+            backgroundColor: isEmpty ? tokens.semantic.warning + '0a' : 'transparent',
             minHeight: 40,
           }}
         >
