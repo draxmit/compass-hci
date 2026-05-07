@@ -21,7 +21,11 @@
   },
   "heatmap": {
     "noData": "No spending this month yet.",
-    "tipMost": "Heaviest day: {{day}} ({{amount}})"
+    "tipMost": "Heaviest day: {{day}} ({{amount}})",
+    "viewMonth": "Month",
+    "viewYear": "Year",
+    "yearLoading": "Loading year data…",
+    "yearNoData": "No spending logged in the past year yet."
   },
   "weekday": {
     "shortNames": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],

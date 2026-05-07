@@ -21,7 +21,11 @@
   },
   "heatmap": {
     "noData": "Belum ada pengeluaran bulan ini.",
-    "tipMost": "Hari paling boros: tanggal {{day}} ({{amount}})"
+    "tipMost": "Hari paling boros: tanggal {{day}} ({{amount}})",
+    "viewMonth": "Bulan",
+    "viewYear": "Setahun",
+    "yearLoading": "Memuat data setahun…",
+    "yearNoData": "Belum ada pengeluaran setahun terakhir."
   },
   "weekday": {
     "shortNames": ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],

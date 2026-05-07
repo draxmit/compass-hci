@@ -87,6 +87,13 @@ export default function InsightsScreen() {
   // the current month (index 0); decrementing the index goes forward in
   // time, incrementing goes back. Capped at 0..TREND_MONTHS-1.
   const [heatmapIdx, setHeatmapIdx] = useState(0);
+  // v3 phase A — 6: heatmap view toggle. 'month' is the existing
+  // calendar grid; 'year' is the GitHub-style year-at-a-glance with
+  // 12 month columns × 31 day rows. Year view triggers a separate
+  // fetch since the trend window is only 6 months.
+  const [heatmapView, setHeatmapView] = useState<'month' | 'year'>('month');
+  const [yearTxsByMonth, setYearTxsByMonth] = useState<Map<string, Transaction[]> | null>(null);
+  const [yearTxsLoading, setYearTxsLoading] = useState(false);
 
   // Compute the 6 yearMonths backwards from current. Memoised so the
   // useEffect deps are stable.
@@ -259,6 +266,76 @@ export default function InsightsScreen() {
     const heaviestDay = dayTotals.indexOf(max);
     return { yearMonth: heatmapYM, year, month, dayTotals, daysInMonth, firstDow, max, heaviestDay };
   }, [loaded, yearMonths, heatmapIdx, allTxsByMonth]);
+
+  // ----- Year heatmap data (v3 phase A — 6) -----
+  // Rolling 12-month window ending in the current month. Fetched lazily
+  // when the user toggles to year view to avoid burning Firestore reads
+  // on the typical month-view session.
+  const yearMonthsList = useMemo(() => {
+    const out: string[] = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return out;   // oldest → newest
+  }, []);
+
+  useEffect(() => {
+    if (heatmapView !== 'year') return;
+    if (yearTxsByMonth || yearTxsLoading) return;
+    if (!wid) return;
+    setYearTxsLoading(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const txsList = await Promise.all(
+          yearMonthsList.map((ym) =>
+            listTransactions(wid, { yearMonth: ym, orderByDate: false }),
+          ),
+        );
+        if (cancelled) return;
+        const map = new Map<string, Transaction[]>();
+        yearMonthsList.forEach((ym, i) => map.set(ym, txsList[i] ?? []));
+        setYearTxsByMonth(map);
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('[insights] year heatmap fetch failed', err);
+      } finally {
+        if (!cancelled) setYearTxsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [heatmapView, yearTxsByMonth, yearTxsLoading, wid, yearMonthsList]);
+
+  const yearHeatmap = useMemo(() => {
+    if (heatmapView !== 'year' || !yearTxsByMonth) return null;
+    // Dense 2D grid: 12 columns (months) × 31 rows (days). Cells get
+    // the day's expense total; null for days that don't exist in the
+    // month (e.g. Feb 30, Apr 31).
+    const grid: (number | null)[][] = [];
+    let max = 0;
+    for (const ym of yearMonthsList) {
+      const [yStr, mStr] = ym.split('-');
+      const year = Number(yStr);
+      const month = Number(mStr) - 1;
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const txs = yearTxsByMonth.get(ym) ?? [];
+      const col = new Array<number | null>(31).fill(null);
+      for (let d = 0; d < daysInMonth; d++) col[d] = 0;
+      for (const tx of txs) {
+        if (tx.type !== 'expense') continue;
+        const day = Number(tx.date.slice(8, 10));
+        if (day >= 1 && day <= daysInMonth) {
+          const cur = col[day - 1] ?? 0;
+          col[day - 1] = cur + tx.amount;
+          if (cur + tx.amount > max) max = cur + tx.amount;
+        }
+      }
+      grid.push(col);
+    }
+    return { grid, max, months: yearMonthsList };
+  }, [heatmapView, yearTxsByMonth, yearMonthsList]);
 
   // ----- Day-of-week aggregation -----
   // Average per dow across all transactions in the trend window.
@@ -500,92 +577,155 @@ export default function InsightsScreen() {
             <Text className={sectionLabelClass} style={{ color: mutedColor }}>
               {t('insights:sections.heatmap')}
             </Text>
-            {/* Month navigation: chevrons left/right with the active
-                month label centered. Prev disabled at the oldest month
-                in the trend window; Next disabled at the current month
-                (no future to navigate to). */}
+            {/* View toggle: Month / Year. Year fires a lazy fetch (12
+                months) on first switch; subsequent toggles are free. */}
             <View
-              className="flex-row items-center justify-between mb-3"
+              className="flex-row mb-3"
               style={{
                 borderWidth: 1,
                 borderColor,
                 borderRadius: 10,
-                paddingHorizontal: 4,
-                paddingVertical: 4,
+                padding: 4,
+                gap: 4,
               }}
             >
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('common:actions.back')}
-                accessibilityState={{ disabled: heatmapIdx >= TREND_MONTHS - 1 }}
-                disabled={heatmapIdx >= TREND_MONTHS - 1}
-                onPress={() => setHeatmapIdx((i) => Math.min(i + 1, TREND_MONTHS - 1))}
-                hitSlop={8}
-                style={{
-                  width: 36, height: 36, borderRadius: 8,
-                  alignItems: 'center', justifyContent: 'center',
-                  opacity: heatmapIdx >= TREND_MONTHS - 1 ? 0.3 : 1,
-                }}
-              >
-                <ChevronLeft size={18} color={fgColor} />
-              </Pressable>
-              <Text
-                className="font-sans-medium text-sm"
-                style={{ color: fgColor }}
-              >
-                {formatDate(new Date(heatmap.year, heatmap.month, 1), 'long-month', lang)}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Next"
-                accessibilityState={{ disabled: heatmapIdx <= 0 }}
-                disabled={heatmapIdx <= 0}
-                onPress={() => setHeatmapIdx((i) => Math.max(i - 1, 0))}
-                hitSlop={8}
-                style={{
-                  width: 36, height: 36, borderRadius: 8,
-                  alignItems: 'center', justifyContent: 'center',
-                  opacity: heatmapIdx <= 0 ? 0.3 : 1,
-                }}
-              >
-                <ChevronRight size={18} color={fgColor} />
-              </Pressable>
+              {(['month', 'year'] as const).map((mode) => {
+                const active = heatmapView === mode;
+                return (
+                  <Pressable
+                    key={mode}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => setHeatmapView(mode)}
+                    style={{
+                      flex: 1,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      backgroundColor: active ? accent + '22' : 'transparent',
+                    }}
+                  >
+                    <Text
+                      className="font-sans-medium text-xs"
+                      style={{ color: active ? accent : mutedColor }}
+                    >
+                      {t(mode === 'month' ? 'insights:heatmap.viewMonth' : 'insights:heatmap.viewYear')}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
+            {/* Month-view nav: chevrons left/right with the active month
+                label. Hidden in year mode where there's nothing to navigate. */}
+            {heatmapView === 'month' ? (
+              <View
+                className="flex-row items-center justify-between mb-3"
+                style={{
+                  borderWidth: 1,
+                  borderColor,
+                  borderRadius: 10,
+                  paddingHorizontal: 4,
+                  paddingVertical: 4,
+                }}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common:actions.back')}
+                  accessibilityState={{ disabled: heatmapIdx >= TREND_MONTHS - 1 }}
+                  disabled={heatmapIdx >= TREND_MONTHS - 1}
+                  onPress={() => setHeatmapIdx((i) => Math.min(i + 1, TREND_MONTHS - 1))}
+                  hitSlop={8}
+                  style={{
+                    width: 36, height: 36, borderRadius: 8,
+                    alignItems: 'center', justifyContent: 'center',
+                    opacity: heatmapIdx >= TREND_MONTHS - 1 ? 0.3 : 1,
+                  }}
+                >
+                  <ChevronLeft size={18} color={fgColor} />
+                </Pressable>
+                <Text
+                  className="font-sans-medium text-sm"
+                  style={{ color: fgColor }}
+                >
+                  {formatDate(new Date(heatmap.year, heatmap.month, 1), 'long-month', lang)}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Next"
+                  accessibilityState={{ disabled: heatmapIdx <= 0 }}
+                  disabled={heatmapIdx <= 0}
+                  onPress={() => setHeatmapIdx((i) => Math.max(i - 1, 0))}
+                  hitSlop={8}
+                  style={{
+                    width: 36, height: 36, borderRadius: 8,
+                    alignItems: 'center', justifyContent: 'center',
+                    opacity: heatmapIdx <= 0 ? 0.3 : 1,
+                  }}
+                >
+                  <ChevronRight size={18} color={fgColor} />
+                </Pressable>
+              </View>
+            ) : null}
 
-            {heatmap.max === 0 ? (
-              <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-                {t('insights:heatmap.noData')}
-              </Text>
+            {heatmapView === 'month' ? (
+              heatmap.max === 0 ? (
+                <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+                  {t('insights:heatmap.noData')}
+                </Text>
+              ) : (
+                <>
+                  {/* Cap container width on desktop so cells don't blow up
+                      to ~110×110 px. 420 px = 7 cells × ~52 px each + gap,
+                      centered. Mobile already constrained by the page
+                      column max-width. */}
+                  <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center' }}>
+                    <Heatmap
+                      daysInMonth={heatmap.daysInMonth}
+                      firstDow={heatmap.firstDow}
+                      dayTotals={heatmap.dayTotals}
+                      max={heatmap.max}
+                      accent={accent}
+                      borderColor={borderColor}
+                      mutedColor={mutedColor}
+                      fgColor={fgColor}
+                      weekdayShortNames={
+                        (t('insights:weekday.shortNames', { returnObjects: true }) as string[]) ?? []
+                      }
+                    />
+                  </View>
+                  {heatmap.heaviestDay > 0 ? (
+                    <Text className="font-sans text-xs mt-3 text-center" style={{ color: mutedColor }}>
+                      {t('insights:heatmap.tipMost', {
+                        day: heatmap.heaviestDay,
+                        amount: formatIDR(heatmap.max, lang),
+                      })}
+                    </Text>
+                  ) : null}
+                </>
+              )
             ) : (
-              <>
-                {/* Cap container width on desktop so cells don't blow up
-                    to ~110×110 px. 420 px = 7 cells × ~52 px each + gap,
-                    centered. Mobile already constrained by the page
-                    column max-width. */}
-                <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center' }}>
-                  <Heatmap
-                    daysInMonth={heatmap.daysInMonth}
-                    firstDow={heatmap.firstDow}
-                    dayTotals={heatmap.dayTotals}
-                    max={heatmap.max}
-                    accent={accent}
-                    borderColor={borderColor}
-                    mutedColor={mutedColor}
-                    fgColor={fgColor}
-                    weekdayShortNames={
-                      (t('insights:weekday.shortNames', { returnObjects: true }) as string[]) ?? []
-                    }
-                  />
-                </View>
-                {heatmap.heaviestDay > 0 ? (
-                  <Text className="font-sans text-xs mt-3 text-center" style={{ color: mutedColor }}>
-                    {t('insights:heatmap.tipMost', {
-                      day: heatmap.heaviestDay,
-                      amount: formatIDR(heatmap.max, lang),
-                    })}
-                  </Text>
-                ) : null}
-              </>
+              // Year view (v3 phase A — 6).
+              yearTxsLoading ? (
+                <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+                  {t('insights:heatmap.yearLoading')}
+                </Text>
+              ) : !yearHeatmap || yearHeatmap.max === 0 ? (
+                <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+                  {t('insights:heatmap.yearNoData')}
+                </Text>
+              ) : (
+                <YearHeatmap
+                  grid={yearHeatmap.grid}
+                  months={yearHeatmap.months}
+                  max={yearHeatmap.max}
+                  accent={accent}
+                  borderColor={borderColor}
+                  mutedColor={mutedColor}
+                  fgColor={fgColor}
+                  lang={lang}
+                />
+              )
             )}
           </View>
         ) : null}
@@ -967,6 +1107,153 @@ function Heatmap({
               : null}
           </View>
         ))}
+      </View>
+    </View>
+  );
+}
+
+// ---------- YearHeatmap ----------
+
+type YearHeatmapProps = {
+  /** 12 columns of 31 cells each. null = day doesn't exist (e.g. Feb 30). */
+  grid: (number | null)[][];
+  /** Aligned with grid columns — one yearMonth per column, oldest → newest. */
+  months: string[];
+  /** Max day spend across the full year — used to normalise cell intensity. */
+  max: number;
+  accent: string;
+  borderColor: string;
+  mutedColor: string;
+  fgColor: string;
+  lang: Locale;
+};
+
+/**
+ * Year-at-a-glance heatmap (v3 phase A — 6).
+ *
+ * 12 columns × 31 rows grid. Each column is a month (Jan-most-recent at
+ * left → current month at right is reversed for rolling-12-month
+ * window). Each row is a day (1..31). Cell intensity scales with
+ * `dayTotal / max`. Empty cells where the day doesn't exist in that
+ * month (Feb 30, Apr 31, etc.) render as a faint placeholder.
+ *
+ * Compact compared to the GitHub-style 53-week × 7-day layout — the
+ * 12×31 shape is mobile-friendlier (no horizontal scroll) and aligns
+ * with users' month/day mental model better than week-of-year.
+ */
+function YearHeatmap({
+  grid, months, max, accent, borderColor, mutedColor, fgColor, lang,
+}: YearHeatmapProps) {
+  void fgColor;   // currently unused — kept for parity with month Heatmap signature
+  // 1-letter month initial (J F M A M J J A S O N D), ambiguous for some
+  // (J/M/A repeat) but works as a recognisable header at this density.
+  // For id-locale we reuse the same initial (Jan/Feb/Mar/Apr/May/Jun/...
+  // share first letters). User can read the month full-name on the
+  // month-view via the toggle — this is the year overview.
+  const monthInitials = months.map((ym) => {
+    const monthNum = Number(ym.split('-')[1]);
+    // Use ICU short-month then take first character.
+    const d = new Date(2000, monthNum - 1, 1);
+    return d.toLocaleString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'short' }).charAt(0);
+  });
+
+  // Day labels — sparse on the left edge so we don't crowd 31 numbers.
+  const dayLabelRows = new Set([0, 4, 9, 14, 19, 24, 29]); // 1, 5, 10, 15, 20, 25, 30
+
+  return (
+    <View style={{ width: '100%', alignSelf: 'center' }}>
+      {/* Header row: blank left gutter, then 12 month initials. */}
+      <View className="flex-row" style={{ gap: 2, marginBottom: 4 }}>
+        <View style={{ width: 18 }} />
+        {monthInitials.map((init, i) => (
+          <Text
+            key={i}
+            className="font-sans-medium"
+            style={{
+              flex: 1,
+              fontSize: 9,
+              textAlign: 'center',
+              color: i === monthInitials.length - 1 ? accent : mutedColor,
+            }}
+          >
+            {init}
+          </Text>
+        ))}
+      </View>
+      {/* 31 day-rows. Each row has a sparse left label + 12 cells. */}
+      {Array.from({ length: 31 }).map((_, dayIdx) => (
+        <View key={dayIdx} className="flex-row" style={{ gap: 2, marginBottom: 2 }}>
+          <Text
+            className="font-sans"
+            style={{
+              width: 18,
+              fontSize: 8,
+              textAlign: 'right',
+              color: mutedColor,
+              paddingRight: 2,
+              alignSelf: 'center',
+            }}
+          >
+            {dayLabelRows.has(dayIdx) ? dayIdx + 1 : ''}
+          </Text>
+          {grid.map((col, colIdx) => {
+            const value = col[dayIdx];
+            // `value === null` means "day doesn't exist this month".
+            // `undefined` shouldn't happen since we pre-fill 31 cells,
+            // but the array access type permits it — collapse both to
+            // a faint placeholder so the grid stays rectangular.
+            if (value == null) {
+              return (
+                <View
+                  key={colIdx}
+                  style={{
+                    flex: 1,
+                    aspectRatio: 1,
+                    borderRadius: 2,
+                    backgroundColor: borderColor,
+                    opacity: 0.3,
+                  }}
+                />
+              );
+            }
+            const intensity = max === 0 ? 0 : value / max;
+            const fillAlpha = intensity === 0 ? 0 : Math.max(0.2, intensity);
+            return (
+              <View
+                key={colIdx}
+                style={{
+                  flex: 1,
+                  aspectRatio: 1,
+                  borderRadius: 2,
+                  backgroundColor:
+                    intensity === 0 ? borderColor : accent + alphaHex(fillAlpha),
+                  opacity: intensity === 0 ? 0.5 : 1,
+                }}
+              />
+            );
+          })}
+        </View>
+      ))}
+      {/* Legend. */}
+      <View className="flex-row items-center mt-3" style={{ gap: 4 }}>
+        <Text className="font-sans" style={{ fontSize: 9, color: mutedColor }}>
+          {/* less */}
+          —
+        </Text>
+        {[0.2, 0.4, 0.6, 0.8, 1].map((a) => (
+          <View
+            key={a}
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              backgroundColor: accent + alphaHex(a),
+            }}
+          />
+        ))}
+        <Text className="font-sans" style={{ fontSize: 9, color: mutedColor }}>
+          +
+        </Text>
       </View>
     </View>
   );
