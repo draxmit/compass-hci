@@ -289,14 +289,24 @@ export default function InsightsScreen() {
     let cancelled = false;
     (async () => {
       try {
-        // Single Firestore query covers all 12 months via `where(
-        // 'yearMonth', 'in', [...])` — replaces the prior 12 sequential
-        // queries that took several seconds on slow networks.
+        // Single `where('date', '>=', X)` range query covers all 12
+        // months in one Firestore round-trip without internal fan-out
+        // (which `where('yearMonth', 'in', [...])` triggers). The
+        // oldest yearMonth's first day is the boundary.
+        const oldest = yearMonthsList[0];
+        if (!oldest) {
+          setYearTxsByMonth(new Map());
+          return;
+        }
+        const oldestDate = `${oldest}-01`;
+        const start = Date.now();
         const allTxs = await listTransactions(wid, {
-          yearMonthIn: yearMonthsList,
+          dateAfter: oldestDate,
           orderByDate: false,
         });
         if (cancelled) return;
+        // Surface fetch perf in dev — helps diagnose slow networks.
+        console.log(`[insights] year fetch: ${allTxs.length} txs in ${Date.now() - start}ms`);
         const map = new Map<string, Transaction[]>();
         for (const ym of yearMonthsList) map.set(ym, []);
         for (const tx of allTxs) {
@@ -1215,16 +1225,26 @@ function YearHeatmap({
   grid, months, max, accent, borderColor, mutedColor, fgColor, lang,
 }: YearHeatmapProps) {
   void fgColor;   // currently unused — kept for parity with month Heatmap signature
-  // 1-letter month initial (J F M A M J J A S O N D), ambiguous for some
-  // (J/M/A repeat) but works as a recognisable header at this density.
-  // For id-locale we reuse the same initial (Jan/Feb/Mar/Apr/May/Jun/...
-  // share first letters). User can read the month full-name on the
-  // month-view via the toggle — this is the year overview.
-  const monthInitials = months.map((ym) => {
-    const monthNum = Number(ym.split('-')[1]);
-    // Use ICU short-month then take first character.
+  // 3-letter month abbreviations (Jan/Feb/Mar/...). Earlier 1-letter
+  // version made J/M/A ambiguous (Jan/Jun/Jul all 'J', Mar/May both 'M',
+  // Apr/Aug both 'A') — users read column 0 'J' as January when it was
+  // actually June from a year ago. The full 'Jan' / 'Jun' / 'Jul' is
+  // tiny but unambiguous.
+  //
+  // Year boundary markers: when a column is January (the calendar year
+  // boundary), we suffix with a 2-digit year ('26) so the user sees
+  // exactly which year's January it is. Other months get the bare
+  // 3-letter abbreviation.
+  const monthHeaders = months.map((ym) => {
+    const parts = ym.split('-');
+    const yStr = parts[0] ?? '0000';
+    const mStr = parts[1] ?? '01';
+    const monthNum = Number(mStr);
+    const yearShort = yStr.slice(2);
     const d = new Date(2000, monthNum - 1, 1);
-    return d.toLocaleString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'short' }).charAt(0);
+    const abbrev = d.toLocaleString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'short' });
+    // January → "Jan '26". Other months → 'Jun'.
+    return monthNum === 1 ? `${abbrev} '${yearShort}` : abbrev;
   });
 
   // Day labels — sparse on the left edge so we don't crowd 31 numbers.
@@ -1232,21 +1252,23 @@ function YearHeatmap({
 
   return (
     <View style={{ width: '100%', alignSelf: 'center' }}>
-      {/* Header row: blank left gutter, then 12 month initials. */}
-      <View className="flex-row" style={{ gap: 2, marginBottom: 4 }}>
+      {/* Header row: blank left gutter, then 12 month abbreviations. */}
+      <View className="flex-row items-end" style={{ gap: 2, marginBottom: 4 }}>
         <View style={{ width: 18 }} />
-        {monthInitials.map((init, i) => (
+        {monthHeaders.map((label, i) => (
           <Text
             key={i}
             className="font-sans-medium"
             style={{
               flex: 1,
-              fontSize: 9,
+              fontSize: 8,
               textAlign: 'center',
-              color: i === monthInitials.length - 1 ? accent : mutedColor,
+              color: i === monthHeaders.length - 1 ? accent : mutedColor,
             }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
           >
-            {init}
+            {label}
           </Text>
         ))}
       </View>

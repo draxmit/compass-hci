@@ -215,17 +215,19 @@ export async function createTransaction(
  * passes `orderByDate: false` and sorts client-side if needed —
  * dodging the index dependency for callers that don't care.
  *
- * `yearMonthIn` is a v3 phase A — 6 addition for the year heatmap.
- * Replaces 12 sequential per-month queries with a single
- * `where('yearMonth', 'in', [...])` query. Firestore caps `in` at
- * 30 values; for our 12-month window that's plenty. Mutually
- * exclusive with `yearMonth` — caller picks one.
+ * `dateAfter` is a v3 phase A — 6 addition for the year heatmap. A
+ * single `where('date', '>=', X)` query is faster than `where(
+ * 'yearMonth', 'in', [...])` because the latter fans out to N
+ * sub-queries internally on Firestore's side. Date is a single-field
+ * range query that uses Firestore's auto-built index — no fan-out.
+ * Mutually exclusive with `yearMonth`.
  */
 export async function listTransactions(
   wid: string,
   opts: {
     yearMonth?: string;
-    yearMonthIn?: string[];
+    /** ISO date 'YYYY-MM-DD' inclusive. */
+    dateAfter?: string;
     limit?: number;
     orderByDate?: boolean;
   } = {},
@@ -234,14 +236,8 @@ export async function listTransactions(
   const constraints = [];
   if (opts.yearMonth) {
     constraints.push(where('yearMonth', '==', opts.yearMonth));
-  } else if (opts.yearMonthIn && opts.yearMonthIn.length > 0) {
-    // Firestore `in` queries cap at 30 values; we cap at 30 here to
-    // surface the limit rather than silently truncate. Caller must
-    // chunk if they need more.
-    if (opts.yearMonthIn.length > 30) {
-      throw new Error(`yearMonthIn capped at 30 values (got ${opts.yearMonthIn.length})`);
-    }
-    constraints.push(where('yearMonth', 'in', opts.yearMonthIn));
+  } else if (opts.dateAfter) {
+    constraints.push(where('date', '>=', opts.dateAfter));
   }
   if (orderByDate) constraints.push(orderBy('date', 'desc'));
   if (opts.limit) constraints.push(fsLimit(opts.limit));

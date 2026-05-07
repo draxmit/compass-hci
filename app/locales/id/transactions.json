@@ -118,7 +118,9 @@
     "accountAll": "Semua akun",
     "accountCount_one": "{{count}} akun",
     "accountCount_other": "{{count}} akun",
-    "accountPickerEmpty": "Belum ada akun. Tambah di Profil → Akun."
+    "accountPickerEmpty": "Belum ada akun. Tambah di Profil → Akun.",
+    "openSheet": "Filter",
+    "sheetTitle": "Filter"
   },
   "presets": {
     "savedLabel": "Tersimpan",

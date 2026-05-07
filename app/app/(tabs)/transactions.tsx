@@ -4,11 +4,12 @@ import type {
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { Bookmark, BookmarkPlus, ChevronDown, Plus, X } from 'lucide-react-native';
+import { Bookmark, BookmarkPlus, ChevronDown, Plus, SlidersHorizontal, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import type { GestureResponderEvent } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
@@ -17,6 +18,7 @@ import {
 } from '@/services/firestore/savedFiltersService';
 import { subscribeRecent } from '@/services/firestore/transactionsService';
 import { useAuthUser, useUserDoc } from '@/stores/authStore';
+import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -54,6 +56,12 @@ export default function TransactionsScreen() {
   const userDoc = useUserDoc();
   const displayInIDR = userDoc?.displayInIDR ?? false;
   const wid = user ? `solo-${user.uid}` : null;
+  const isDesktop = useIsDesktop();
+  const insets = useSafeAreaInsets();
+  // Mobile-only: filters live behind a single 'Filters' button + bottom-
+  // sheet rather than 5 inline pills. Desktop has horizontal real estate
+  // for the pill row.
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
 
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -507,149 +515,232 @@ export default function TransactionsScreen() {
           </View>
         ) : null}
 
-        {/* Filter pills — two compact dropdowns + optional Clear link.
-            Tapping a pill expands its options below; only one expanded
-            at a time. Hidden when there are no transactions to filter. */}
+        {/* Filters — desktop has horizontal real estate for an inline
+            pill row; mobile collapses everything behind a single
+            'Filters' button + bottom-sheet modal. The active-filter
+            count is shown as a small badge on the button so the user
+            can scan whether anything is filtering at a glance. */}
         {txs.length > 0 ? (
-        <>
-        <View className="flex-row flex-wrap items-center mb-2" style={{ gap: 6 }}>
-          <FilterPill
-            label={t('transactions:entry.fields.type')}
-            value={typeChips.find((c) => c.key === typeFilter)?.label ?? ''}
-            isActive={typeFilter !== 'all'}
-            open={openFilter === 'type'}
-            onPress={() => setOpenFilter((cur) => (cur === 'type' ? null : 'type'))}
-            isDark={isDark}
-          />
-          <FilterPill
-            label={t('transactions:entry.fields.date')}
-            value={dateChips.find((c) => c.key === dateFilter)?.label ?? ''}
-            isActive={dateFilter !== 'this_month'}
-            open={openFilter === 'date'}
-            onPress={() => setOpenFilter((cur) => (cur === 'date' ? null : 'date'))}
-            isDark={isDark}
-          />
-          <FilterPill
-            label={t('transactions:filters.tagsLabel')}
-            value={tagFilter.length === 0
-              ? t('transactions:filters.tagsAll')
-              : t('transactions:filters.tagsCount', { count: tagFilter.length, context: tagFilter.length === 1 ? 'one' : 'other' })}
-            isActive={tagFilter.length > 0}
-            open={openFilter === 'tags'}
-            onPress={() => setOpenFilter((cur) => (cur === 'tags' ? null : 'tags'))}
-            isDark={isDark}
-          />
-          {/* v3 phase A — 5: Category + Account filter pills. Pattern
-              mirrors the tag pill above (multi-select, ANY-match, count
-              displayed when applied). */}
-          <FilterPill
-            label={t('transactions:filters.categoryLabel')}
-            value={categoryFilter.length === 0
-              ? t('transactions:filters.categoryAll')
-              : t('transactions:filters.categoryCount', { count: categoryFilter.length, context: categoryFilter.length === 1 ? 'one' : 'other' })}
-            isActive={categoryFilter.length > 0}
-            open={openFilter === 'category'}
-            onPress={() => setOpenFilter((cur) => (cur === 'category' ? null : 'category'))}
-            isDark={isDark}
-          />
-          <FilterPill
-            label={t('transactions:filters.accountLabel')}
-            value={accountFilter.length === 0
-              ? t('transactions:filters.accountAll')
-              : t('transactions:filters.accountCount', { count: accountFilter.length, context: accountFilter.length === 1 ? 'one' : 'other' })}
-            isActive={accountFilter.length > 0}
-            open={openFilter === 'account'}
-            onPress={() => setOpenFilter((cur) => (cur === 'account' ? null : 'account'))}
-            isDark={isDark}
-          />
-          {filtersDirty ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('transactions:filters.clear')}
-              onPress={resetFilters}
-              hitSlop={8}
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginLeft: 'auto',
-              }}
-            >
-              <X size={12} color={mutedColor} />
-            </Pressable>
-          ) : null}
-        </View>
+          isDesktop ? (
+            <>
+              <View className="flex-row flex-wrap items-center mb-2" style={{ gap: 6 }}>
+                <FilterPill
+                  label={t('transactions:entry.fields.type')}
+                  value={typeChips.find((c) => c.key === typeFilter)?.label ?? ''}
+                  isActive={typeFilter !== 'all'}
+                  open={openFilter === 'type'}
+                  onPress={() => setOpenFilter((cur) => (cur === 'type' ? null : 'type'))}
+                  isDark={isDark}
+                />
+                <FilterPill
+                  label={t('transactions:entry.fields.date')}
+                  value={dateChips.find((c) => c.key === dateFilter)?.label ?? ''}
+                  isActive={dateFilter !== 'this_month'}
+                  open={openFilter === 'date'}
+                  onPress={() => setOpenFilter((cur) => (cur === 'date' ? null : 'date'))}
+                  isDark={isDark}
+                />
+                <FilterPill
+                  label={t('transactions:filters.tagsLabel')}
+                  value={tagFilter.length === 0
+                    ? t('transactions:filters.tagsAll')
+                    : t('transactions:filters.tagsCount', { count: tagFilter.length, context: tagFilter.length === 1 ? 'one' : 'other' })}
+                  isActive={tagFilter.length > 0}
+                  open={openFilter === 'tags'}
+                  onPress={() => setOpenFilter((cur) => (cur === 'tags' ? null : 'tags'))}
+                  isDark={isDark}
+                />
+                <FilterPill
+                  label={t('transactions:filters.categoryLabel')}
+                  value={categoryFilter.length === 0
+                    ? t('transactions:filters.categoryAll')
+                    : t('transactions:filters.categoryCount', { count: categoryFilter.length, context: categoryFilter.length === 1 ? 'one' : 'other' })}
+                  isActive={categoryFilter.length > 0}
+                  open={openFilter === 'category'}
+                  onPress={() => setOpenFilter((cur) => (cur === 'category' ? null : 'category'))}
+                  isDark={isDark}
+                />
+                <FilterPill
+                  label={t('transactions:filters.accountLabel')}
+                  value={accountFilter.length === 0
+                    ? t('transactions:filters.accountAll')
+                    : t('transactions:filters.accountCount', { count: accountFilter.length, context: accountFilter.length === 1 ? 'one' : 'other' })}
+                  isActive={accountFilter.length > 0}
+                  open={openFilter === 'account'}
+                  onPress={() => setOpenFilter((cur) => (cur === 'account' ? null : 'account'))}
+                  isDark={isDark}
+                />
+                {filtersDirty ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('transactions:filters.clear')}
+                    onPress={resetFilters}
+                    hitSlop={8}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginLeft: 'auto',
+                    }}
+                  >
+                    <X size={12} color={mutedColor} />
+                  </Pressable>
+                ) : null}
+              </View>
 
-        {/* Expanded options for the open pill. */}
-        {openFilter === 'type' ? (
-          <FilterOptionPanel
-            options={typeChips}
-            selectedKey={typeFilter}
-            onSelect={(key) => {
-              setTypeFilter(key);
-              setOpenFilter(null);
-            }}
-            isDark={isDark}
-          />
-        ) : null}
-        {openFilter === 'date' ? (
-          <FilterOptionPanel
-            options={dateChips}
-            selectedKey={dateFilter}
-            onSelect={(key) => {
-              setDateFilter(key);
-              setOpenFilter(null);
-            }}
-            isDark={isDark}
-          />
-        ) : null}
-        {openFilter === 'tags' ? (
-          <TagFilterPanel
-            tagFrequencies={tagFrequencies}
-            selectedTags={tagFilter}
-            onToggle={(tag) => {
-              setTagFilter((cur) => (cur.includes(tag)
-                ? cur.filter((t) => t !== tag)
-                : [...cur, tag]));
-            }}
-            isDark={isDark}
-            t={t}
-          />
-        ) : null}
-        {openFilter === 'category' ? (
-          <CategoryFilterPanel
-            categories={categories}
-            selectedCategoryIds={categoryFilter}
-            onToggle={(catId) => {
-              setCategoryFilter((cur) => (cur.includes(catId)
-                ? cur.filter((c) => c !== catId)
-                : [...cur, catId]));
-            }}
-            isDark={isDark}
-            lang={lang}
-            t={t}
-          />
-        ) : null}
-        {openFilter === 'account' ? (
-          <AccountFilterPanel
-            accounts={accounts}
-            selectedAccountIds={accountFilter}
-            onToggle={(accId) => {
-              setAccountFilter((cur) => (cur.includes(accId)
-                ? cur.filter((a) => a !== accId)
-                : [...cur, accId]));
-            }}
-            isDark={isDark}
-            t={t}
-          />
-        ) : null}
+              {/* Expanded options for the open pill (desktop only — mobile
+                  uses the bottom sheet below where every panel is shown
+                  stacked). */}
+              {openFilter === 'type' ? (
+                <FilterOptionPanel
+                  options={typeChips}
+                  selectedKey={typeFilter}
+                  onSelect={(key) => {
+                    setTypeFilter(key);
+                    setOpenFilter(null);
+                  }}
+                  isDark={isDark}
+                />
+              ) : null}
+              {openFilter === 'date' ? (
+                <FilterOptionPanel
+                  options={dateChips}
+                  selectedKey={dateFilter}
+                  onSelect={(key) => {
+                    setDateFilter(key);
+                    setOpenFilter(null);
+                  }}
+                  isDark={isDark}
+                />
+              ) : null}
+              {openFilter === 'tags' ? (
+                <TagFilterPanel
+                  tagFrequencies={tagFrequencies}
+                  selectedTags={tagFilter}
+                  onToggle={(tag) => {
+                    setTagFilter((cur) => (cur.includes(tag)
+                      ? cur.filter((t) => t !== tag)
+                      : [...cur, tag]));
+                  }}
+                  isDark={isDark}
+                  t={t}
+                />
+              ) : null}
+              {openFilter === 'category' ? (
+                <CategoryFilterPanel
+                  categories={categories}
+                  selectedCategoryIds={categoryFilter}
+                  onToggle={(catId) => {
+                    setCategoryFilter((cur) => (cur.includes(catId)
+                      ? cur.filter((c) => c !== catId)
+                      : [...cur, catId]));
+                  }}
+                  isDark={isDark}
+                  lang={lang}
+                  t={t}
+                />
+              ) : null}
+              {openFilter === 'account' ? (
+                <AccountFilterPanel
+                  accounts={accounts}
+                  selectedAccountIds={accountFilter}
+                  onToggle={(accId) => {
+                    setAccountFilter((cur) => (cur.includes(accId)
+                      ? cur.filter((a) => a !== accId)
+                      : [...cur, accId]));
+                  }}
+                  isDark={isDark}
+                  t={t}
+                />
+              ) : null}
 
-        <View className="mb-3" />
-        </>
+              <View className="mb-3" />
+            </>
+          ) : (
+            // ----- MOBILE: single Filters button + bottom sheet -----
+            <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('transactions:filters.openSheet')}
+                onPress={() => setFiltersSheetOpen(true)}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: filtersDirty ? tokens.accent.dashboard : borderColor,
+                  backgroundColor: filtersDirty ? tokens.accent.dashboard + '14' : 'transparent',
+                  minHeight: 36,
+                }}
+              >
+                <View className="flex-row items-center" style={{ gap: 8 }}>
+                  <SlidersHorizontal
+                    size={14}
+                    color={filtersDirty ? tokens.accent.dashboard : mutedColor}
+                  />
+                  <Text
+                    className="font-sans-medium text-sm"
+                    style={{ color: filtersDirty ? tokens.accent.dashboard : fgColor }}
+                  >
+                    {t('transactions:filters.openSheet')}
+                  </Text>
+                </View>
+                {(() => {
+                  const activeCount =
+                    (typeFilter !== 'all' ? 1 : 0)
+                    + (dateFilter !== 'this_month' ? 1 : 0)
+                    + (tagFilter.length > 0 ? 1 : 0)
+                    + (categoryFilter.length > 0 ? 1 : 0)
+                    + (accountFilter.length > 0 ? 1 : 0);
+                  if (activeCount === 0) return null;
+                  return (
+                    <View
+                      style={{
+                        minWidth: 20,
+                        height: 20,
+                        paddingHorizontal: 6,
+                        borderRadius: 10,
+                        backgroundColor: tokens.accent.dashboard,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text className="font-sans-bold text-[11px]" style={{ color: '#fff' }}>
+                        {activeCount}
+                      </Text>
+                    </View>
+                  );
+                })()}
+              </Pressable>
+              {filtersDirty ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('transactions:filters.clear')}
+                  onPress={resetFilters}
+                  hitSlop={8}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <X size={14} color={mutedColor} />
+                </Pressable>
+              ) : null}
+            </View>
+          )
         ) : null}
 
         {!txsLoaded ? null : grouped.length === 0 ? (
@@ -769,6 +860,167 @@ export default function TransactionsScreen() {
           ))
         )}
       </View>
+      {/* Mobile filters bottom-sheet. Modal slides up; backdrop dismisses;
+          contains every dimension as a stacked section so the user
+          edits all filters in one place rather than tap-pill-tap-pill. */}
+      <Modal
+        visible={filtersSheetOpen && !isDesktop}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFiltersSheetOpen(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            justifyContent: 'flex-end',
+          }}
+          onPress={() => setFiltersSheetOpen(false)}
+        >
+          <Pressable
+            // Stop propagation so taps inside the sheet don't dismiss.
+            onPress={(e: GestureResponderEvent) => e.stopPropagation()}
+            style={{
+              backgroundColor: isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'],
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingTop: 12,
+              paddingBottom: 16 + insets.bottom,
+              maxHeight: '85%',
+            }}
+          >
+            {/* Sheet handle */}
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: borderColor,
+                marginBottom: 12,
+              }}
+            />
+            {/* Sheet header */}
+            <View className="flex-row items-center justify-between px-5 mb-3">
+              <Text className="font-sans-bold text-lg" style={{ color: fgColor }}>
+                {t('transactions:filters.sheetTitle')}
+              </Text>
+              <View className="flex-row items-center" style={{ gap: 12 }}>
+                {filtersDirty ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('transactions:filters.clear')}
+                    onPress={resetFilters}
+                  >
+                    <Text className="font-sans-medium text-sm" style={{ color: tokens.accent.dashboard }}>
+                      {t('transactions:filters.clear')}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common:actions.close')}
+                  onPress={() => setFiltersSheetOpen(false)}
+                  hitSlop={8}
+                >
+                  <X size={20} color={fgColor} />
+                </Pressable>
+              </View>
+            </View>
+            {/* Sheet body — stacked filter sections, all expanded. */}
+            <ScrollView
+              style={{ paddingHorizontal: 20 }}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Type */}
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-2" style={{ color: mutedColor }}>
+                {t('transactions:entry.fields.type')}
+              </Text>
+              <FilterOptionPanel
+                options={typeChips}
+                selectedKey={typeFilter}
+                onSelect={(key) => setTypeFilter(key)}
+                isDark={isDark}
+              />
+              {/* Date */}
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
+                {t('transactions:entry.fields.date')}
+              </Text>
+              <FilterOptionPanel
+                options={dateChips}
+                selectedKey={dateFilter}
+                onSelect={(key) => setDateFilter(key)}
+                isDark={isDark}
+              />
+              {/* Tags */}
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
+                {t('transactions:filters.tagsLabel')}
+              </Text>
+              <TagFilterPanel
+                tagFrequencies={tagFrequencies}
+                selectedTags={tagFilter}
+                onToggle={(tag) => {
+                  setTagFilter((cur) => (cur.includes(tag)
+                    ? cur.filter((x) => x !== tag)
+                    : [...cur, tag]));
+                }}
+                isDark={isDark}
+                t={t}
+              />
+              {/* Category */}
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
+                {t('transactions:filters.categoryLabel')}
+              </Text>
+              <CategoryFilterPanel
+                categories={categories}
+                selectedCategoryIds={categoryFilter}
+                onToggle={(catId) => {
+                  setCategoryFilter((cur) => (cur.includes(catId)
+                    ? cur.filter((c) => c !== catId)
+                    : [...cur, catId]));
+                }}
+                isDark={isDark}
+                lang={lang}
+                t={t}
+              />
+              {/* Account */}
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
+                {t('transactions:filters.accountLabel')}
+              </Text>
+              <AccountFilterPanel
+                accounts={accounts}
+                selectedAccountIds={accountFilter}
+                onToggle={(accId) => {
+                  setAccountFilter((cur) => (cur.includes(accId)
+                    ? cur.filter((a) => a !== accId)
+                    : [...cur, accId]));
+                }}
+                isDark={isDark}
+                t={t}
+              />
+              {/* Done CTA */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('common:actions.done')}
+                onPress={() => setFiltersSheetOpen(false)}
+                style={{
+                  marginTop: 20,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  backgroundColor: tokens.accent.dashboard,
+                  alignItems: 'center',
+                  minHeight: 44,
+                }}
+              >
+                <Text className="font-sans-medium text-white text-sm">
+                  {t('common:actions.done')}
+                </Text>
+              </Pressable>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }

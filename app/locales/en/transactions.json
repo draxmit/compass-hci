@@ -118,7 +118,9 @@
     "accountAll": "Any account",
     "accountCount_one": "{{count}} account",
     "accountCount_other": "{{count}} accounts",
-    "accountPickerEmpty": "No accounts yet. Add one from Profile → Accounts."
+    "accountPickerEmpty": "No accounts yet. Add one from Profile → Accounts.",
+    "openSheet": "Filters",
+    "sheetTitle": "Filters"
   },
   "presets": {
     "savedLabel": "Saved",
