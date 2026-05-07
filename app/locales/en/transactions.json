@@ -103,5 +103,18 @@
     "tagsPickerEmpty": "No tags applied yet. Add tags to a transaction first.",
     "tagsPickerCount_one": "{{count}} tx",
     "tagsPickerCount_other": "{{count}} txs"
+  },
+  "presets": {
+    "savedLabel": "Saved",
+    "saveCta": "Save these filters",
+    "saveTitle": "Save preset",
+    "savePlaceholder": "Preset name",
+    "saveAction": "Save",
+    "cancelAction": "Cancel",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete preset?",
+    "deleteConfirmBody": "\"{{name}}\" will be removed.",
+    "saveFailedTitle": "Couldn't save preset",
+    "saveFailed": "Try again."
   }
 }

@@ -103,5 +103,18 @@
     "tagsPickerEmpty": "Belum ada label. Tambahkan label di transaksi dulu.",
     "tagsPickerCount_one": "{{count}} tx",
     "tagsPickerCount_other": "{{count}} tx"
+  },
+  "presets": {
+    "savedLabel": "Tersimpan",
+    "saveCta": "Simpan filter ini",
+    "saveTitle": "Simpan preset",
+    "savePlaceholder": "Nama preset",
+    "saveAction": "Simpan",
+    "cancelAction": "Batal",
+    "delete": "Hapus",
+    "deleteConfirmTitle": "Hapus preset?",
+    "deleteConfirmBody": "\"{{name}}\" akan dihapus.",
+    "saveFailedTitle": "Gagal menyimpan preset",
+    "saveFailed": "Coba lagi."
   }
 }

@@ -325,6 +325,29 @@ export type Goal = {
 };
 
 /**
+ * Saved filter preset (v2 / ADR-18). Captures a snapshot of the
+ * /transactions filter state so users can re-apply common queries
+ * with a single tap (e.g. "Cafe expenses this month", "Anything
+ * tagged bandung-trip"). Persisted per-workspace; shared across
+ * devices via the existing Firestore subscription.
+ *
+ * Path: `workspaces/{wid}/saved_filters/{id}`.
+ */
+export type SavedFilter = {
+  id: string;
+  name: string;
+  /** Free-text search substring — matches Transaction.description. */
+  search: string;
+  /** 'all' or one of the TransactionType values. */
+  typeFilter: 'all' | TransactionType;
+  /** 'this_month' | 'last_month' | 'all_time'. */
+  dateFilter: 'this_month' | 'last_month' | 'all_time';
+  /** Tags applied (ANY-match semantics, mirrors the live tag filter). */
+  tagFilter: string[];
+  createdAt: unknown;
+};
+
+/**
  * Budget style — v1 ships only `monthly_limit`; envelope + 50/30/20 are
  * schema-forward placeholders so v2 can reuse the Budget doc shape without
  * a migration.

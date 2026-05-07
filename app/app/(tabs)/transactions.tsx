@@ -1,20 +1,26 @@
-import type { Account, Category, Transaction, TransactionType } from '@compass/shared-types';
+import type {
+  Account, Category, SavedFilter, Transaction, TransactionType,
+} from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { ChevronDown, Plus, X } from 'lucide-react-native';
+import { Bookmark, BookmarkPlus, ChevronDown, Plus, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
+import {
+  createSavedFilter, deleteSavedFilter, subscribeSavedFilters,
+} from '@/services/firestore/savedFiltersService';
 import { subscribeRecent } from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
@@ -39,6 +45,7 @@ type DateFilter = 'this_month' | 'last_month' | 'all_time';
 export default function TransactionsScreen() {
   const { t, i18n } = useTranslation(['transactions', 'accounts', 'common']);
   const router = useRouter();
+  const appAlert = useAppAlert();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
@@ -58,6 +65,13 @@ export default function TransactionsScreen() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('this_month');
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  // Active preset id when one was just applied — drives the filled
+  // bookmark icon. Cleared on any filter change so the chip "deselects"
+  // when the user adjusts a filter manually.
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  // Save-as-preset inline editor state. `null` means closed.
+  const [savePresetDraft, setSavePresetDraft] = useState<string | null>(null);
   // Selected tags — AND-semantics with the other filters; ANY-semantics
   // within: a tx matches if ANY of the selected tags appears in its
   // tag list. (Most users picking 2+ tags want "either/or" not "both",
@@ -75,7 +89,8 @@ export default function TransactionsScreen() {
     });
     const unsubA = subscribeAccounts(wid, setAccounts);
     const unsubC = subscribeCategories(wid, setCategories);
-    return () => { unsubT(); unsubA(); unsubC(); };
+    const unsubS = subscribeSavedFilters(wid, setSavedFilters);
+    return () => { unsubT(); unsubA(); unsubC(); unsubS(); };
   }, [wid]);
 
   const accountsById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -107,6 +122,75 @@ export default function TransactionsScreen() {
   // filtered set. Otherwise applying one tag filter would empty the
   // "available tags" list.
   const tagFrequencies = useMemo(() => collectTagFrequencies(txs), [txs]);
+
+  // Clear the active-preset highlight when the user manually diverges
+  // from the preset's stored config. Otherwise a tweaked filter would
+  // still claim the preset's chip is "active". Cheap shallow compare;
+  // the tag-array order check uses every() because tags are unsorted
+  // but ANY-semantics make order irrelevant.
+  useEffect(() => {
+    if (!activePresetId) return;
+    const preset = savedFilters.find((p) => p.id === activePresetId);
+    if (!preset) {
+      setActivePresetId(null);
+      return;
+    }
+    const matches =
+      preset.search === search
+      && preset.typeFilter === typeFilter
+      && preset.dateFilter === dateFilter
+      && preset.tagFilter.length === tagFilter.length
+      && preset.tagFilter.every((t) => tagFilter.includes(t));
+    if (!matches) setActivePresetId(null);
+  }, [activePresetId, savedFilters, search, typeFilter, dateFilter, tagFilter]);
+
+  const applyPreset = (preset: SavedFilter) => {
+    setSearch(preset.search);
+    setTypeFilter(preset.typeFilter);
+    setDateFilter(preset.dateFilter);
+    setTagFilter(preset.tagFilter);
+    setActivePresetId(preset.id);
+    setOpenFilter(null);
+  };
+
+  const handleSavePreset = async (name: string) => {
+    if (!wid) return;
+    const trimmed = name.trim();
+    if (trimmed.length === 0) return;
+    try {
+      const id = await createSavedFilter(wid, {
+        name: trimmed,
+        search,
+        typeFilter,
+        dateFilter,
+        tagFilter,
+      });
+      setActivePresetId(id);
+      setSavePresetDraft(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t('transactions:presets.saveFailed');
+      appAlert(t('transactions:presets.saveFailedTitle'), msg);
+    }
+  };
+
+  const handleDeletePreset = (preset: SavedFilter) => {
+    if (!wid) return;
+    appAlert(
+      t('transactions:presets.deleteConfirmTitle'),
+      t('transactions:presets.deleteConfirmBody', { name: preset.name }),
+      [
+        { text: t('common:actions.cancel'), style: 'cancel' },
+        {
+          text: t('transactions:presets.delete'),
+          style: 'destructive',
+          onPress: () => {
+            void deleteSavedFilter(wid, preset.id).catch(() => { /* best-effort */ });
+            if (activePresetId === preset.id) setActivePresetId(null);
+          },
+        },
+      ],
+    );
+  };
 
   const grouped = useMemo(() => {
     const groups = new Map<string, Transaction[]>();
@@ -155,6 +239,167 @@ export default function TransactionsScreen() {
               autoCapitalize="none"
               returnKeyType="search"
             />
+          </View>
+        ) : null}
+
+        {/* Saved-filter chips (ADR-18) — quick-apply common queries.
+            Hidden when there are no presets AND no dirty filters to
+            save. The Save chip appears at the end of the row when
+            filters are dirty + nothing matches. */}
+        {txs.length > 0 && (savedFilters.length > 0 || filtersDirty) ? (
+          <View className="mb-3">
+            {savePresetDraft !== null ? (
+              <View
+                className="flex-row items-center mb-2"
+                style={{ gap: 8 }}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: tokens.accent.transactions,
+                    backgroundColor: tokens.accent.transactions + '14',
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    minHeight: 36,
+                  }}
+                >
+                  <BookmarkPlus size={14} color={tokens.accent.transactions} />
+                  <TextInput
+                    value={savePresetDraft}
+                    onChangeText={setSavePresetDraft}
+                    placeholder={t('transactions:presets.savePlaceholder')}
+                    placeholderTextColor={mutedColor}
+                    autoFocus
+                    onSubmitEditing={() => {
+                      if (savePresetDraft && savePresetDraft.trim().length > 0) {
+                        void handleSavePreset(savePresetDraft);
+                      }
+                    }}
+                    returnKeyType="done"
+                    style={{
+                      flex: 1,
+                      color: fgColor,
+                      fontSize: 13,
+                      paddingVertical: 0,
+                      paddingHorizontal: 0,
+                    }}
+                    underlineColorAndroid="transparent"
+                  />
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('transactions:presets.saveAction')}
+                  onPress={() => {
+                    if (savePresetDraft && savePresetDraft.trim().length > 0) {
+                      void handleSavePreset(savePresetDraft);
+                    }
+                  }}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 16,
+                    backgroundColor: tokens.accent.transactions,
+                    minHeight: 36,
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text className="font-sans-medium text-xs text-white">
+                    {t('transactions:presets.saveAction')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('transactions:presets.cancelAction')}
+                  onPress={() => setSavePresetDraft(null)}
+                  hitSlop={6}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <X size={14} color={mutedColor} />
+                </Pressable>
+              </View>
+            ) : null}
+            <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+              {savedFilters.map((preset) => {
+                const active = preset.id === activePresetId;
+                return (
+                  <Pressable
+                    key={preset.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => applyPreset(preset)}
+                    onLongPress={() => handleDeletePreset(preset)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: active ? tokens.accent.transactions : borderColor,
+                      backgroundColor: active
+                        ? tokens.accent.transactions + '14'
+                        : 'transparent',
+                      minHeight: 32,
+                    }}
+                  >
+                    <Bookmark
+                      size={12}
+                      color={active ? tokens.accent.transactions : mutedColor}
+                      fill={active ? tokens.accent.transactions : 'transparent'}
+                    />
+                    <Text
+                      className="font-sans-medium text-xs"
+                      style={{
+                        color: active ? tokens.accent.transactions : fgColor,
+                      }}
+                    >
+                      {preset.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {filtersDirty && activePresetId === null && savePresetDraft === null ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('transactions:presets.saveCta')}
+                  onPress={() => setSavePresetDraft('')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor,
+                    borderStyle: 'dashed',
+                    minHeight: 32,
+                  }}
+                >
+                  <BookmarkPlus size={12} color={mutedColor} />
+                  <Text
+                    className="font-sans text-xs"
+                    style={{ color: mutedColor }}
+                  >
+                    {t('transactions:presets.saveCta')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
         ) : null}
 
