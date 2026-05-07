@@ -137,11 +137,13 @@ export default function BudgetsScreen() {
 
   // This-month income — one-shot, drives the 50/30/20 bucket targets.
   // The 50-tx subscription on Recent isn't enough (income txs often fall
-  // outside the recent slice), so we read by yearMonth here.
+  // outside the recent slice), so we read by yearMonth here. Pass
+  // orderByDate: false to skip the (yearMonth, date) composite-index
+  // dependency — the income sum is order-agnostic.
   useEffect(() => {
     if (!wid || selectedStyle !== 'fifty_thirty_twenty') return;
     let cancelled = false;
-    void listTransactions(wid, { yearMonth }).then((txs) => {
+    void listTransactions(wid, { yearMonth, orderByDate: false }).then((txs) => {
       if (cancelled) return;
       setMonthIncomeMinor(sumMonthIncome(txs, yearMonth));
     }).catch((err: unknown) => {
