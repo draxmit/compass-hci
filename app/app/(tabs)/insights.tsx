@@ -191,7 +191,6 @@ export default function InsightsScreen() {
       if (!split) continue;
       const cat = categoriesById.get(split.categoryId);
       if (!cat) continue;
-      const baselineArr = totalsByCategory.get(split.categoryId) ?? [];
       // Approximate "biasanya" via avg-amount-per-transaction in past months —
       // pull from category_month_totals (totalIDR / txCount). Per ADR-13 §5
       // option B (approximate, not true median).
@@ -207,12 +206,34 @@ export default function InsightsScreen() {
       if (tx.amount < ANOMALY_MIN_AMOUNT) continue;
       if (tx.amount < baselineAvgPerTx * ANOMALY_TX_RATIO) continue;
       txOuts.push({ kind: 'transaction', category: cat, tx, baseline: baselineAvgPerTx });
-      // suppress unused
-      void baselineArr;
     }
     txOuts.sort((a, b) => b.tx.amount - a.tx.amount);
+    const txOutsCapped = txOuts.slice(0, 3);
 
-    return [...categoryOuts, ...txOuts.slice(0, 3)].slice(0, ANOMALY_MAX_CALLOUTS);
+    // Dedupe: when a category-anomaly is mostly explained by a single-tx
+    // anomaly in the SAME category, drop the category callout. The
+    // single-tx callout is more specific and informative — surfacing
+    // both for the same root cause reads as redundant noise to the user.
+    // "Mostly explained" = the single tx accounts for ≥ 70% of the
+    // category's overage above baseline.
+    //
+    // Type-narrow `categoryOuts` to AnomalyCategory[] — by construction
+    // it only contains category anomalies (we only push that kind into
+    // `out` at this point), but TS can't infer that from the loose
+    // Anomaly[] type.
+    const categoryOnly = categoryOuts.filter(
+      (a): a is AnomalyCategory => a.kind === 'category',
+    );
+    const txCatIds = new Set(txOutsCapped.map((t) => t.category.id));
+    const dedupedCategoryOuts = categoryOnly.filter((c) => {
+      if (!txCatIds.has(c.category.id)) return true;
+      const overage = c.current - c.baseline;
+      const biggestTx = txOutsCapped.find((t) => t.category.id === c.category.id);
+      if (!biggestTx) return true;
+      return biggestTx.tx.amount < overage * 0.7;
+    });
+
+    return [...dedupedCategoryOuts, ...txOutsCapped].slice(0, ANOMALY_MAX_CALLOUTS);
   }, [loaded, trend.length, trendCmts, thisMonthTotals, thisMonthTxs, categoriesById]);
 
   // ----- Heatmap data — driven by heatmapIdx (0 = current, higher = older) -----
@@ -438,10 +459,11 @@ export default function InsightsScreen() {
               </Text>
             ) : (
               <View style={{ gap: 10 }}>
-                {[...trend].reverse().map((m, idx) => {
-                  // [...].reverse() so oldest renders first (left-to-right
-                  // chronological reading order for the bar stack).
-                  const isCurrent = idx === trend.length - 1;
+                {trend.map((m, idx) => {
+                  // Newest first (current month at the top, oldest at the
+                  // bottom). Matches the user's mental model of "where am
+                  // I now" + "vs the recent past".
+                  const isCurrent = idx === 0;
                   const max = trend.reduce((mx, x) => Math.max(mx, x.total), 0);
                   const pct = max === 0 ? 0 : m.total / max;
                   const monthDate = new Date(`${m.yearMonth}-01T00:00:00`);
