@@ -190,9 +190,11 @@ export type Currency =
 
 /**
  * Account types — top-level grouping for the accounts list (T5 / ADR-06).
- * Investment accounts are out of scope for v1; landing in v3.
+ * Investment accounts (reksadana / saham / crypto) shipped in v3 phase A
+ * with manual balance entry; live valuation deferred to v3.5.
  */
-export type AccountType = 'cash' | 'bank' | 'ewallet' | 'credit_card';
+export type AccountType =
+  | 'cash' | 'bank' | 'ewallet' | 'credit_card' | 'investment';
 
 /**
  * Curated account-subtype keys for the Indonesian audience. Mostly proper
@@ -212,7 +214,9 @@ export type AccountSubtype =
   // e-wallets
   | 'gopay' | 'ovo' | 'dana' | 'shopeepay' | 'linkaja' | 'doku' | 'ewallet_other'
   // credit cards
-  | 'visa' | 'mastercard' | 'jcb' | 'amex' | 'card_other';
+  | 'visa' | 'mastercard' | 'jcb' | 'amex' | 'card_other'
+  // investments (v3 phase A)
+  | 'reksadana' | 'saham' | 'crypto' | 'investment_other';
 
 /**
  * Account document.

@@ -1,6 +1,6 @@
 {
   "title": "Akun",
-  "tagline": "Atur akun bank, e-wallet, dan kartu kreditmu.",
+  "tagline": "Atur akun bank, e-wallet, kartu kredit, dan investasimu.",
   "add": "Tambah akun",
   "edit": "Ubah akun",
   "addNew": "Tambah",
@@ -19,7 +19,8 @@
     "cash": "Tunai",
     "bank": "Bank",
     "ewallet": "E-Wallet",
-    "credit_card": "Kartu Kredit"
+    "credit_card": "Kartu Kredit",
+    "investment": "Investasi"
   },
   "fields": {
     "name": "Nama",
@@ -80,6 +81,10 @@
     "mastercard": "Mastercard",
     "jcb": "JCB",
     "amex": "Amex",
-    "card_other": "Kartu Lainnya"
+    "card_other": "Kartu Lainnya",
+    "reksadana": "Reksa Dana",
+    "saham": "Saham",
+    "crypto": "Kripto",
+    "investment_other": "Investasi Lainnya"
   }
 }

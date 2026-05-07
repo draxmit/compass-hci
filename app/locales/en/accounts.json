@@ -1,6 +1,6 @@
 {
   "title": "Accounts",
-  "tagline": "Manage your bank, e-wallet, and credit-card accounts.",
+  "tagline": "Manage your bank, e-wallet, credit-card, and investment accounts.",
   "add": "Add account",
   "edit": "Edit account",
   "addNew": "Add",
@@ -19,7 +19,8 @@
     "cash": "Cash",
     "bank": "Bank",
     "ewallet": "E-Wallet",
-    "credit_card": "Credit Card"
+    "credit_card": "Credit Card",
+    "investment": "Investment"
   },
   "fields": {
     "name": "Name",
@@ -80,6 +81,10 @@
     "mastercard": "Mastercard",
     "jcb": "JCB",
     "amex": "Amex",
-    "card_other": "Other Card"
+    "card_other": "Other Card",
+    "reksadana": "Mutual Fund",
+    "saham": "Stocks",
+    "crypto": "Crypto",
+    "investment_other": "Other Investment"
   }
 }

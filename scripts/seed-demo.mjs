@@ -326,6 +326,10 @@ async function main() {
     // — appears on the dashboard net-worth via FX conversion + carries the
     // 'USD' badge on the accounts list row.
     { localKey: 'usd',   name: 'USD Savings',   type: 'bank',        subtype: 'bank_other', currency: 'USD', initialBalance: 215_000,     includedInNetWorth: true,  icon: 'landmark',    color: 'teal' },
+    // v3 phase A: showcase investment accounts. Reksa Dana (mutual fund)
+    // — manual balance entry; live valuation deferred to v3.5. Treated
+    // as an asset in the net-worth math.
+    { localKey: 'rd',    name: 'Reksa Dana BRI', type: 'investment', subtype: 'reksadana',  currency: 'IDR', initialBalance: 1_500_000_000, includedInNetWorth: true,  icon: 'briefcase',   color: 'teal' }, // Rp 15.000.000
   ];
   const acctIds = {};
   {

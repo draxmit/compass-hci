@@ -55,6 +55,16 @@ export const ACCOUNT_SUBTYPES: readonly SubtypeMeta[] = [
   { key: 'jcb',           type: 'credit_card', icon: 'credit-card', color: 'blue'   },
   { key: 'amex',          type: 'credit_card', icon: 'credit-card', color: 'green'  },
   { key: 'card_other',    type: 'credit_card', icon: 'credit-card', color: 'slate'  },
+
+  // Investments (v3 phase A — manual balance entry; live valuation
+  // deferred to v3.5). Iconography reuses the existing registry: stocks
+  // get the chart-going-up shape, mutual funds wear the briefcase, and
+  // crypto reuses coins (visually distinct enough next to a 'cash' row
+  // since the parent type group separates them).
+  { key: 'reksadana',         type: 'investment',  icon: 'briefcase',   color: 'teal'   },
+  { key: 'saham',             type: 'investment',  icon: 'trending-up', color: 'green'  },
+  { key: 'crypto',            type: 'investment',  icon: 'coins',       color: 'orange' },
+  { key: 'investment_other',  type: 'investment',  icon: 'briefcase',   color: 'slate'  },
 ];
 
 const SUBTYPE_BY_KEY: Map<AccountSubtype, SubtypeMeta> = new Map(
@@ -71,4 +81,6 @@ export function subtypesForType(type: AccountType): SubtypeMeta[] {
   return ACCOUNT_SUBTYPES.filter((s) => s.type === type);
 }
 
-export const ACCOUNT_TYPES: readonly AccountType[] = ['cash', 'bank', 'ewallet', 'credit_card'];
+export const ACCOUNT_TYPES: readonly AccountType[] = [
+  'cash', 'bank', 'ewallet', 'credit_card', 'investment',
+];
