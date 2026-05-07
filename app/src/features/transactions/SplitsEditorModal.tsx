@@ -64,16 +64,43 @@ export function SplitsEditorModal({
     <Modal
       visible={visible}
       onRequestClose={onClose}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      transparent={false}
+      animationType="fade"
+      transparent={true}
     >
-      <View style={{ flex: 1, backgroundColor: overlayBg, paddingTop: insets.top }}>
-        {/* Header — title + close X. Mirrors the rest of the app's
-            modal-stack style (back chevron is replaced with an explicit
-            Cancel here since this is a transient editor, not a route). */}
+      {/* Centered card popup, not a bottom sheet — fades in over a
+          tinted backdrop. Tap-outside dismisses (= cancel). The card
+          is capped at ~520px on web; on narrow mobile it falls back
+          to ~95% width with a small inset so it doesn't feel pinned
+          to the edges. */}
+      <Pressable
+        accessibilityLabel={t('common:actions.cancel')}
+        onPress={onClose}
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+          paddingTop: insets.top + 24,
+          paddingBottom: insets.bottom + 24,
+          paddingHorizontal: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* Inner Pressable swallows tap so clicks INSIDE the card
+            don't dismiss. */}
+        <Pressable
+          onPress={() => { /* swallow */ }}
+          style={{
+            width: '100%',
+            maxWidth: 520,
+            maxHeight: '100%',
+            borderRadius: 16,
+            backgroundColor: overlayBg,
+            overflow: 'hidden',
+          }}
+        >
+        {/* Header — title + Cancel / Done buttons. */}
         <View
-          className="flex-row items-center justify-between px-6"
+          className="flex-row items-center justify-between px-5"
           style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: borderColor }}
         >
           <Pressable
@@ -121,7 +148,7 @@ export function SplitsEditorModal({
               flexDirection: 'row',
               alignItems: 'center',
               gap: 8,
-              paddingHorizontal: 24,
+              paddingHorizontal: 20,
               paddingVertical: 10,
               backgroundColor: tokens.semantic.warning + '14',
               borderBottomWidth: 1,
@@ -138,33 +165,28 @@ export function SplitsEditorModal({
           </View>
         ) : null}
 
-        {/* Body — SplitsBlock reused as-is. No `Card` wrap here because
-            the block already provides its own. */}
+        {/* Body — SplitsBlock reused as-is. */}
         <ScrollView
-          contentContainerStyle={{
-            padding: 24,
-            paddingBottom: 24 + insets.bottom,
-          }}
+          contentContainerStyle={{ padding: 16 }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="self-center w-full max-w-md lg:max-w-3xl">
-            <SplitsBlock
-              rows={rows}
-              totalText={totalText}
-              categories={categories}
-              isDark={isDark}
-              lang={lang}
-              fgColor={fgColor}
-              mutedColor={mutedColor}
-              borderColor={borderColor}
-              onAddRow={onAddRow}
-              onRemoveRow={onRemoveRow}
-              onUpdateRow={onUpdateRow}
-              t={t}
-            />
-          </View>
+          <SplitsBlock
+            rows={rows}
+            totalText={totalText}
+            categories={categories}
+            isDark={isDark}
+            lang={lang}
+            fgColor={fgColor}
+            mutedColor={mutedColor}
+            borderColor={borderColor}
+            onAddRow={onAddRow}
+            onRemoveRow={onRemoveRow}
+            onUpdateRow={onUpdateRow}
+            t={t}
+          />
         </ScrollView>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

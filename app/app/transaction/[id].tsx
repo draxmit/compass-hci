@@ -646,7 +646,11 @@ function AccountPicker({
               <Text className="font-sans-medium text-sm flex-1" style={{ color: fgColor }} numberOfLines={1}>
                 {acct.name}
               </Text>
-              <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+              <Text
+                className="font-sans text-xs"
+                style={{ color: mutedColor, marginLeft: 6, maxWidth: '40%' }}
+                numberOfLines={1}
+              >
                 {t(`accounts:subtypes.${acct.subtype}`)}
               </Text>
             </Pressable>

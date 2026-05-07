@@ -8,6 +8,7 @@ import { Bookmark, BookmarkPlus, ChevronDown, Plus, X } from 'lucide-react-nativ
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
@@ -333,22 +334,23 @@ export default function TransactionsScreen() {
                 </Pressable>
               </View>
             ) : null}
-            <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+            {/* Preset chips — horizontal scroll instead of wrap so a
+                long preset list doesn't stack into multiple rows. The
+                Save CTA chip lives at the end of the same scroller
+                when filters are dirty + nothing matches. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 6, paddingRight: 4 }}
+            >
               {savedFilters.map((preset) => {
                 const active = preset.id === activePresetId;
                 return (
-                  <Pressable
+                  <View
                     key={preset.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    onPress={() => applyPreset(preset)}
-                    onLongPress={() => handleDeletePreset(preset)}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
-                      gap: 5,
-                      paddingHorizontal: 10,
-                      paddingVertical: 6,
                       borderRadius: 14,
                       borderWidth: 1,
                       borderColor: active ? tokens.accent.transactions : borderColor,
@@ -356,22 +358,65 @@ export default function TransactionsScreen() {
                         ? tokens.accent.transactions + '14'
                         : 'transparent',
                       minHeight: 32,
+                      overflow: 'hidden',
                     }}
                   >
-                    <Bookmark
-                      size={12}
-                      color={active ? tokens.accent.transactions : mutedColor}
-                      fill={active ? tokens.accent.transactions : 'transparent'}
-                    />
-                    <Text
-                      className="font-sans-medium text-xs"
+                    {/* Tap = apply preset. */}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={preset.name}
+                      onPress={() => applyPreset(preset)}
                       style={{
-                        color: active ? tokens.accent.transactions : fgColor,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 5,
+                        paddingLeft: 10,
+                        paddingRight: 4,
+                        paddingVertical: 6,
+                        minHeight: 32,
                       }}
                     >
-                      {preset.name}
-                    </Text>
-                  </Pressable>
+                      <Bookmark
+                        size={12}
+                        color={active ? tokens.accent.transactions : mutedColor}
+                        fill={active ? tokens.accent.transactions : 'transparent'}
+                      />
+                      <Text
+                        className="font-sans-medium text-xs"
+                        style={{
+                          color: active ? tokens.accent.transactions : fgColor,
+                        }}
+                      >
+                        {preset.name}
+                      </Text>
+                    </Pressable>
+                    {/* Explicit delete X — visible always, with hit-slop
+                        so it's tappable on mobile. stopPropagation
+                        keeps the parent chip's apply handler from
+                        firing on accidental edge taps. */}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t('transactions:presets.delete')}
+                      onPress={(e: GestureResponderEvent) => {
+                        e.stopPropagation();
+                        handleDeletePreset(preset);
+                      }}
+                      hitSlop={6}
+                      style={{
+                        paddingHorizontal: 6,
+                        paddingVertical: 6,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: 32,
+                      }}
+                    >
+                      <X
+                        size={12}
+                        color={active ? tokens.accent.transactions : mutedColor}
+                      />
+                    </Pressable>
+                  </View>
                 );
               })}
               {filtersDirty && activePresetId === null && savePresetDraft === null ? (
@@ -401,7 +446,7 @@ export default function TransactionsScreen() {
                   </Text>
                 </Pressable>
               ) : null}
-            </View>
+            </ScrollView>
           </View>
         ) : null}
 
