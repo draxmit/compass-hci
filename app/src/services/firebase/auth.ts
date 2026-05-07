@@ -164,6 +164,14 @@ export function useAuthSubscription(): void {
               migrateAccountBalancesToMinorUnits(wid),
             ),
           )
+          .then(() =>
+            // Migrate `users.primaryGoal` → real Goal doc + pinnedGoalId
+            // (ADR-20). Idempotent — bails when pinnedGoalId is already
+            // set, no-ops when there's no legacy text to migrate.
+            import('../firestore/goalsService').then(({ migratePrimaryGoalToPinned }) =>
+              migratePrimaryGoalToPinned(user.uid, wid),
+            ),
+          )
           .catch((err: unknown) => {
             console.warn('[firebase] post-auth setup failed', err);
           });

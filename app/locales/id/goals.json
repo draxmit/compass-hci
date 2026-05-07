@@ -43,7 +43,9 @@
     "monthsToGo": "Sekitar {{count}} bulan lagi",
     "targetByDate": "Target {{date}}",
     "addContribution": "+ Tambah",
-    "delete": "Hapus"
+    "delete": "Hapus",
+    "pin": "Tampilkan di dashboard",
+    "unpin": "Lepas dari dashboard"
   },
   "contribute": {
     "title": "Tambah ke {{goalName}}",

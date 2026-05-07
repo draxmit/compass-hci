@@ -43,7 +43,9 @@
     "monthsToGo": "About {{count}} months to go",
     "targetByDate": "By {{date}}",
     "addContribution": "+ Add",
-    "delete": "Delete"
+    "delete": "Delete",
+    "pin": "Pin to dashboard",
+    "unpin": "Unpin from dashboard"
   },
   "contribute": {
     "title": "Add to {{goalName}}",

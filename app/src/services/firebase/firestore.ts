@@ -110,6 +110,7 @@ export async function updateUserDoc(
       | 'theme'
       | 'biometricEnabled'
       | 'displayInIDR'
+      | 'pinnedGoalId'
     >
   >,
 ): Promise<void> {

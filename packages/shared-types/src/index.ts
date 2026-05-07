@@ -35,12 +35,23 @@ export type UserDoc = {
   onboardingComplete: boolean;
   /**
    * Free-text goal the user enters in the onboarding wizard's first step
-   * ("what are you saving for?"). T10 (ADR-11). Rendered as the goal pill
-   * on Dashboard. `null` until step 1 completes; if the user skips the
-   * step, stays `null` and the pill is hidden. v2 will migrate to a
-   * `goals/` sub-collection when sinking funds + habits + templates land.
+   * ("what are you saving for?"). T10 (ADR-11). v2.0 (ADR-20) deprecates
+   * this in favour of `pinnedGoalId` — a one-shot migration on next
+   * sign-in moves any non-empty value into a real Goal doc and clears
+   * this field. Optional in the type so legacy reads don't break, but
+   * post-migration it's always `null`. Onboarding step 1 still writes
+   * here for the migration to pick up on the first authed render.
    */
   primaryGoal: string | null;
+  /**
+   * v2 (ADR-20) — id of the Goal doc that headlines on the Dashboard.
+   * `null` when no goal is pinned (Dashboard pill hides). Setting this
+   * is a single tap on the Pin button on /goals. Mutually exclusive
+   * across goals — pinning one un-pins the previous (handled in
+   * goalsService.setPinnedGoal). Optional on the doc to keep legacy
+   * v1/v2-pre-pin docs compatible.
+   */
+  pinnedGoalId?: string | null;
   createdAt: unknown;
   defaultWorkspaceId: string;
   workspaceIds: string[];

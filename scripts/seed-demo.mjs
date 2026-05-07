@@ -260,12 +260,35 @@ async function main() {
     }, { merge: true });
   }
 
-  // ---- Wipe existing accounts / transactions / budgets / month totals ----
+  // ---- Wipe existing accounts / transactions / budgets / month totals / goals ----
   log('Wiping existing demo data…');
   await wipeCollection(db, ['workspaces', wid, 'accounts']);
   await wipeCollection(db, ['workspaces', wid, 'transactions']);
   await wipeCollection(db, ['workspaces', wid, 'budgets']);
   await wipeCollection(db, ['workspaces', wid, 'category_month_totals']);
+  await wipeCollection(db, ['workspaces', wid, 'goals']);
+
+  // ---- Seed pinned dashboard goal (ADR-20) ----
+  // Lebaran 2027 with target Rp 12jt + current Rp 5jt → ~42% progress
+  // bar on the Dashboard pill. Replaces the legacy primaryGoal field
+  // path; the migration helper will no-op since pinnedGoalId is now set.
+  log('Seeding goals…');
+  const goalRef = doc(collection(db, 'workspaces', wid, 'goals'));
+  await setDoc(goalRef, {
+    kind: 'sinking_fund',
+    name: 'Lebaran 2027',
+    targetMinor: 12_000_000_00,
+    currentMinor: 5_000_000_00,
+    targetDate: '2027-04-01',
+    templateKey: 'lebaran_thr',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  // Update user doc to pin this goal + clear legacy primaryGoal.
+  await setDoc(userRef, {
+    pinnedGoalId: goalRef.id,
+    primaryGoal: null,
+  }, { merge: true });
 
   // ---- Look up category ids by their stored name.id ----
   const catSnap = await getDocs(collection(db, 'workspaces', wid, 'categories'));

@@ -1,5 +1,5 @@
 import type {
-  Account, Category, CategoryMonthTotal, Transaction,
+  Account, Category, CategoryMonthTotal, Goal, Transaction,
 } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
@@ -14,6 +14,7 @@ import { subscribeCategories } from '@/services/firestore/categoriesService';
 import {
   listMonthTotals, subscribeMonthTotals,
 } from '@/services/firestore/categoryMonthTotalsService';
+import { subscribeGoal } from '@/services/firestore/goalsService';
 import { subscribeRecent } from '@/services/firestore/transactionsService';
 import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import type { Locale } from '@/shared/i18n';
@@ -52,8 +53,9 @@ export default function DashboardScreen() {
   const user = useAuthUser();
   const wid = user ? `solo-${user.uid}` : null;
   const userDoc = useUserDoc();
-  const goalText = userDoc?.primaryGoal?.trim() ?? '';
   const displayInIDR = userDoc?.displayInIDR ?? false;
+  const pinnedGoalId = userDoc?.pinnedGoalId ?? null;
+  const [pinnedGoal, setPinnedGoal] = useState<Goal | null>(null);
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -104,6 +106,21 @@ export default function DashboardScreen() {
       .catch((err: unknown) => console.warn('[dashboard] listMonthTotals(last) failed', err));
     return () => { unsubA(); unsubC(); unsubM(); unsubR(); };
   }, [wid, thisYearMonth, lastYearMonth]);
+
+  // Pinned-goal subscription is keyed on the id so it tears down +
+  // re-subscribes when the user pins a different goal. Defensively
+  // clears local state when the goal id is null. If the listener
+  // reports `null` (goal was deleted out from under us) we still clear
+  // the local state — pinnedGoalId is left as-is for the auth-store to
+  // reconcile so we don't fight a race with the userDoc subscription.
+  useEffect(() => {
+    if (!wid || !pinnedGoalId) {
+      setPinnedGoal(null);
+      return;
+    }
+    const unsub = subscribeGoal(wid, pinnedGoalId, setPinnedGoal);
+    return () => unsub();
+  }, [wid, pinnedGoalId]);
 
   const allLoaded = accountsLoaded && categoriesLoaded && monthTotalsLoaded && recentLoaded;
 
@@ -477,29 +494,19 @@ export default function DashboardScreen() {
           </>
         )}
 
-        {/* Goal pill — reads users.primaryGoal (set by T10 onboarding step 1).
-            Hidden if null/empty. No "set goal" CTA in v1; T11+ adds an
-            edit affordance via /profile/goal. */}
-        {/* Goal pill — taps into /goals where the user can set up
-            structured sinking funds. v2.5 will wire up showing the
-            primary structured-goal's progress here when one exists;
-            v2 ships with the free-text from primaryGoal. */}
-        {goalText.length > 0 ? (
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={t('dashboard:goal.savingFor', { goal: goalText })}
+        {/* Goal pill (ADR-20) — reads from the pinned goal in the goals
+            collection. Renders the goal name + a progress bar + amounts
+            line when a target is set; just the name when target = 0
+            (the post-migration default for legacy primaryGoal text).
+            Hidden when no goal is pinned. Taps through to /goals. */}
+        {pinnedGoal ? (
+          <GoalPill
+            goal={pinnedGoal}
+            displayInIDR={displayInIDR}
+            lang={lang}
+            t={t}
             onPress={() => router.push('/goals')}
-            className="self-center px-3 py-2 rounded-full mt-2"
-            style={{
-              backgroundColor: tokens.accent.dashboard + '14',
-              borderWidth: 1,
-              borderColor: tokens.accent.dashboard + '33',
-            }}
-          >
-            <Text className="font-sans text-xs" style={{ color: tokens.accent.dashboard }}>
-              {t('dashboard:goal.savingFor', { goal: goalText })}
-            </Text>
-          </Pressable>
+          />
         ) : null}
       </View>
     </ScrollView>
@@ -634,6 +641,92 @@ function RecentRow({
           );
         })()}
       </View>
+    </Pressable>
+  );
+}
+
+type GoalPillProps = {
+  goal: Goal;
+  displayInIDR: boolean;
+  lang: Locale;
+  t: TFunction;
+  onPress: () => void;
+};
+
+/**
+ * Dashboard goal pill (ADR-20). Three render modes:
+ *  - target > 0   → name + progress bar + 'X / Y' amounts (most info)
+ *  - target == 0  → name only (post-migration legacy goals)
+ *  - currentMinor > targetMinor with target > 0 → progress capped at
+ *    100% visually; amounts still show the over-allocation honestly
+ *
+ * Wraps the existing tappable behaviour: tap routes to /goals so users
+ * can edit the target / contribute / unpin. Uses the dashboard accent
+ * for everything; goal data is the visibility surface this whole
+ * screen is anchored on.
+ */
+function GoalPill({ goal, displayInIDR, lang, t, onPress }: GoalPillProps) {
+  const accent = tokens.accent.dashboard;
+  const hasTarget = goal.targetMinor > 0;
+  const ratio = hasTarget
+    ? Math.min(1, Math.max(0, goal.currentMinor / goal.targetMinor))
+    : 0;
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={t('dashboard:goal.savingFor', { goal: goal.name })}
+      onPress={onPress}
+      style={{
+        marginTop: 8,
+        alignSelf: 'stretch',
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: accent + '33',
+        backgroundColor: accent + '14',
+        maxWidth: 480,
+        marginLeft: 'auto',
+        marginRight: 'auto',
+      }}
+    >
+      <Text
+        className="font-sans-medium text-sm"
+        style={{ color: accent, textAlign: 'center' }}
+        numberOfLines={1}
+      >
+        {t('dashboard:goal.savingFor', { goal: goal.name })}
+      </Text>
+      {hasTarget ? (
+        <>
+          <View
+            style={{
+              marginTop: 8,
+              height: 6,
+              borderRadius: 999,
+              backgroundColor: accent + '22',
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              style={{
+                width: `${Math.round(ratio * 100)}%`,
+                height: '100%',
+                backgroundColor: accent,
+              }}
+            />
+          </View>
+          <Text
+            className="font-mono tabular-nums text-xs"
+            style={{ color: accent, opacity: 0.85, textAlign: 'center', marginTop: 6 }}
+          >
+            {formatAmountForDisplay(goal.currentMinor, 'IDR', displayInIDR, lang).primary}
+            {' / '}
+            {formatAmountForDisplay(goal.targetMinor, 'IDR', displayInIDR, lang).primary}
+          </Text>
+        </>
+      ) : null}
     </Pressable>
   );
 }

@@ -1,17 +1,18 @@
 import type { Goal } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import {
-  Check, ChevronLeft, Plus, Sparkles, Trash2, X,
+  Check, ChevronLeft, Pin, PinOff, Plus, Sparkles, Trash2, X,
 } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { updateUserDoc } from '@/services/firebase';
 import {
   contributeGoal, createGoal, deleteGoal, subscribeGoals,
 } from '@/services/firestore/goalsService';
-import { useAuthUser } from '@/stores/authStore';
+import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import { GOAL_TEMPLATES, getTemplate } from '@/shared/data/goalTemplates';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
@@ -43,7 +44,17 @@ export default function GoalsScreen() {
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
   const user = useAuthUser();
+  const userDoc = useUserDoc();
+  const pinnedGoalId = userDoc?.pinnedGoalId ?? null;
   const wid = user ? `solo-${user.uid}` : null;
+
+  const handleTogglePin = (goalId: string) => {
+    if (!user) return;
+    const next = pinnedGoalId === goalId ? null : goalId;
+    void updateUserDoc(user.uid, { pinnedGoalId: next }).catch((err: unknown) => {
+      console.warn('[goals] pin write failed', err);
+    });
+  };
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -278,6 +289,8 @@ export default function GoalsScreen() {
                   mutedColor={mutedColor}
                   borderColor={borderColor}
                   accent={accent}
+                  isPinned={pinnedGoalId === g.id}
+                  onTogglePin={() => handleTogglePin(g.id)}
                   isContributing={contributingId === g.id}
                   onToggleContribute={() =>
                     setContributingId((cur) => (cur === g.id ? null : g.id))
@@ -327,6 +340,8 @@ type GoalRowProps = {
   mutedColor: string;
   borderColor: string;
   accent: string;
+  isPinned: boolean;
+  onTogglePin: () => void;
   isContributing: boolean;
   onToggleContribute: () => void;
   onDelete: () => void;
@@ -336,7 +351,7 @@ type GoalRowProps = {
 
 function GoalRow({
   goal, wid, isDark, lang, fgColor, mutedColor, borderColor, accent,
-  isContributing, onToggleContribute, onDelete, appAlert, t,
+  isPinned, onTogglePin, isContributing, onToggleContribute, onDelete, appAlert, t,
 }: GoalRowProps) {
   const tpl = getTemplate(goal.templateKey);
   const iconKey = tpl?.icon ?? 'wallet';
@@ -394,6 +409,26 @@ function GoalRow({
             })}
           </Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: isPinned }}
+          accessibilityLabel={isPinned
+            ? t('goals:row.unpin')
+            : t('goals:row.pin')}
+          onPress={onTogglePin}
+          hitSlop={8}
+          style={{
+            width: 32, height: 32, borderRadius: 8,
+            alignItems: 'center', justifyContent: 'center',
+            backgroundColor: isPinned ? accent + '22' : 'transparent',
+          }}
+        >
+          {isPinned ? (
+            <Pin size={14} color={accent} fill={accent} />
+          ) : (
+            <PinOff size={14} color={mutedColor} />
+          )}
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('goals:row.delete')}

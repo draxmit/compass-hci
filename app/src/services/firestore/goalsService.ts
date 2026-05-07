@@ -1,6 +1,6 @@
 import type { Goal, GoalKind } from '@compass/shared-types';
 import {
-  collection, deleteDoc, doc, getDocs, increment, onSnapshot,
+  collection, deleteDoc, doc, getDoc, getDocs, increment, onSnapshot,
   serverTimestamp, setDoc, updateDoc,
 } from 'firebase/firestore';
 
@@ -112,4 +112,74 @@ export async function contributeGoal(
 
 export async function deleteGoal(wid: string, id: string): Promise<void> {
   await deleteDoc(goalRef(wid, id));
+}
+
+/**
+ * Realtime subscription to a single goal — the dashboard pin uses this
+ * so the pinned goal's progress updates without a full goals-list
+ * subscription. `cb` is invoked with `null` when the goal doesn't
+ * exist (e.g. user deleted it without un-pinning). Caller should
+ * defensively clear `users.pinnedGoalId` in that case.
+ */
+export function subscribeGoal(
+  wid: string,
+  id: string,
+  cb: (goal: Goal | null) => void,
+): () => void {
+  return onSnapshot(goalRef(wid, id), (snap) => {
+    if (!snap.exists()) {
+      cb(null);
+      return;
+    }
+    cb({ ...(snap.data() as Omit<Goal, 'id'>), id: snap.id });
+  });
+}
+
+/**
+ * One-shot migration from `users.primaryGoal` (free-text, pre-v2.0)
+ * to a real Goal doc + `users.pinnedGoalId` reference (ADR-20).
+ *
+ * Self-healing — re-running is a no-op:
+ *   - if `pinnedGoalId` is already set, nothing to do.
+ *   - if `primaryGoal` is empty/null, nothing to do.
+ *   - otherwise: create a sinking-fund goal with the text as its name
+ *     (target = 0, no date), set `pinnedGoalId` to its id, clear
+ *     `primaryGoal`. User can edit target/date later from /goals.
+ *
+ * Called from `useAuthSubscription` after ensureUserDoc resolves,
+ * alongside the categories seed + accounts migration.
+ */
+export async function migratePrimaryGoalToPinned(
+  uid: string,
+  wid: string,
+): Promise<void> {
+  const userRef = doc(db, 'users', uid);
+  const userSnap = await getDoc(userRef);
+  if (!userSnap.exists()) return;
+  const data = userSnap.data() as { primaryGoal?: string | null; pinnedGoalId?: string | null };
+
+  // Already migrated, or never had a goal — bail.
+  if (data.pinnedGoalId !== undefined) return;
+  const text = (data.primaryGoal ?? '').trim();
+  if (text.length === 0) {
+    // Mark as migrated by writing pinnedGoalId: null so we don't
+    // re-check on every sign-in. Doesn't change observable behaviour.
+    await updateDoc(userRef, { pinnedGoalId: null });
+    return;
+  }
+
+  // Create a sinking-fund goal carrying the legacy text as its name.
+  const newGoalId = await createGoal(wid, {
+    kind: 'sinking_fund',
+    name: text,
+    targetMinor: 0,
+    currentMinor: 0,
+    targetDate: null,
+    templateKey: null,
+  });
+  // Pin it + clear the legacy field. Single doc write.
+  await updateDoc(userRef, {
+    pinnedGoalId: newGoalId,
+    primaryGoal: null,
+  });
 }
