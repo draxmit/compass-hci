@@ -1,6 +1,6 @@
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Check, ChevronLeft, ChevronRight, FileSpreadsheet, Pencil, Settings as SettingsIcon, Sparkles, Tag, Target, Wallet, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, FileSpreadsheet, Pencil, Settings as SettingsIcon, Sparkles, Tag, Wallet, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -323,15 +323,6 @@ export default function ProfileScreen() {
           mutedColor={mutedColor}
           borderColor={isDark ? tokens.surface['dark-border'] : tokens.surface['light-border']}
           showDivider={false}
-        />
-        <ProfileLinkRow
-          icon={<Target size={20} color={mutedColor} />}
-          title={t('goals:title')}
-          subtitle={t('goals:subtitle')}
-          onPress={() => router.push('/goals')}
-          mutedColor={mutedColor}
-          borderColor={isDark ? tokens.surface['dark-border'] : tokens.surface['light-border']}
-          showDivider
         />
         <ProfileLinkRow
           icon={<Tag size={20} color={mutedColor} />}

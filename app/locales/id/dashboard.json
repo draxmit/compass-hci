@@ -30,6 +30,14 @@
     "placeholder": "Lagi mikirin: Lebaran 2027",
     "fromOnboarding": "Atur di T10"
   },
+  "goals": {
+    "label": "Tujuan kamu",
+    "expand_one": "Tampilkan {{count}} tujuan",
+    "expand_other": "Tampilkan semua {{count}}",
+    "collapse": "Tampilkan yang dipasang saja",
+    "manageLink": "Kelola tujuan",
+    "empty": "Belum ada tujuan — tap untuk buat"
+  },
   "welcome": {
     "title": "Selamat datang di Compass",
     "body": "Compass bantu kamu lihat ke mana uangmu pergi. Mulai dengan tambah akun, lalu catat transaksi pertama.",

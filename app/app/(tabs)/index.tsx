@@ -4,7 +4,7 @@ import type {
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { Plus, Sparkles, Target } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronUp, Plus, Sparkles, Target } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -14,7 +14,7 @@ import { subscribeCategories } from '@/services/firestore/categoriesService';
 import {
   listMonthTotals, subscribeMonthTotals,
 } from '@/services/firestore/categoryMonthTotalsService';
-import { subscribeGoal } from '@/services/firestore/goalsService';
+import { subscribeGoal, subscribeGoals } from '@/services/firestore/goalsService';
 import { subscribeRecent } from '@/services/firestore/transactionsService';
 import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import type { Locale } from '@/shared/i18n';
@@ -56,9 +56,14 @@ export default function DashboardScreen() {
   const displayInIDR = userDoc?.displayInIDR ?? false;
   const pinnedGoalId = userDoc?.pinnedGoalId ?? null;
   const [pinnedGoal, setPinnedGoal] = useState<Goal | null>(null);
+  // All goals — needed for the expanded view of the Goals section.
+  // Subscription is cheap (typical user has 1–6 goals).
+  const [allGoals, setAllGoals] = useState<Goal[]>([]);
+  const [goalsExpanded, setGoalsExpanded] = useState(false);
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -121,6 +126,13 @@ export default function DashboardScreen() {
     const unsub = subscribeGoal(wid, pinnedGoalId, setPinnedGoal);
     return () => unsub();
   }, [wid, pinnedGoalId]);
+
+  // All goals — feeds the expanded state of the Goals section.
+  useEffect(() => {
+    if (!wid) return;
+    const unsub = subscribeGoals(wid, setAllGoals);
+    return () => unsub();
+  }, [wid]);
 
   const allLoaded = accountsLoaded && categoriesLoaded && monthTotalsLoaded && recentLoaded;
 
@@ -302,94 +314,113 @@ export default function DashboardScreen() {
                   context: includedAccounts.length === 1 ? 'one' : 'other',
                 })}
               </Text>
-              {/* Goal block — pinpointed with an accent-tinted surface +
-                  Target icon so it visually reads as 'here's why I'm
-                  tracking', distinct from the Net Worth row above. Sits
-                  inside the Net Worth section but with its own card-
-                  within-card chrome (subtle background, rounded). */}
-              {pinnedGoal ? (
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel={t('dashboard:goal.savingFor', { goal: pinnedGoal.name })}
-                  onPress={() => router.push('/goals')}
-                  style={{
-                    marginTop: 16,
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: tokens.accent.dashboard + '44',
-                    backgroundColor: tokens.accent.dashboard + '14',
-                  }}
-                >
-                  <View className="flex-row items-center" style={{ gap: 8 }}>
-                    <View
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 8,
-                        backgroundColor: tokens.accent.dashboard + '22',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Target size={14} color={tokens.accent.dashboard} />
-                    </View>
-                    <Text
-                      className="font-sans-semibold text-sm flex-1"
-                      style={{ color: tokens.accent.dashboard }}
-                      numberOfLines={1}
-                    >
-                      {t('dashboard:goal.savingFor', { goal: pinnedGoal.name })}
-                    </Text>
-                    {pinnedGoal.targetMinor > 0 ? (
-                      <Text
-                        className="font-mono tabular-nums text-xs font-sans-semibold"
-                        style={{ color: tokens.accent.dashboard }}
-                      >
-                        {Math.round(
-                          Math.min(1, Math.max(0, pinnedGoal.currentMinor / pinnedGoal.targetMinor)) * 100,
-                        )}
-                        {'%'}
-                      </Text>
-                    ) : null}
-                  </View>
-                  {pinnedGoal.targetMinor > 0 ? (
-                    <>
-                      <View
-                        style={{
-                          marginTop: 10,
-                          height: 5,
-                          borderRadius: 999,
-                          backgroundColor: tokens.accent.dashboard + '22',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <View
-                          style={{
-                            width: `${Math.round(
-                              Math.min(1, Math.max(0, pinnedGoal.currentMinor / pinnedGoal.targetMinor)) * 100,
-                            )}%`,
-                            height: '100%',
-                            backgroundColor: tokens.accent.dashboard,
-                          }}
-                        />
-                      </View>
-                      <Text
-                        className="font-mono tabular-nums text-xs mt-2"
-                        style={{ color: mutedColor }}
-                      >
-                        {formatAmountForDisplay(pinnedGoal.currentMinor, 'IDR', displayInIDR, lang).primary}
-                        {' / '}
-                        {formatAmountForDisplay(pinnedGoal.targetMinor, 'IDR', displayInIDR, lang).primary}
-                      </Text>
-                    </>
-                  ) : null}
-                </Pressable>
-              ) : null}
             </>
           )}
         </View>
+
+        {/* Goals section — collapsible. Default shows pinned goal only;
+            tap header chevron to reveal all goals. The whole section
+            is the entry point to /goals (Profile no longer carries a
+            link, per user feedback that Goals were too hidden). */}
+        {allLoaded && (allGoals.length > 0 || pinnedGoal) ? (
+          <View className="mb-8">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: goalsExpanded }}
+              onPress={() => setGoalsExpanded((cur) => !cur)}
+              className="flex-row items-center justify-between mb-3"
+            >
+              <Text
+                className="font-sans-medium text-xs uppercase tracking-wider"
+                style={{ color: mutedColor }}
+              >
+                {t('dashboard:goals.label')}
+              </Text>
+              <View className="flex-row items-center" style={{ gap: 4 }}>
+                <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+                  {goalsExpanded
+                    ? t('dashboard:goals.collapse')
+                    : t('dashboard:goals.expand', { count: allGoals.length, context: allGoals.length === 1 ? 'one' : 'other' })}
+                </Text>
+                {goalsExpanded ? (
+                  <ChevronUp size={14} color={mutedColor} />
+                ) : (
+                  <ChevronDown size={14} color={mutedColor} />
+                )}
+              </View>
+            </Pressable>
+
+            {/* Collapsed: just the pinned goal (or first goal if no pin).
+                Expanded: every goal in createdAt-asc order. */}
+            {(() => {
+              const visibleGoals = goalsExpanded
+                ? allGoals
+                : pinnedGoal
+                  ? [pinnedGoal]
+                  : allGoals.length > 0
+                    ? [allGoals[0]!]
+                    : [];
+              if (visibleGoals.length === 0) {
+                return (
+                  <Pressable
+                    accessibilityRole="link"
+                    onPress={() => router.push('/goals')}
+                    style={{
+                      paddingVertical: 16,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderStyle: 'dashed',
+                      borderColor: borderColor,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+                      {t('dashboard:goals.empty')}
+                    </Text>
+                  </Pressable>
+                );
+              }
+              return (
+                <Card padding="none">
+                  {visibleGoals.map((g, idx) => (
+                    <DashboardGoalRow
+                      key={g.id}
+                      goal={g}
+                      isPinned={g.id === pinnedGoalId}
+                      displayInIDR={displayInIDR}
+                      lang={lang}
+                      isDark={isDark}
+                      mutedColor={mutedColor}
+                      borderColor={borderColor}
+                      showDivider={idx > 0}
+                      onPress={() => router.push('/goals')}
+                      t={t}
+                    />
+                  ))}
+                  <Pressable
+                    accessibilityRole="link"
+                    onPress={() => router.push('/goals')}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 4,
+                      paddingVertical: 12,
+                      borderTopWidth: 1,
+                      borderTopColor: borderColor,
+                    }}
+                  >
+                    <Text className="font-sans-medium text-xs" style={{ color: tokens.accent.dashboard }}>
+                      {t('dashboard:goals.manageLink')}
+                    </Text>
+                    <ChevronRight size={12} color={tokens.accent.dashboard} />
+                  </Pressable>
+                </Card>
+              );
+            })()}
+          </View>
+        ) : null}
 
         {noTxsButHasAccounts ? (
           /* Has Net Worth above; the other three sections (This Month,
@@ -725,4 +756,126 @@ function yearMonths(): { thisYearMonth: string; lastYearMonth: string } {
   const lastDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastYearMonth = `${lastDate.getFullYear()}-${String(lastDate.getMonth() + 1).padStart(2, '0')}`;
   return { thisYearMonth, lastYearMonth };
+}
+
+type DashboardGoalRowProps = {
+  goal: Goal;
+  isPinned: boolean;
+  displayInIDR: boolean;
+  lang: Locale;
+  isDark: boolean;
+  mutedColor: string;
+  borderColor: string;
+  showDivider: boolean;
+  onPress: () => void;
+  t: TFunction;
+};
+
+/**
+ * Compact Dashboard goal row — name + percent + progress bar +
+ * 'Rp X / Rp Y' line, with a pin badge when this goal is the
+ * one driving the Net Worth subtitle. Used inside the collapsible
+ * Goals section.
+ */
+function DashboardGoalRow({
+  goal, isPinned, displayInIDR, lang, isDark, mutedColor, borderColor,
+  showDivider, onPress, t,
+}: DashboardGoalRowProps) {
+  void isDark;
+  void t;
+  const accent = tokens.accent.dashboard;
+  const hasTarget = goal.targetMinor > 0;
+  const ratio = hasTarget
+    ? Math.min(1, Math.max(0, goal.currentMinor / goal.targetMinor))
+    : 0;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={goal.name}
+      onPress={onPress}
+      style={{
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderTopWidth: showDivider ? 1 : 0,
+        borderTopColor: borderColor,
+      }}
+    >
+      <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            backgroundColor: accent + '22',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Target size={14} color={accent} />
+        </View>
+        <Text
+          className="font-sans-semibold text-sm flex-1"
+          style={{ color: accent }}
+          numberOfLines={1}
+        >
+          {goal.name}
+        </Text>
+        {isPinned ? (
+          <View
+            style={{
+              paddingHorizontal: 6,
+              paddingVertical: 1,
+              borderRadius: 4,
+              backgroundColor: accent + '22',
+            }}
+          >
+            <Text
+              className="font-sans-semibold"
+              style={{ color: accent, fontSize: 9, letterSpacing: 0.5 }}
+            >
+              📌
+            </Text>
+          </View>
+        ) : null}
+        {hasTarget ? (
+          <Text
+            className="font-mono tabular-nums text-xs font-sans-semibold"
+            style={{ color: accent }}
+          >
+            {Math.round(ratio * 100)}
+            {'%'}
+          </Text>
+        ) : null}
+      </View>
+      {hasTarget ? (
+        <>
+          <View
+            style={{
+              height: 4,
+              borderRadius: 999,
+              backgroundColor: accent + '22',
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              style={{
+                width: `${Math.round(ratio * 100)}%`,
+                height: '100%',
+                backgroundColor: accent,
+              }}
+            />
+          </View>
+          <Text
+            className="font-mono tabular-nums text-xs mt-1.5"
+            style={{ color: mutedColor }}
+          >
+            {formatAmountForDisplay(goal.currentMinor, 'IDR', displayInIDR, lang).primary}
+            {' / '}
+            {formatAmountForDisplay(goal.targetMinor, 'IDR', displayInIDR, lang).primary}
+          </Text>
+        </>
+      ) : null}
+    </Pressable>
+  );
 }

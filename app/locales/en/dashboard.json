@@ -30,6 +30,14 @@
     "placeholder": "On your mind: Lebaran 2027",
     "fromOnboarding": "Set in T10"
   },
+  "goals": {
+    "label": "Your goals",
+    "expand_one": "Show {{count}} goal",
+    "expand_other": "Show all {{count}}",
+    "collapse": "Show pinned only",
+    "manageLink": "Manage goals",
+    "empty": "No goals yet — tap to create one"
+  },
   "welcome": {
     "title": "Welcome to Compass",
     "body": "Compass helps you see where your money goes. Start by adding an account, then log your first transaction.",
