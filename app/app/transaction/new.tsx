@@ -290,6 +290,19 @@ export default function NewTransactionScreen() {
     setSplitsModalOpen(false);
   };
 
+  const closeSplitsModal = () => {
+    // If the user cancels the modal without picking any category in
+    // any row, revert to single mode — otherwise the form is stuck
+    // in multi mode showing a summary of empty rows, which form-save
+    // then rejects. Empty rows = nothing was committed, so revert.
+    if (splitRows.every((r) => !r.categoryId)) {
+      setSplitsMode('single');
+      setSplitsModalOpen(false);
+      return;
+    }
+    setSplitsModalOpen(false);
+  };
+
   const addSplitRow = () => {
     setSplitRows((rows) => [...rows, { categoryId: null, amountText: '' }]);
   };
@@ -519,11 +532,13 @@ export default function NewTransactionScreen() {
           ) : null}
 
           {/* Splits editor modal — opened by enterMultiMode + the Edit
-              button inside SplitsSummaryCard. */}
+              button inside SplitsSummaryCard. closeSplitsModal also
+              reverts to single mode when the user cancels without
+              picking any categories. */}
           {type !== 'transfer' ? (
             <SplitsEditorModal
               visible={splitsModalOpen}
-              onClose={() => setSplitsModalOpen(false)}
+              onClose={closeSplitsModal}
               onConfirm={() => setSplitsModalOpen(false)}
               rows={splitRows}
               totalText={amountText}

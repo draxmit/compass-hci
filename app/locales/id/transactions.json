@@ -10,7 +10,7 @@
   "entry": {
     "title": "Transaksi baru",
     "nlpLabel": "Cara cepat",
-    "nlpPlaceholder": "Ketik transaksimu…",
+    "nlpPlaceholder": "Ketik atau bicara…",
     "nlpHint": "Misal: Makan warteg 25rb bca",
     "confidence": "{{percent}}% cocok",
     "fields": {

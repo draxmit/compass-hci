@@ -279,6 +279,15 @@ export default function EditTransactionScreen() {
     setSplitsModalOpen(false);
   };
 
+  const closeSplitsModal = () => {
+    if (splitRows.every((r) => !r.categoryId)) {
+      setSplitsMode('single');
+      setSplitsModalOpen(false);
+      return;
+    }
+    setSplitsModalOpen(false);
+  };
+
   const addSplitRow = () => {
     setSplitRows((rows) => [...rows, { categoryId: null, amountText: '' }]);
   };
@@ -477,7 +486,7 @@ export default function EditTransactionScreen() {
           {type !== 'transfer' ? (
             <SplitsEditorModal
               visible={splitsModalOpen}
-              onClose={() => setSplitsModalOpen(false)}
+              onClose={closeSplitsModal}
               onConfirm={() => setSplitsModalOpen(false)}
               rows={splitRows}
               totalText={amountText}

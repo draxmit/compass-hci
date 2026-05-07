@@ -97,9 +97,12 @@ export function SplitsSummaryCard({
         })}
       </View>
 
-      {/* Edit + collapse-to-single buttons. Both are full-themed
-          buttons (transactions accent for Edit; outlined neutral for
-          Collapse) so they don't read as bare links. */}
+      {/* Edit (flex 1, full-width text) + back-to-single (icon-only,
+          fixed 40px). Was previously two text buttons side-by-side
+          which overflowed on narrow mobile widths because the
+          'Back to single category' label is long; the icon-only
+          variant keeps the same affordance with the accessibility
+          label intact for screen readers. */}
       <View className="flex-row" style={{ gap: 8 }}>
         <Pressable
           accessibilityRole="button"
@@ -132,12 +135,9 @@ export function SplitsSummaryCard({
           accessibilityLabel={t('transactions:entry.splits.toggleToSingle')}
           onPress={onCollapse}
           style={{
-            flexDirection: 'row',
+            width: 40,
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 6,
-            paddingVertical: 10,
-            paddingHorizontal: 14,
             borderRadius: 10,
             borderWidth: 1,
             borderColor,
@@ -145,12 +145,6 @@ export function SplitsSummaryCard({
           }}
         >
           <X size={14} color={fgColor} />
-          <Text
-            className="font-sans-medium text-sm"
-            style={{ color: fgColor }}
-          >
-            {t('transactions:entry.splits.toggleToSingle')}
-          </Text>
         </Pressable>
       </View>
     </Card>

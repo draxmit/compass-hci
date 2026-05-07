@@ -10,7 +10,7 @@
   "entry": {
     "title": "New transaction",
     "nlpLabel": "Quick entry",
-    "nlpPlaceholder": "Type your transaction…",
+    "nlpPlaceholder": "Type or speak…",
     "nlpHint": "e.g. Coffee at Starbucks 50k bca",
     "confidence": "{{percent}}% match",
     "fields": {
