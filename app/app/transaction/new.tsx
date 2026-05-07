@@ -5,7 +5,7 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
@@ -16,6 +16,7 @@ import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
@@ -53,6 +54,7 @@ function resolveFrom(raw: unknown): ValidFrom {
 export default function NewTransactionScreen() {
   const { t, i18n } = useTranslation(['transactions', 'accounts', 'categories', 'common']);
   const router = useRouter();
+  const appAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
@@ -140,23 +142,23 @@ export default function NewTransactionScreen() {
     if (saving || !wid) return;
     const amount = parseAmountInput(amountText, lang);
     if (!amount) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingAmount'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingAmount'));
       return;
     }
     if (!accountId) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingAccount'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingAccount'));
       return;
     }
     if (type !== 'transfer' && !categoryId) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingCategory'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingCategory'));
       return;
     }
     if (type === 'transfer' && !toAccountId) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingToAccount'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingToAccount'));
       return;
     }
     if (type === 'transfer' && accountId === toAccountId) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.sameAccount'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.sameAccount'));
       return;
     }
 
@@ -177,7 +179,7 @@ export default function NewTransactionScreen() {
       closeScreen();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('transactions:entry.errors.createFailed');
-      Alert.alert(t('transactions:entry.title'), msg);
+      appAlert(t('transactions:entry.title'), msg);
     } finally {
       setSaving(false);
     }

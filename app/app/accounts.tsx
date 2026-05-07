@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft, Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -20,6 +20,7 @@ import type { Locale } from '@/shared/i18n';
 import { CATEGORY_COLOR_KEYS, resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CATEGORY_ICON_KEYS, CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
@@ -352,6 +353,7 @@ function minorUnitsToInputText(minorUnits: number, locale: Locale): string {
 
 function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPanelProps) {
   const { t } = useTranslation(['accounts', 'common']);
+  const appAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -406,12 +408,12 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
   const handleSave = async () => {
     if (saving) return;
     if (!name.trim()) {
-      Alert.alert(t('accounts:title'), t('accounts:errors.missingName'));
+      appAlert(t('accounts:title'), t('accounts:errors.missingName'));
       return;
     }
     const balance = parseBalanceInput(balanceText, lang);
     if (!Number.isFinite(balance)) {
-      Alert.alert(t('accounts:title'), t('accounts:errors.balanceInvalid'));
+      appAlert(t('accounts:title'), t('accounts:errors.balanceInvalid'));
       return;
     }
     setSaving(true);
@@ -446,7 +448,7 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
         : isEdit
           ? t('accounts:errors.updateFailed')
           : t('accounts:errors.createFailed');
-      Alert.alert(t('accounts:title'), msg);
+      appAlert(t('accounts:title'), msg);
     } finally {
       setSaving(false);
     }
@@ -454,7 +456,7 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
 
   const handleArchive = async () => {
     if (!editing) return;
-    Alert.alert(
+    appAlert(
       t('accounts:actions.archiveConfirmTitle'),
       t('accounts:actions.archiveConfirmBody'),
       [
@@ -468,7 +470,7 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
               onClose();
             } catch (err: unknown) {
               const msg = err instanceof Error ? err.message : t('accounts:errors.archiveFailed');
-              Alert.alert(t('accounts:title'), msg);
+              appAlert(t('accounts:title'), msg);
             }
           },
         },

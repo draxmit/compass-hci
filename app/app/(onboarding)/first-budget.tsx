@@ -2,7 +2,7 @@ import type { Category } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import { upsertBudget } from '@/services/firestore/budgetsService';
 import { listCategories } from '@/services/firestore/categoriesService';
@@ -14,6 +14,7 @@ import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
@@ -50,6 +51,7 @@ type Row = {
 export default function FirstBudgetStep() {
   const { t, i18n } = useTranslation(['onboarding', 'common']);
   const router = useRouter();
+  const appAlert = useAppAlert();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
@@ -124,7 +126,7 @@ export default function FirstBudgetStep() {
       router.replace('/');
     } catch (err) {
       console.warn('[onboarding] first-budget save failed', err);
-      Alert.alert(t('onboarding:firstBudget.title'), t('onboarding:firstBudget.createFailed'));
+      appAlert(t('onboarding:firstBudget.title'), t('onboarding:firstBudget.createFailed'));
       setBusy(false);
     }
   };

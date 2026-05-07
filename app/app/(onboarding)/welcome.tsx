@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import { updateUserDoc } from '@/services/firebase';
 import { useAuthStore } from '@/stores/authStore';
 import { OnboardingShell } from '@/features/onboarding/OnboardingShell';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 
@@ -21,6 +22,7 @@ import { TextField } from '@/shared/ui/TextField';
 export default function WelcomeStep() {
   const { t } = useTranslation(['onboarding']);
   const router = useRouter();
+  const appAlert = useAppAlert();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -39,7 +41,7 @@ export default function WelcomeStep() {
       router.push('/(onboarding)/budget-style');
     } catch (err) {
       console.warn('[onboarding] welcome save failed', err);
-      Alert.alert(t('onboarding:welcome.title'), t('onboarding:errors.saveFailed'));
+      appAlert(t('onboarding:welcome.title'), t('onboarding:errors.saveFailed'));
     } finally {
       setBusy(false);
     }

@@ -7,7 +7,7 @@ import type { TFunction } from 'i18next';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
@@ -20,6 +20,7 @@ import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
@@ -44,6 +45,7 @@ const TYPES: readonly TransactionType[] = ['expense', 'income', 'transfer'];
 export default function EditTransactionScreen() {
   const { t, i18n } = useTranslation(['transactions', 'accounts', 'categories', 'common']);
   const router = useRouter();
+  const appAlert = useAppAlert();
   const params = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { resolvedScheme } = useTheme();
@@ -119,23 +121,23 @@ export default function EditTransactionScreen() {
     if (saving || !wid || !loaded) return;
     const amount = parseAmountInput(amountText, lang);
     if (!amount) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingAmount'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingAmount'));
       return;
     }
     if (!accountId) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingAccount'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingAccount'));
       return;
     }
     if (type !== 'transfer' && !categoryId) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingCategory'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingCategory'));
       return;
     }
     if (type === 'transfer' && !toAccountId) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.missingToAccount'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingToAccount'));
       return;
     }
     if (type === 'transfer' && accountId === toAccountId) {
-      Alert.alert(t('transactions:entry.title'), t('transactions:entry.errors.sameAccount'));
+      appAlert(t('transactions:entry.title'), t('transactions:entry.errors.sameAccount'));
       return;
     }
 
@@ -176,7 +178,7 @@ export default function EditTransactionScreen() {
       router.back();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('transactions:entry.errors.createFailed');
-      Alert.alert(t('transactions:entry.title'), msg);
+      appAlert(t('transactions:entry.title'), msg);
     } finally {
       setSaving(false);
     }
@@ -184,7 +186,7 @@ export default function EditTransactionScreen() {
 
   const handleDelete = () => {
     if (!loaded || !wid) return;
-    Alert.alert(
+    appAlert(
       t('transactions:entry.actions.deleteConfirmTitle'),
       t('transactions:entry.actions.deleteConfirmBody'),
       [
@@ -199,7 +201,7 @@ export default function EditTransactionScreen() {
               router.back();
             } catch (err: unknown) {
               const msg = err instanceof Error ? err.message : t('transactions:deleteFailed');
-              Alert.alert(t('transactions:entry.title'), msg);
+              appAlert(t('transactions:entry.title'), msg);
             } finally {
               setDeleting(false);
             }

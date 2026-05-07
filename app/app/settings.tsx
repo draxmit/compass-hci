@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft, LogOut, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { deleteUserAccount, signOut, updateUserDoc } from '@/services/firebase';
@@ -12,6 +12,7 @@ import type { Locale } from '@/shared/i18n';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import type { ThemeMode } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { Text } from '@/shared/ui/Text';
 import { getFlag, setFlag } from '@/shared/utils/secureFlags';
@@ -32,6 +33,7 @@ export default function SettingsScreen() {
   const { t, i18n } = useTranslation(['settings', 'common']);
   const { mode, setMode, resolvedScheme } = useTheme();
   const router = useRouter();
+  const appAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const userDoc = useUserDoc();
   const isDark = resolvedScheme === 'dark';
@@ -81,7 +83,7 @@ export default function SettingsScreen() {
       await signOut();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('settings:settings.errors.signOutFallback');
-      Alert.alert(t('settings:settings.errors.signOutTitle'), msg);
+      appAlert(t('settings:settings.errors.signOutTitle'), msg);
       setSigningOut(false);
     }
   };
@@ -104,7 +106,7 @@ export default function SettingsScreen() {
 
   const handleDelete = () => {
     if (deleting) return;
-    Alert.alert(
+    appAlert(
       t('settings:settings.account.deleteConfirmTitle'),
       t('settings:settings.account.deleteConfirmBody'),
       [
@@ -121,13 +123,13 @@ export default function SettingsScreen() {
             } catch (err: unknown) {
               const code = (err as FirebaseError)?.code;
               if (code === 'auth/requires-recent-login') {
-                Alert.alert(
+                appAlert(
                   t('settings:settings.account.deleteFailedTitle'),
                   t('settings:settings.account.requiresRecentLoginBody'),
                 );
               } else {
                 const msg = err instanceof Error ? err.message : '';
-                Alert.alert(t('settings:settings.account.deleteFailedTitle'), msg);
+                appAlert(t('settings:settings.account.deleteFailedTitle'), msg);
               }
               setDeleting(false);
             }

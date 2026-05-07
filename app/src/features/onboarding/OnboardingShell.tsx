@@ -3,13 +3,14 @@ import { ChevronLeft } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { updateUserDoc } from '@/services/firebase';
 import { useAuthStore } from '@/stores/authStore';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Text } from '@/shared/ui/Text';
 
 /**
@@ -54,6 +55,7 @@ export function OnboardingShell({
 }: OnboardingShellProps) {
   const { t } = useTranslation(['onboarding', 'common']);
   const router = useRouter();
+  const appAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
@@ -76,7 +78,7 @@ export function OnboardingShell({
       router.replace('/');
     } catch (err) {
       console.warn('[onboarding] skip failed', err);
-      Alert.alert(t('onboarding:actions.skip'), t('onboarding:errors.saveFailed'));
+      appAlert(t('onboarding:actions.skip'), t('onboarding:errors.saveFailed'));
       setSkipping(false);
     }
   };

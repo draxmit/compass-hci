@@ -5,7 +5,7 @@ import type { TFunction } from 'i18next';
 import { Check, ChevronRight, FileText, Pencil, Plus, Trash2, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { subscribeBudgets, deleteBudget, upsertBudget } from '@/services/firestore/budgetsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
@@ -15,6 +15,7 @@ import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
@@ -42,6 +43,7 @@ const STYLES: readonly BudgetStyle[] = ['monthly_limit', 'envelope', 'fifty_thir
 export default function BudgetsScreen() {
   const { t, i18n } = useTranslation(['budgets', 'common']);
   const router = useRouter();
+  const appAlert = useAppAlert();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
@@ -126,7 +128,7 @@ export default function BudgetsScreen() {
       setSelectedStyle('monthly_limit');
       return;
     }
-    Alert.alert(
+    appAlert(
       t(`budgets:styles.${style === 'envelope' ? 'envelope' : 'fiftyThirtyTwenty'}`),
       t('budgets:styles.comingSoon'),
     );
@@ -135,7 +137,7 @@ export default function BudgetsScreen() {
   const handleSave = async (categoryId: string, limitMinor: number) => {
     if (!wid) return;
     if (limitMinor <= 0) {
-      Alert.alert(t('budgets:title'), t('budgets:errors.invalidLimit'));
+      appAlert(t('budgets:title'), t('budgets:errors.invalidLimit'));
       return;
     }
     try {
@@ -149,13 +151,13 @@ export default function BudgetsScreen() {
       setExpandedCategoryId(null);
     } catch (err) {
       console.warn('[budgets] upsert failed', err);
-      Alert.alert(t('budgets:title'), t('budgets:errors.saveFailed'));
+      appAlert(t('budgets:title'), t('budgets:errors.saveFailed'));
     }
   };
 
   const handleDelete = (categoryId: string) => {
     if (!wid) return;
-    Alert.alert(
+    appAlert(
       t('budgets:actions.deleteConfirmTitle'),
       t('budgets:actions.deleteConfirmBody'),
       [
@@ -169,7 +171,7 @@ export default function BudgetsScreen() {
               setExpandedCategoryId(null);
             } catch (err) {
               console.warn('[budgets] delete failed', err);
-              Alert.alert(t('budgets:title'), t('budgets:errors.deleteFailed'));
+              appAlert(t('budgets:title'), t('budgets:errors.deleteFailed'));
             }
           },
         },

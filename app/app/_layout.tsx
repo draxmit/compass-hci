@@ -18,6 +18,7 @@ import { hydratePersistedLocale, initI18n } from '@/shared/i18n';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { AppAlertProvider } from '@/shared/ui/AppAlert';
 import { AppShell } from '@/shared/ui/AppShell';
 import { Splash } from '@/shared/ui/Splash';
 import { useAuthLoading, useIsAuthed, useUserDoc } from '@/stores/authStore';
@@ -224,11 +225,16 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <NavigationLayer>
-        <AppShell>
-          <AuthGate>
-            <StackTree />
-          </AuthGate>
-        </AppShell>
+        {/* AppAlertProvider sits inside ThemeProvider (so it can read
+            resolvedScheme for token colours) and ABOVE AuthGate so
+            redirects can dispatch alerts on the way through. */}
+        <AppAlertProvider>
+          <AppShell>
+            <AuthGate>
+              <StackTree />
+            </AuthGate>
+          </AppShell>
+        </AppAlertProvider>
       </NavigationLayer>
     </ThemeProvider>
   );

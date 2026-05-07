@@ -2,13 +2,14 @@ import { useRouter } from 'expo-router';
 import { Check } from 'lucide-react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { updateUserDoc } from '@/services/firebase';
 import { useAuthStore } from '@/stores/authStore';
 import { OnboardingShell } from '@/features/onboarding/OnboardingShell';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Text } from '@/shared/ui/Text';
 
 type StyleKey = 'monthlyLimit' | 'envelope' | 'fiftyThirtyTwenty';
@@ -30,6 +31,7 @@ const STYLES: { readonly key: StyleKey; readonly enabled: boolean }[] = [
 export default function BudgetStyleStep() {
   const { t } = useTranslation(['onboarding']);
   const router = useRouter();
+  const appAlert = useAppAlert();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
@@ -44,7 +46,7 @@ export default function BudgetStyleStep() {
       setSelected(key);
       return;
     }
-    Alert.alert(
+    appAlert(
       t(`onboarding:budgetStyle.${key}`),
       t('onboarding:budgetStyle.comingSoonNote'),
     );
@@ -65,7 +67,7 @@ export default function BudgetStyleStep() {
       router.push('/(onboarding)/account');
     } catch (err) {
       console.warn('[onboarding] budget-style save failed', err);
-      Alert.alert(t('onboarding:budgetStyle.title'), t('onboarding:errors.saveFailed'));
+      appAlert(t('onboarding:budgetStyle.title'), t('onboarding:errors.saveFailed'));
     } finally {
       setBusy(false);
     }

@@ -1,12 +1,13 @@
 import { Link } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Platform, ScrollView, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { signInWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { tokens } from '@/shared/theme/tokens';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Button } from '@/shared/ui/Button';
 import { Logo } from '@/shared/ui/Logo';
 import { Text } from '@/shared/ui/Text';
@@ -15,6 +16,7 @@ import { TextField } from '@/shared/ui/TextField';
 export default function SignInScreen() {
   const { t } = useTranslation(['auth']);
   const { color: accent } = usePageAccent();
+  const appAlert = useAppAlert();
   const { promptAsync: googlePromptAsync, isPending: isGooglePending } = useGoogleSignIn();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,7 +48,7 @@ export default function SignInScreen() {
   const onGoogle = async () => {
     setError(null);
     if (Platform.OS !== 'web') {
-      Alert.alert(t('auth:googleAndroid.title'), t('auth:googleAndroid.signInBody'));
+      appAlert(t('auth:googleAndroid.title'), t('auth:googleAndroid.signInBody'));
       return;
     }
     const result = await googlePromptAsync();

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft, Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -14,6 +14,7 @@ import type { Locale } from '@/shared/i18n';
 import { CATEGORY_COLOR_KEYS, resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CATEGORY_ICON_KEYS, CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
@@ -299,6 +300,7 @@ type CategoryEditPanelProps = {
 
 function CategoryEditPanel({ target, parents, onClose, wid, lang, isDark }: CategoryEditPanelProps) {
   const { t } = useTranslation(['categories', 'common']);
+  const appAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -322,7 +324,7 @@ function CategoryEditPanel({ target, parents, onClose, wid, lang, isDark }: Cate
   const handleSave = async () => {
     if (saving) return;
     if (!isPresetEdit && !name.trim()) {
-      Alert.alert(t('categories:title'), t('categories:errors.missingName'));
+      appAlert(t('categories:title'), t('categories:errors.missingName'));
       return;
     }
     setSaving(true);
@@ -352,7 +354,7 @@ function CategoryEditPanel({ target, parents, onClose, wid, lang, isDark }: Cate
         : isEdit
           ? t('categories:errors.updateFailed')
           : t('categories:errors.createFailed');
-      Alert.alert(t('categories:title'), msg);
+      appAlert(t('categories:title'), msg);
     } finally {
       setSaving(false);
     }
@@ -360,7 +362,7 @@ function CategoryEditPanel({ target, parents, onClose, wid, lang, isDark }: Cate
 
   const handleArchive = async () => {
     if (!editing) return;
-    Alert.alert(
+    appAlert(
       t('categories:actions.archiveConfirmTitle'),
       t('categories:actions.archiveConfirmBody'),
       [
@@ -374,7 +376,7 @@ function CategoryEditPanel({ target, parents, onClose, wid, lang, isDark }: Cate
               onClose();
             } catch (err: unknown) {
               const msg = err instanceof Error ? err.message : t('categories:errors.archiveFailed');
-              Alert.alert(t('categories:title'), msg);
+              appAlert(t('categories:title'), msg);
             }
           },
         },

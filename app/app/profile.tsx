@@ -1,4 +1,4 @@
-import { Alert, BackHandler, Pressable, ScrollView, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, Tag, Wallet, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -11,6 +11,7 @@ import { useAuthStore, useAuthUser, useUserDoc } from '@/stores/authStore';
 import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Avatar } from '@/shared/ui/Avatar';
 import { Card } from '@/shared/ui/Card';
 import { Text } from '@/shared/ui/Text';
@@ -24,6 +25,7 @@ export default function ProfileScreen() {
   const { t } = useTranslation(['settings', 'common', 'categories', 'accounts']);
   const { resolvedScheme } = useTheme();
   const router = useRouter();
+  const appAlert = useAppAlert();
   const isDesktop = useIsDesktop();
   const user = useAuthUser();
   const insets = useSafeAreaInsets();
@@ -105,7 +107,7 @@ export default function ProfileScreen() {
       setEditing(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('settings:profile.errors.updateNameFallback');
-      Alert.alert(t('settings:profile.errors.updateNameTitle'), msg);
+      appAlert(t('settings:profile.errors.updateNameTitle'), msg);
     } finally {
       setSaving(false);
     }
@@ -125,7 +127,7 @@ export default function ProfileScreen() {
       setEditingGoal(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t('settings:profile.goal.saveFailed');
-      Alert.alert(t('settings:profile.goal.saveFailed'), msg);
+      appAlert(t('settings:profile.goal.saveFailed'), msg);
     } finally {
       setSavingGoal(false);
     }

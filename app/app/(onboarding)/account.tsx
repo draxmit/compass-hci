@@ -2,7 +2,7 @@ import type { AccountSubtype, AccountType } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { createAccount } from '@/services/firestore/accountsService';
 import { useAuthStore } from '@/stores/authStore';
@@ -11,6 +11,7 @@ import { ACCOUNT_TYPES, getSubtypeMeta, subtypesForType } from '@/shared/data/ac
 import type { Locale } from '@/shared/i18n';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatAmountInput, parseAmountInput } from '@/shared/utils/amountInput';
@@ -27,6 +28,7 @@ import { formatAmountInput, parseAmountInput } from '@/shared/utils/amountInput'
 export default function AccountStep() {
   const { t, i18n } = useTranslation(['onboarding', 'accounts', 'common']);
   const router = useRouter();
+  const appAlert = useAppAlert();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
@@ -80,7 +82,7 @@ export default function AccountStep() {
       router.push('/(onboarding)/first-budget');
     } catch (err) {
       console.warn('[onboarding] account create failed', err);
-      Alert.alert(t('onboarding:account.title'), t('onboarding:account.createFailed'));
+      appAlert(t('onboarding:account.title'), t('onboarding:account.createFailed'));
     } finally {
       setBusy(false);
     }
