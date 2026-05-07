@@ -1,0 +1,37 @@
+{
+  "title": "Insights",
+  "comingSoon": "Hadir di v2.",
+  "loadingFailed": "Gagal memuat insights.",
+  "sections": {
+    "trend": "Pengeluaran 6 bulan terakhir",
+    "anomalies": "Yang berbeda bulan ini",
+    "heatmap": "Kapan kamu paling banyak ngeluarin",
+    "weekday": "Pola pengeluaran mingguan"
+  },
+  "trend": {
+    "monthLabel": "{{month}}",
+    "amountLabel": "{{amount}}",
+    "noData": "Belum ada pengeluaran tercatat."
+  },
+  "anomaly": {
+    "categoryHigher": "Pengeluaran {{categoryName}} bulan ini {{amount}}, jauh lebih besar dari biasanya {{baseline}}.",
+    "singleTransaction": "Satu pengeluaran {{categoryName}} sebesar {{amount}} jauh lebih besar dari biasa.",
+    "categoryHigherTitle": "{{categoryName}} naik tinggi",
+    "singleTransactionTitle": "{{categoryName}} besar"
+  },
+  "heatmap": {
+    "noData": "Belum ada pengeluaran bulan ini.",
+    "tipMost": "Hari paling boros: tanggal {{day}} ({{amount}})"
+  },
+  "weekday": {
+    "shortNames": ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
+    "noData": "Butuh setidaknya 2 minggu data untuk lihat pola.",
+    "weekendHeavier": "Akhir pekan rata-rata {{ratio}} lebih boros dari weekday.",
+    "weekdayHeavier": "Hari kerja rata-rata {{ratio}} lebih boros dari weekend."
+  },
+  "empty": {
+    "title": "Belum ada insight",
+    "body": "Catat beberapa transaksi dulu — Compass akan tunjukkan pola pengeluaranmu di sini.",
+    "cta": "Catat transaksi pertama"
+  }
+}

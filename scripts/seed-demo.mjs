@@ -135,6 +135,20 @@ function dayOfMonth(year, month, day) {
   return new Date(year, month - 1, day);
 }
 
+// Return all Saturday + Sunday day-of-month numbers for the given
+// year/month (month is 1-indexed). Used by the demo seeder to engineer
+// a weekend-heavy spending pattern so Insights tab's day-of-week
+// section has something to surface.
+function weekendsInMonth(year, month) {
+  const days = new Date(year, month, 0).getDate();
+  const out = [];
+  for (let d = 1; d <= days; d++) {
+    const dow = new Date(year, month - 1, d).getDay();
+    if (dow === 0 || dow === 6) out.push(d);
+  }
+  return out;
+}
+
 // ---- Main ----
 
 async function main() {
@@ -306,17 +320,24 @@ async function main() {
   // dates we generate fall before "today" — the report screen and Dashboard
   // both filter by yearMonth, so the dates just need to land in the right
   // month.
+  //
+  // 6-month trend window so the Insights tab's trend bar has shape (per
+  // ADR-13). Anomaly seeding (engineered category bump + single-tx outlier)
+  // is layered into current-month transactions inside buildDemoTransactions.
   const now = new Date();
-  const thisYM = ym(now);
-  const lastM = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastYM = ym(lastM);
-  const twoMAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-  const twoMAgoYM = ym(twoMAgo);
+  const monthOffsets = [0, -1, -2, -3, -4, -5];   // current → 5 months ago
+  const months = monthOffsets.map((off) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + off, 1);
+    return { date: d, ym: ym(d) };
+  });
+  const thisYM = months[0].ym;
+  const lastYM = months[1].ym;
+  const twoMAgoYM = months[2].ym;
 
-  log(`Seeding transactions for ${twoMAgoYM} / ${lastYM} / ${thisYM}…`);
+  log(`Seeding transactions for ${months.map((m) => m.ym).reverse().join(' / ')}…`);
 
   const txs = buildDemoTransactions({
-    now, thisYM, lastM, lastYM, twoMAgo, twoMAgoYM,
+    now, months,
     accountIds: acctIds, catId,
   });
   log(`  ${txs.length} transactions queued.`);
@@ -419,10 +440,15 @@ async function main() {
   log(`   Email:    ${DEMO_EMAIL}`);
   log(`   Password: ${DEMO_PASSWORD}`);
   log('');
-  log(' Months populated:');
-  log(`   ${twoMAgoYM} (oldest), ${lastYM} (last month), ${thisYM} (current)`);
+  log(' Months populated (6-month trend window for Insights):');
+  log(`   ${months.map((m) => m.ym).reverse().join(', ')}`);
   log(' 4 accounts: BCA, GoPay, Tunai, Mandiri Card');
   log(' 6 budgets:  Warteg, Grab, Bioskop, Pulsa, Skincare, Cafe');
+  log(' Engineered for Insights tab:');
+  log('   - Bioskop ANOMALY: 4 movies this month vs ~1 historically');
+  log('   - Skincare ANOMALY: Rp 1.5M splurge tx vs ~Rp 200k baseline avg');
+  log('   - Weekend Grab spike for day-of-week pattern');
+  log('   - Heavy day-14 cluster (Bandung trip) for heatmap signal');
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   // The Web SDK keeps a long-lived listener; force-exit so the script
@@ -464,12 +490,17 @@ async function wipeCollection(db, pathSegments) {
 // so the report's vs-last-month delta isn't all zeros.
 
 function buildDemoTransactions({
-  now, thisYM, lastM, lastYM, twoMAgo, twoMAgoYM, accountIds, catId,
+  now, months, accountIds, catId,
 }) {
   const txs = [];
   const yyyy = now.getFullYear();
   const mm = now.getMonth() + 1;       // 1-indexed
   const today = now.getDate();
+
+  // Pull out the canonical references the existing inline-block code
+  // expects (current / last / two-ago).
+  const lastM = months[1].date;
+  const twoMAgo = months[2].date;
 
   const A = accountIds;
   // Helper to build a date string within a given month, clamped so we
@@ -530,13 +561,31 @@ function buildDemoTransactions({
   txs.push({ type: 'expense', date: date(yyyy, mm, 8),  accountId: A.bca,   categoryId: catId('BBM'),        amount: 200_000_00,   description: 'Pertamax' });
   txs.push({ type: 'expense', date: date(yyyy, mm, 22), accountId: A.bca,   categoryId: catId('BBM'),        amount: 180_000_00,   description: 'Pertamax' });
 
-  // Skincare ~Rp 400k
+  // Skincare ~Rp 400k routine + ENGINEERED Rp 1.5M anomaly so the
+  // Insights tab's single-transaction anomaly callout has something
+  // concrete to surface (per ADR-13 §9 demo-seed update).
   txs.push({ type: 'expense', date: date(yyyy, mm, 5),  accountId: A.bca,   categoryId: catId('Skincare'),   amount: 250_000_00,   description: 'Skincare The Originote' });
   txs.push({ type: 'expense', date: date(yyyy, mm, 18), accountId: A.card,  categoryId: catId('Skincare'),   amount: 150_000_00,   description: 'Sunscreen Wardah' });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 12), accountId: A.card,  categoryId: catId('Skincare'),   amount: 1_500_000_00, description: 'Splurge: La Roche-Posay set lengkap' });
 
-  // Bioskop ~Rp 160k (over Rp 100k budget)
+  // Bioskop — engineered ANOMALY: 4 movies + 1 concert this month vs ~1
+  // historically, so the Insights category-anomaly callout triggers.
   txs.push({ type: 'expense', date: date(yyyy, mm, 9),  accountId: A.gopay, categoryId: catId('Bioskop'),    amount: 75_000_00,    description: 'CGV — Doctor Strange' });
   txs.push({ type: 'expense', date: date(yyyy, mm, 23), accountId: A.gopay, categoryId: catId('Bioskop'),    amount: 85_000_00,    description: 'XXI weekend' });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 16), accountId: A.gopay, categoryId: catId('Bioskop'),    amount: 90_000_00,    description: 'XXI premiere' });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 24), accountId: A.gopay, categoryId: catId('Bioskop'),    amount: 95_000_00,    description: 'CGV imax' });
+
+  // Weekend Grab spike for the day-of-week pattern signal.
+  // Find Saturdays + Sundays inside this month and front-load Grab on them.
+  for (const day of weekendsInMonth(yyyy, mm).slice(0, 4)) {
+    txs.push({ type: 'expense', date: date(yyyy, mm, day), accountId: A.gopay, categoryId: catId('Grab'), amount: 80_000_00, description: 'Grab weekend' });
+  }
+  // One particularly heavy day early in the month for the heatmap
+  // (multiple expensive transactions cluster on day 14, a single
+  // weekend day-trip).
+  txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.gopay, categoryId: catId('Restoran'), amount: 380_000_00, description: 'Day-trip Bandung — makan siang' });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.bca,   categoryId: catId('BBM'),     amount: 250_000_00, description: 'Pertamax Bandung' });
+  txs.push({ type: 'expense', date: date(yyyy, mm, 14), accountId: A.cash,  categoryId: catId('Tol'),     amount: 95_000_00,  description: 'Tol PP' });
 
   // Delivery + Restoran + Jajan
   txs.push({ type: 'expense', date: date(yyyy, mm, 11), accountId: A.gopay, categoryId: catId('Delivery'),   amount: 120_000_00,   description: 'GoFood weekend' });
@@ -598,6 +647,46 @@ function buildDemoTransactions({
   }
   txs.push({ type: 'expense', date: date(ty2, tm2, Math.min(14, tm2Days)), accountId: A.bca, categoryId: catId('Belanja Dapur'), amount: 320_000_00, description: 'Indomaret' });
   txs.push({ type: 'expense', date: date(ty2, tm2, Math.min(20, tm2Days)), accountId: A.bca, categoryId: catId('BBM'),           amount: 200_000_00, description: 'Pertamax' });
+
+  // ===== 3, 4, 5 months ago — baseline-pattern fill so the 6-month
+  // trend bar on Insights has shape (per ADR-13 §9). Each month has a
+  // similar but not identical mix; amounts vary so the trend isn't flat.
+  for (let monthIdx = 3; monthIdx <= 5; monthIdx++) {
+    const md = months[monthIdx].date;
+    const myr = md.getFullYear();
+    const mmn = md.getMonth() + 1;
+    const mdays = new Date(myr, mmn, 0).getDate();
+    // Salary
+    txs.push({ type: 'income',  date: date(myr, mmn, 1), accountId: A.bca, categoryId: catId('Gaji'),     amount: 8_500_000_00, description: 'Gaji' });
+    // Bills
+    txs.push({ type: 'expense', date: date(myr, mmn, 1), accountId: A.bca, categoryId: catId('Internet'), amount: 350_000_00,   description: 'Indihome' });
+    txs.push({ type: 'expense', date: date(myr, mmn, 2), accountId: A.bca, categoryId: catId('Listrik'),  amount: (350_000 + monthIdx * 10_000) * 100, description: 'PLN' });
+    txs.push({ type: 'expense', date: date(myr, mmn, 5), accountId: A.gopay, categoryId: catId('Pulsa'),  amount: 50_000_00,    description: 'Topup' });
+    txs.push({ type: 'expense', date: date(myr, mmn, 3), accountId: A.bca, categoryId: catId('BPJS'),     amount: 150_000_00,   description: 'BPJS' });
+    // Warteg
+    for (const d of [3, 6, 9, 12, 15, 18, 21, 24]) {
+      txs.push({ type: 'expense', date: date(myr, mmn, Math.min(d, mdays)), accountId: A.cash, categoryId: catId('Warteg'), amount: (28_000 + monthIdx * 1_000) * 100, description: 'Warteg' });
+    }
+    // Cafe
+    for (const d of [4, 11, 18, 25]) {
+      txs.push({ type: 'expense', date: date(myr, mmn, Math.min(d, mdays)), accountId: A.card, categoryId: catId('Cafe'), amount: (60_000 + monthIdx * 5_000) * 100, description: 'Cafe' });
+    }
+    // Grab
+    for (const d of [2, 6, 10, 14, 18, 22, 26]) {
+      txs.push({ type: 'expense', date: date(myr, mmn, Math.min(d, mdays)), accountId: A.gopay, categoryId: catId('Grab'), amount: (35_000 + monthIdx * 2_000) * 100, description: 'Grab' });
+    }
+    // BBM
+    txs.push({ type: 'expense', date: date(myr, mmn, Math.min(11, mdays)), accountId: A.bca, categoryId: catId('BBM'),    amount: 200_000_00, description: 'Pertamax' });
+    // Belanja Dapur
+    txs.push({ type: 'expense', date: date(myr, mmn, Math.min(8, mdays)),  accountId: A.bca, categoryId: catId('Belanja Dapur'), amount: 300_000_00, description: 'Belanja' });
+    // Skincare — small amounts so the historical median stays low
+    // (makes the current-month Rp 1.5M splurge stand out for the
+    // Insights single-tx anomaly callout).
+    txs.push({ type: 'expense', date: date(myr, mmn, Math.min(15, mdays)), accountId: A.bca, categoryId: catId('Skincare'),     amount: (200_000 + monthIdx * 10_000) * 100, description: 'Skincare basics' });
+    // Bioskop — just one movie historically (so the current-month 4
+    // movies trigger the category-anomaly callout)
+    txs.push({ type: 'expense', date: date(myr, mmn, Math.min(20, mdays)), accountId: A.gopay, categoryId: catId('Bioskop'),    amount: 75_000_00, description: 'XXI' });
+  }
 
   // Sort ascending by date so oldest writes first (cosmetic — Firestore
   // doesn't care, but it makes the in-batch ordering reflect intent).

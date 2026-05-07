@@ -8,6 +8,7 @@ import budgetsEn from '../../../locales/en/budgets.json';
 import categoriesEn from '../../../locales/en/categories.json';
 import commonEn from '../../../locales/en/common.json';
 import dashboardEn from '../../../locales/en/dashboard.json';
+import insightsEn from '../../../locales/en/insights.json';
 import onboardingEn from '../../../locales/en/onboarding.json';
 import reportEn from '../../../locales/en/report.json';
 import settingsEn from '../../../locales/en/settings.json';
@@ -18,6 +19,7 @@ import budgetsId from '../../../locales/id/budgets.json';
 import categoriesId from '../../../locales/id/categories.json';
 import commonId from '../../../locales/id/common.json';
 import dashboardId from '../../../locales/id/dashboard.json';
+import insightsId from '../../../locales/id/insights.json';
 import onboardingId from '../../../locales/id/onboarding.json';
 import reportId from '../../../locales/id/report.json';
 import settingsId from '../../../locales/id/settings.json';
@@ -37,6 +39,7 @@ const NAMESPACES = [
   'categories',
   'accounts',
   'onboarding',
+  'insights',
 ] as const;
 
 const resources = {
@@ -51,6 +54,7 @@ const resources = {
     categories: categoriesId,
     accounts: accountsId,
     onboarding: onboardingId,
+    insights: insightsId,
   },
   en: {
     common: commonEn,
@@ -63,6 +67,7 @@ const resources = {
     categories: categoriesEn,
     accounts: accountsEn,
     onboarding: onboardingEn,
+    insights: insightsEn,
   },
 } as const;
 

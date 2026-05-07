@@ -1,0 +1,37 @@
+{
+  "title": "Insights",
+  "comingSoon": "Coming in v2.",
+  "loadingFailed": "Couldn't load insights.",
+  "sections": {
+    "trend": "Spending — last 6 months",
+    "anomalies": "What's notable this month",
+    "heatmap": "When you spend most",
+    "weekday": "Your weekly pattern"
+  },
+  "trend": {
+    "monthLabel": "{{month}}",
+    "amountLabel": "{{amount}}",
+    "noData": "No spending logged yet."
+  },
+  "anomaly": {
+    "categoryHigher": "{{categoryName}} this month is {{amount}} — much more than the usual {{baseline}}.",
+    "singleTransaction": "One {{categoryName}} expense of {{amount}} is much bigger than typical.",
+    "categoryHigherTitle": "{{categoryName}} up sharply",
+    "singleTransactionTitle": "Big {{categoryName}} expense"
+  },
+  "heatmap": {
+    "noData": "No spending this month yet.",
+    "tipMost": "Heaviest day: {{day}} ({{amount}})"
+  },
+  "weekday": {
+    "shortNames": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    "noData": "Need at least 2 weeks of data to show a pattern.",
+    "weekendHeavier": "Weekends average {{ratio}} more than weekdays.",
+    "weekdayHeavier": "Weekdays average {{ratio}} more than weekends."
+  },
+  "empty": {
+    "title": "No insights yet",
+    "body": "Log a few transactions first — Compass will surface your spending patterns here.",
+    "cta": "Log your first transaction"
+  }
+}
