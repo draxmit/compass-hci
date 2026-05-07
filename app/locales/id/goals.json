@@ -1,0 +1,70 @@
+{
+  "title": "Tujuan",
+  "subtitle": "Hal-hal yang lagi kamu nabung",
+  "addCta": "+ Tujuan baru",
+  "empty": {
+    "title": "Belum ada tujuan",
+    "body": "Pilih dari template atau buat sendiri — bisa Lebaran, dana darurat, beli motor, apa aja.",
+    "cta": "Pilih template"
+  },
+  "templates": {
+    "label": "PILIH TEMPLATE",
+    "suggestedTarget": "Saran target {{amount}}",
+    "lebaran_thr": "Lebaran THR",
+    "dana_darurat": "Dana Darurat",
+    "beli_motor": "Beli Motor",
+    "kawinan": "Kawinan",
+    "liburan": "Liburan Bali",
+    "dp_rumah": "DP Rumah",
+    "custom": "Bikin sendiri"
+  },
+  "form": {
+    "title": "Tujuan baru",
+    "editTitle": "Ubah tujuan",
+    "nameLabel": "Nama",
+    "namePlaceholder": "Lebaran 2027, dana darurat…",
+    "targetLabel": "Target",
+    "targetPlaceholder": "0",
+    "targetDateLabel": "Target tanggal (opsional)",
+    "targetDatePlaceholder": "YYYY-MM-DD",
+    "save": "Simpan",
+    "saving": "Menyimpan…",
+    "cancel": "Batal",
+    "errors": {
+      "missingName": "Nama belum diisi.",
+      "missingTarget": "Target belum diisi.",
+      "invalidTarget": "Target harus lebih dari 0.",
+      "saveFailed": "Gagal menyimpan tujuan."
+    }
+  },
+  "row": {
+    "ofTarget": "{{current}} dari {{target}}",
+    "percentDone": "{{percent}}",
+    "monthsToGo": "Sekitar {{count}} bulan lagi",
+    "targetByDate": "Target {{date}}",
+    "addContribution": "+ Tambah",
+    "delete": "Hapus"
+  },
+  "contribute": {
+    "title": "Tambah ke {{goalName}}",
+    "body": "Berapa yang mau kamu masukin sekarang?",
+    "amountLabel": "Jumlah",
+    "amountPlaceholder": "0",
+    "save": "Tambah",
+    "saving": "Menyimpan…",
+    "cancel": "Batal",
+    "errors": {
+      "missingAmount": "Jumlah belum diisi.",
+      "saveFailed": "Gagal menambah kontribusi."
+    }
+  },
+  "delete": {
+    "title": "Hapus tujuan?",
+    "body": "Riwayat kontribusinya juga akan hilang. Tidak bisa dibatalkan.",
+    "confirm": "Hapus",
+    "failed": "Gagal menghapus tujuan."
+  },
+  "dashboard": {
+    "primaryGoalProgress": "{{name}} — {{percent}}"
+  }
+}

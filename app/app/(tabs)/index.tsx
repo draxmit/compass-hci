@@ -469,8 +469,15 @@ export default function DashboardScreen() {
         {/* Goal pill — reads users.primaryGoal (set by T10 onboarding step 1).
             Hidden if null/empty. No "set goal" CTA in v1; T11+ adds an
             edit affordance via /profile/goal. */}
+        {/* Goal pill — taps into /goals where the user can set up
+            structured sinking funds. v2.5 will wire up showing the
+            primary structured-goal's progress here when one exists;
+            v2 ships with the free-text from primaryGoal. */}
         {goalText.length > 0 ? (
-          <View
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={t('dashboard:goal.savingFor', { goal: goalText })}
+            onPress={() => router.push('/goals')}
             className="self-center px-3 py-2 rounded-full mt-2"
             style={{
               backgroundColor: tokens.accent.dashboard + '14',
@@ -481,7 +488,7 @@ export default function DashboardScreen() {
             <Text className="font-sans text-xs" style={{ color: tokens.accent.dashboard }}>
               {t('dashboard:goal.savingFor', { goal: goalText })}
             </Text>
-          </View>
+          </Pressable>
         ) : null}
       </View>
     </ScrollView>

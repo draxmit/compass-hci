@@ -1,6 +1,6 @@
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, Tag, Wallet, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, Tag, Target, Wallet, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +22,7 @@ import { formatDate } from '@/shared/utils/formatDate';
 // (desktop) or the avatar in MobileTopBar (mobile). Settings is reached
 // from a link card inside this screen.
 export default function ProfileScreen() {
-  const { t } = useTranslation(['settings', 'common', 'categories', 'accounts']);
+  const { t } = useTranslation(['settings', 'common', 'categories', 'accounts', 'goals']);
   const { resolvedScheme } = useTheme();
   const router = useRouter();
   const appAlert = useAppAlert();
@@ -473,6 +473,25 @@ export default function ProfileScreen() {
             <Text className="font-sans-medium">{t('accounts:title')}</Text>
             <Text className="font-sans text-xs" style={{ color: mutedColor }}>
               {t('accounts:tagline')}
+            </Text>
+          </View>
+          <ChevronRight size={18} color={mutedColor} />
+        </Pressable>
+      </Card>
+
+      {/* Goals link — sinking funds lives here too. */}
+      <Card padding="none" className="mb-4 w-full">
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('goals:title')}
+          onPress={() => router.push('/goals')}
+          className="flex-row items-center px-5 py-4 min-h-[44px]"
+        >
+          <Target size={20} color={mutedColor} />
+          <View className="ml-3 flex-1">
+            <Text className="font-sans-medium">{t('goals:title')}</Text>
+            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+              {t('goals:subtitle')}
             </Text>
           </View>
           <ChevronRight size={18} color={mutedColor} />

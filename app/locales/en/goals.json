@@ -1,0 +1,70 @@
+{
+  "title": "Goals",
+  "subtitle": "What you're saving for",
+  "addCta": "+ New goal",
+  "empty": {
+    "title": "No goals yet",
+    "body": "Pick a template or roll your own — Lebaran, emergency fund, new bike, anything.",
+    "cta": "Pick a template"
+  },
+  "templates": {
+    "label": "PICK A TEMPLATE",
+    "suggestedTarget": "Suggested target {{amount}}",
+    "lebaran_thr": "Lebaran THR",
+    "dana_darurat": "Emergency Fund",
+    "beli_motor": "New Bike",
+    "kawinan": "Wedding",
+    "liburan": "Bali Holiday",
+    "dp_rumah": "House Down Payment",
+    "custom": "Roll your own"
+  },
+  "form": {
+    "title": "New goal",
+    "editTitle": "Edit goal",
+    "nameLabel": "Name",
+    "namePlaceholder": "Lebaran 2027, emergency fund…",
+    "targetLabel": "Target",
+    "targetPlaceholder": "0",
+    "targetDateLabel": "Target date (optional)",
+    "targetDatePlaceholder": "YYYY-MM-DD",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "errors": {
+      "missingName": "Name is required.",
+      "missingTarget": "Target is required.",
+      "invalidTarget": "Target must be greater than 0.",
+      "saveFailed": "Couldn't save goal."
+    }
+  },
+  "row": {
+    "ofTarget": "{{current}} of {{target}}",
+    "percentDone": "{{percent}}",
+    "monthsToGo": "About {{count}} months to go",
+    "targetByDate": "By {{date}}",
+    "addContribution": "+ Add",
+    "delete": "Delete"
+  },
+  "contribute": {
+    "title": "Add to {{goalName}}",
+    "body": "How much do you want to contribute now?",
+    "amountLabel": "Amount",
+    "amountPlaceholder": "0",
+    "save": "Add",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "errors": {
+      "missingAmount": "Amount is required.",
+      "saveFailed": "Couldn't add contribution."
+    }
+  },
+  "delete": {
+    "title": "Delete goal?",
+    "body": "Contribution history will also be gone. This can't be undone.",
+    "confirm": "Delete",
+    "failed": "Couldn't delete goal."
+  },
+  "dashboard": {
+    "primaryGoalProgress": "{{name}} — {{percent}}"
+  }
+}

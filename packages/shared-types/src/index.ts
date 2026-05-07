@@ -244,6 +244,38 @@ export type CategoryMonthTotal = {
 };
 
 /**
+ * Goal kind — v2 launch ships `sinking_fund` only; `habit_streak` is a
+ * v2.5 placeholder so the schema doesn't need migration when habits land.
+ */
+export type GoalKind = 'sinking_fund' | 'habit_streak';
+
+/**
+ * Goal document (v2 / ADR-15). Sinking funds are user-named savings
+ * targets with a target amount + optional target date. Contributions
+ * are tracked manually (user types an amount; we increment
+ * currentMinor). Tx-linked contributions are v2.5.
+ *
+ * Path: `workspaces/{wid}/goals/{id}`.
+ *
+ * v2.5 forward-compat: habit-streak fields will land here when habits
+ * ship — no migration needed.
+ */
+export type Goal = {
+  id: string;
+  kind: GoalKind;
+  name: string;
+  // Sinking-fund fields
+  targetMinor: number;
+  currentMinor: number;
+  /** 'YYYY-MM-DD' or null for no deadline. */
+  targetDate: string | null;
+  /** Matches a key in shared/data/goalTemplates.ts; null for custom goals. */
+  templateKey: string | null;
+  createdAt: unknown;
+  updatedAt: unknown;
+};
+
+/**
  * Budget style — v1 ships only `monthly_limit`; envelope + 50/30/20 are
  * schema-forward placeholders so v2 can reuse the Budget doc shape without
  * a migration.
