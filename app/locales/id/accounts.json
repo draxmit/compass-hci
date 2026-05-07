@@ -10,7 +10,11 @@
     "body": "Tambahkan akun bank, e-wallet, atau dompet tunai untuk mulai mencatat transaksi.",
     "cta": "Tambahkan akun pertama"
   },
-  "totalBalance": "Total saldo",
+  "totalBalance": "Kekayaan bersih",
+  "liabilitiesNote": "Setelah {{amount}} utang kartu kredit",
+  "row": {
+    "owed": "utang"
+  },
   "types": {
     "cash": "Tunai",
     "bank": "Bank",

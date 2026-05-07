@@ -94,6 +94,18 @@ export default function AccountsScreen() {
     [accounts],
   );
 
+  // Sum of credit-card debts in IDR — used for the breakdown line
+  // under the total balance ("Rp X liabilities"). Liabilities are
+  // accounts where currentBalance < 0 (which v2 only credit cards
+  // hit by design — the model doesn't disallow it on cash/bank but
+  // the UI treats sub-zero balance as debt only for credit_card).
+  const totalLiabilities = useMemo(
+    () => accounts
+      .filter((a) => a.includedInNetWorth && a.type === 'credit_card' && a.currentBalance < 0)
+      .reduce((sum, a) => sum + convertToIDRMinor(Math.abs(a.currentBalance), a.currency), 0),
+    [accounts],
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: overlayBg }}>
       {editTarget ? (
@@ -196,6 +208,14 @@ export default function AccountsScreen() {
                   >
                     {formatIDR(totalBalance)}
                   </Text>
+                  {totalLiabilities > 0 ? (
+                    <Text
+                      className="font-sans text-xs mt-1"
+                      style={{ color: mutedColor }}
+                    >
+                      {t('accounts:liabilitiesNote', { amount: formatIDR(totalLiabilities) })}
+                    </Text>
+                  ) : null}
                 </Card>
                 {groups.map(({ type, accounts: items }) => (
                   <AccountGroup
@@ -302,18 +322,36 @@ function AccountGroup({ type, accounts, isDark, lang, displayInIDR, onEditAccoun
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               {(() => {
+                // Credit cards are tracked as liabilities — a negative
+                // balance means "you owe X". Render as a positive
+                // "owed" amount in the danger colour so the user
+                // doesn't have to mentally negate. Net Worth math is
+                // unaffected because it sums the raw currentBalance
+                // (negative liability already pulls it down correctly).
+                const isLiability = account.type === 'credit_card';
+                const owed = isLiability && account.currentBalance < 0;
+                const displayValue = owed
+                  ? Math.abs(account.currentBalance)
+                  : account.currentBalance;
                 const display = formatAmountForDisplay(
-                  account.currentBalance, account.currency, displayInIDR, lang,
+                  displayValue, account.currency, displayInIDR, lang,
                 );
                 return (
                   <>
                     <Text
                       className="font-mono tabular-nums text-base"
-                      style={{ color: fgColor }}
+                      style={{ color: owed ? tokens.semantic.danger : fgColor }}
                     >
                       {display.primary}
                     </Text>
-                    {display.secondary ? (
+                    {owed ? (
+                      <Text
+                        className="font-sans text-xs"
+                        style={{ color: tokens.semantic.danger, marginTop: 2 }}
+                      >
+                        {t('accounts:row.owed')}
+                      </Text>
+                    ) : display.secondary ? (
                       <Text
                         className="font-mono tabular-nums text-xs"
                         style={{ color: mutedColor, marginTop: 2 }}

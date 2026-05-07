@@ -370,6 +370,42 @@ export default function BudgetsScreen() {
 
         {!totallyEmpty && allLoaded && selectedStyle !== 'fifty_thirty_twenty' ? (
           <>
+            {/* Envelope mode hero — total available across categories,
+                broken into base budget + carry-over from last month so
+                the user immediately sees what makes envelope different
+                from monthly_limit. Only renders in envelope mode. */}
+            {selectedStyle === 'envelope' ? (
+              <Card padding="lg" className="mb-4">
+                <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
+                  {t('budgets:envelope.totalAvailableLabel')}
+                </Text>
+                {(() => {
+                  const baseSum = budgets.reduce((s, b) => s + b.limitMinor, 0);
+                  const rollSum = [...envelopeBalances.values()]
+                    .reduce((s, e) => s + e.rolloverMinor, 0);
+                  return (
+                    <>
+                      <Text
+                        className="font-mono tabular-nums text-2xl"
+                        style={{ color: fgColor }}
+                      >
+                        {formatIDR(baseSum + rollSum, lang)}
+                      </Text>
+                      <Text
+                        className="font-sans text-xs mt-1"
+                        style={{ color: mutedColor }}
+                      >
+                        {t('budgets:envelope.breakdown', {
+                          base: formatIDR(baseSum, lang),
+                          rollover: formatIDR(rollSum, lang),
+                        })}
+                      </Text>
+                    </>
+                  );
+                })()}
+              </Card>
+            ) : null}
+
             {/* Budgeted section */}
             {budgetedCategories.length > 0 ? (
               <View className="mb-6">
@@ -583,17 +619,33 @@ function BudgetRow({
             <Text style={{ color: mutedColor }}>{t('budgets:row.of')}</Text>{' '}
             {formatIDR(effectiveLimitMinor, lang)}
           </Text>
-          {/* Rollover line — envelope only. Shows base limit + rollover
-              source when there's any unspent surplus from last month. */}
-          {showRollover && rolloverMinor > 0 ? (
-            <Text className="font-sans text-xs mt-0.5" style={{ color: tokens.semantic.positive }}>
-              {t('budgets:row.rollover', {
-                base: formatIDR(budget.limitMinor, lang),
-                rollover: formatIDR(rolloverMinor, lang),
-              })}
-            </Text>
-          ) : null}
         </View>
+        {/* Rollover badge — envelope only. Sits next to the percent
+            number on the right so it's visually adjacent to the
+            progress data, not buried under the spent/of line. Bold
+            green pill so the envelope-mode user immediately sees
+            which rows carry surplus. */}
+        {showRollover && rolloverMinor > 0 ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderRadius: 999,
+              backgroundColor: tokens.semantic.positive + '22',
+              borderWidth: 1,
+              borderColor: tokens.semantic.positive + '55',
+              marginRight: 8,
+            }}
+          >
+            <Text className="font-sans-semibold" style={{ color: tokens.semantic.positive, fontSize: 10 }}>
+              {'+'}
+              {formatIDR(rolloverMinor, lang)}
+            </Text>
+          </View>
+        ) : null}
         <Text
           className="font-mono tabular-nums text-sm"
           style={{ color: overBudget ? dangerColor : accent }}

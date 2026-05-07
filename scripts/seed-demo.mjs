@@ -267,6 +267,7 @@ async function main() {
   await wipeCollection(db, ['workspaces', wid, 'budgets']);
   await wipeCollection(db, ['workspaces', wid, 'category_month_totals']);
   await wipeCollection(db, ['workspaces', wid, 'goals']);
+  await wipeCollection(db, ['workspaces', wid, 'saved_filters']);
 
   // ---- Seed pinned dashboard goal (ADR-20) ----
   // Lebaran 2027 with target Rp 12jt + current Rp 5jt → ~42% progress
@@ -496,6 +497,46 @@ async function main() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       }, { merge: true });
+    }
+    await batch.commit();
+  }
+
+  // ---- Seed saved filter presets ----
+  // Three presets that showcase the feature on first sight: a tag
+  // filter (bandung-trip), a type-and-tag filter (cafe nongki), and
+  // a date-range preset (last month).
+  log('Seeding saved filters…');
+  {
+    const batch = writeBatch(db);
+    const presets = [
+      {
+        name: 'Bandung trip',
+        search: '',
+        typeFilter: 'all',
+        dateFilter: 'all_time',
+        tagFilter: ['bandung-trip'],
+      },
+      {
+        name: 'Nongki sessions',
+        search: '',
+        typeFilter: 'expense',
+        dateFilter: 'this_month',
+        tagFilter: ['nongki'],
+      },
+      {
+        name: 'Last month spending',
+        search: '',
+        typeFilter: 'expense',
+        dateFilter: 'last_month',
+        tagFilter: [],
+      },
+    ];
+    for (const p of presets) {
+      const ref = doc(collection(db, 'workspaces', wid, 'saved_filters'));
+      batch.set(ref, {
+        ...p,
+        createdAt: serverTimestamp(),
+      });
     }
     await batch.commit();
   }

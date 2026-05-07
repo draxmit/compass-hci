@@ -10,7 +10,11 @@
     "body": "Add a bank, e-wallet, or cash account to start tracking transactions.",
     "cta": "Add your first account"
   },
-  "totalBalance": "Total balance",
+  "totalBalance": "Net worth",
+  "liabilitiesNote": "After {{amount}} owed on credit cards",
+  "row": {
+    "owed": "owed"
+  },
   "types": {
     "cash": "Cash",
     "bank": "Bank",

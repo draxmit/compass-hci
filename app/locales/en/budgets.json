@@ -22,6 +22,10 @@
     "overBudget": "Over by {{amount}}",
     "rollover": "{{base}} this month + {{rollover}} from last month"
   },
+  "envelope": {
+    "totalAvailableLabel": "Available this month",
+    "breakdown": "{{base}} budgeted + {{rollover}} rolled over from last month"
+  },
   "fiftyThirtyTwenty": {
     "incomeLabel": "Income this month",
     "incomeHint": "Targets below are 50 / 30 / 20 of your income.",

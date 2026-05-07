@@ -22,6 +22,10 @@
     "overBudget": "Lewat budget {{amount}}",
     "rollover": "{{base}} bulan ini + {{rollover}} sisa bulan lalu"
   },
+  "envelope": {
+    "totalAvailableLabel": "Tersedia bulan ini",
+    "breakdown": "{{base}} budget + {{rollover}} sisa bulan lalu"
+  },
   "fiftyThirtyTwenty": {
     "incomeLabel": "Pemasukan bulan ini",
     "incomeHint": "Target di bawah adalah 50 / 30 / 20 dari pemasukanmu.",
