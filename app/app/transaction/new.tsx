@@ -24,6 +24,7 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
+import { DateField } from '@/shared/ui/DateField';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import {
@@ -97,7 +98,7 @@ export default function NewTransactionScreen() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [date] = useState(new Date().toISOString().slice(0, 10));  // T6 v1 = today only; T7 will add date picker
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));  // 'YYYY-MM-DD' — editable via DateField
   const [nlpInput, setNlpInput] = useState('');
   const [confidence, setConfidence] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -485,7 +486,9 @@ export default function NewTransactionScreen() {
             </View>
           </Card>
 
-          {/* Amount */}
+          {/* Amount + Date — both small fields in the same card with an
+              internal divider, mirroring the consolidation pattern from
+              the Notes card below. */}
           <Card padding="lg" className="mb-4">
             <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
               {t('transactions:entry.fields.amount')}
@@ -503,6 +506,33 @@ export default function NewTransactionScreen() {
                 {formatIDR(parseAmountInput(amountText, lang))}
               </Text>
             ) : null}
+
+            <View
+              style={{
+                marginTop: 16,
+                paddingTop: 16,
+                borderTopWidth: 1,
+                borderTopColor: borderColor,
+              }}
+            >
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+                {t('transactions:entry.fields.date')}
+              </Text>
+              <DateField
+                value={date}
+                onChange={(next) => {
+                  // Empty = revert to today rather than leaving blank.
+                  // Tx must always have a date.
+                  if (!next) {
+                    setDate(new Date().toISOString().slice(0, 10));
+                    return;
+                  }
+                  setDate(next);
+                }}
+                lang={lang}
+                accessibilityLabel={t('transactions:entry.fields.date')}
+              />
+            </View>
           </Card>
 
           {/* From account / single account */}

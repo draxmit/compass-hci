@@ -22,6 +22,7 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
+import { DateField } from '@/shared/ui/DateField';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatAmountInput, minorToInputText, parseAmountInput } from '@/shared/utils/amountInput';
@@ -772,12 +773,12 @@ function GoalEditPanel({
             <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
               {t('goals:form.targetDateLabel')}
             </Text>
-            <TextField
-              label=""
+            <DateField
               value={targetDate}
-              onChangeText={setTargetDate}
+              onChange={setTargetDate}
               placeholder={t('goals:form.targetDatePlaceholder')}
-              autoCapitalize="none"
+              lang={lang}
+              accessibilityLabel={t('goals:form.targetDateLabel')}
             />
           </Card>
 

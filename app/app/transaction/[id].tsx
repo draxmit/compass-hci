@@ -27,6 +27,7 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
+import { DateField } from '@/shared/ui/DateField';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import {
@@ -75,6 +76,7 @@ export default function EditTransactionScreen() {
   const [accountId, setAccountId] = useState<string | null>(null);
   const [toAccountId, setToAccountId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [date, setDate] = useState<string>('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [recentTagSet, setRecentTagSet] = useState<string[]>([]);
@@ -126,6 +128,7 @@ export default function EditTransactionScreen() {
         setAccountId(tx.accountId);
         setToAccountId(tx.toAccountId);
         setCategoryId(tx.splits[0]?.categoryId ?? null);
+        setDate(tx.date);
         setDescription(tx.description);
         // Pre-populate tags. Defensive `?? []` because legacy v1 docs
         // don't have the field.
@@ -203,10 +206,15 @@ export default function EditTransactionScreen() {
     const splitsKey = (s: Split[]) =>
       s.map((x) => `${x.categoryId}:${x.amount}`).join('|');
     const splitsChanged = splitsKey(splits) !== splitsKey(loaded.splits);
+    // Date is a financial field — changing it moves the tx into a
+    // different yearMonth bucket, which affects category_month_totals.
+    // Goes through delete + recreate just like amount/account changes.
+    const dateChanged = date !== loaded.date;
     const financialChanged =
       type !== loaded.type
       || amount !== loaded.amount
       || accountId !== loaded.accountId
+      || dateChanged
       || (type === 'transfer' && toAccountId !== loaded.toAccountId)
       || (type !== 'transfer' && splitsChanged);
 
@@ -236,7 +244,7 @@ export default function EditTransactionScreen() {
         await deleteTransaction(wid, loaded.id);
         await createTransaction(wid, {
           type,
-          date: loaded.date,
+          date,
           accountId,
           toAccountId: type === 'transfer' ? toAccountId : null,
           currency: sourceAccount?.currency ?? loaded.currency ?? 'IDR',
@@ -431,7 +439,7 @@ export default function EditTransactionScreen() {
             </View>
           </Card>
 
-          {/* Amount */}
+          {/* Amount + Date — same consolidation as /transaction/new. */}
           <Card padding="lg" className="mb-4">
             <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
               {t('transactions:entry.fields.amount')}
@@ -449,6 +457,30 @@ export default function EditTransactionScreen() {
                 {formatIDR(parseAmountInput(amountText, lang))}
               </Text>
             ) : null}
+
+            <View
+              style={{
+                marginTop: 16,
+                paddingTop: 16,
+                borderTopWidth: 1,
+                borderTopColor: borderColor,
+              }}
+            >
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+                {t('transactions:entry.fields.date')}
+              </Text>
+              <DateField
+                value={date}
+                onChange={(next) => {
+                  // Empty = revert to loaded.date so the tx always has
+                  // a date. Editing the date triggers delete + recreate
+                  // because yearMonth changes.
+                  setDate(next || (loaded?.date ?? new Date().toISOString().slice(0, 10)));
+                }}
+                lang={lang}
+                accessibilityLabel={t('transactions:entry.fields.date')}
+              />
+            </View>
           </Card>
 
           {/* From / single account */}

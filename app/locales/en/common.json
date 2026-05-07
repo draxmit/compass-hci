@@ -9,7 +9,8 @@
     "ok": "OK",
     "retry": "Retry",
     "close": "Close",
-    "done": "Done"
+    "done": "Done",
+    "today": "Today"
   },
   "nav": {
     "dashboard": "Dashboard",

@@ -9,7 +9,8 @@
     "ok": "OK",
     "retry": "Coba lagi",
     "close": "Tutup",
-    "done": "Selesai"
+    "done": "Selesai",
+    "today": "Hari ini"
   },
   "nav": {
     "dashboard": "Dashboard",
