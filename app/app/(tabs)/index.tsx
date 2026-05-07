@@ -59,6 +59,7 @@ export default function DashboardScreen() {
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -302,6 +303,63 @@ export default function DashboardScreen() {
                   context: includedAccounts.length === 1 ? 'one' : 'other',
                 })}
               </Text>
+              {/* Goal subtitle — pinned goal as a thin block tucked
+                  under the Net Worth hero. Single tap routes to /goals.
+                  Replaces the prior bottom-of-screen GoalPill card.
+                  Keeps the goal in the user's visibility column without
+                  inflating it into a separate card. */}
+              {pinnedGoal ? (
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={t('dashboard:goal.savingFor', { goal: pinnedGoal.name })}
+                  onPress={() => router.push('/goals')}
+                  style={{
+                    marginTop: 14,
+                    paddingTop: 12,
+                    borderTopWidth: 1,
+                    borderTopColor: borderColor,
+                  }}
+                >
+                  <Text
+                    className="font-sans-medium text-xs"
+                    style={{ color: tokens.accent.dashboard }}
+                    numberOfLines={1}
+                  >
+                    {t('dashboard:goal.savingFor', { goal: pinnedGoal.name })}
+                  </Text>
+                  {pinnedGoal.targetMinor > 0 ? (
+                    <>
+                      <View
+                        style={{
+                          marginTop: 6,
+                          height: 4,
+                          borderRadius: 999,
+                          backgroundColor: tokens.accent.dashboard + '22',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: `${Math.round(
+                              Math.min(1, Math.max(0, pinnedGoal.currentMinor / pinnedGoal.targetMinor)) * 100,
+                            )}%`,
+                            height: '100%',
+                            backgroundColor: tokens.accent.dashboard,
+                          }}
+                        />
+                      </View>
+                      <Text
+                        className="font-mono tabular-nums text-xs mt-1.5"
+                        style={{ color: mutedColor }}
+                      >
+                        {formatAmountForDisplay(pinnedGoal.currentMinor, 'IDR', displayInIDR, lang).primary}
+                        {' / '}
+                        {formatAmountForDisplay(pinnedGoal.targetMinor, 'IDR', displayInIDR, lang).primary}
+                      </Text>
+                    </>
+                  ) : null}
+                </Pressable>
+              ) : null}
             </>
           )}
         </View>
@@ -494,20 +552,8 @@ export default function DashboardScreen() {
           </>
         )}
 
-        {/* Goal pill (ADR-20) — reads from the pinned goal in the goals
-            collection. Renders the goal name + a progress bar + amounts
-            line when a target is set; just the name when target = 0
-            (the post-migration default for legacy primaryGoal text).
-            Hidden when no goal is pinned. Taps through to /goals. */}
-        {pinnedGoal ? (
-          <GoalPill
-            goal={pinnedGoal}
-            displayInIDR={displayInIDR}
-            lang={lang}
-            t={t}
-            onPress={() => router.push('/goals')}
-          />
-        ) : null}
+        {/* Goal pill moved into the Net Worth card as a subtitle block —
+            see the Net Worth section above. */}
       </View>
     </ScrollView>
   );
@@ -641,92 +687,6 @@ function RecentRow({
           );
         })()}
       </View>
-    </Pressable>
-  );
-}
-
-type GoalPillProps = {
-  goal: Goal;
-  displayInIDR: boolean;
-  lang: Locale;
-  t: TFunction;
-  onPress: () => void;
-};
-
-/**
- * Dashboard goal pill (ADR-20). Three render modes:
- *  - target > 0   → name + progress bar + 'X / Y' amounts (most info)
- *  - target == 0  → name only (post-migration legacy goals)
- *  - currentMinor > targetMinor with target > 0 → progress capped at
- *    100% visually; amounts still show the over-allocation honestly
- *
- * Wraps the existing tappable behaviour: tap routes to /goals so users
- * can edit the target / contribute / unpin. Uses the dashboard accent
- * for everything; goal data is the visibility surface this whole
- * screen is anchored on.
- */
-function GoalPill({ goal, displayInIDR, lang, t, onPress }: GoalPillProps) {
-  const accent = tokens.accent.dashboard;
-  const hasTarget = goal.targetMinor > 0;
-  const ratio = hasTarget
-    ? Math.min(1, Math.max(0, goal.currentMinor / goal.targetMinor))
-    : 0;
-
-  return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={t('dashboard:goal.savingFor', { goal: goal.name })}
-      onPress={onPress}
-      style={{
-        marginTop: 8,
-        alignSelf: 'stretch',
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: accent + '33',
-        backgroundColor: accent + '14',
-        maxWidth: 480,
-        marginLeft: 'auto',
-        marginRight: 'auto',
-      }}
-    >
-      <Text
-        className="font-sans-medium text-sm"
-        style={{ color: accent, textAlign: 'center' }}
-        numberOfLines={1}
-      >
-        {t('dashboard:goal.savingFor', { goal: goal.name })}
-      </Text>
-      {hasTarget ? (
-        <>
-          <View
-            style={{
-              marginTop: 8,
-              height: 6,
-              borderRadius: 999,
-              backgroundColor: accent + '22',
-              overflow: 'hidden',
-            }}
-          >
-            <View
-              style={{
-                width: `${Math.round(ratio * 100)}%`,
-                height: '100%',
-                backgroundColor: accent,
-              }}
-            />
-          </View>
-          <Text
-            className="font-mono tabular-nums text-xs"
-            style={{ color: accent, opacity: 0.85, textAlign: 'center', marginTop: 6 }}
-          >
-            {formatAmountForDisplay(goal.currentMinor, 'IDR', displayInIDR, lang).primary}
-            {' / '}
-            {formatAmountForDisplay(goal.targetMinor, 'IDR', displayInIDR, lang).primary}
-          </Text>
-        </>
-      ) : null}
     </Pressable>
   );
 }

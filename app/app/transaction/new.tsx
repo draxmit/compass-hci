@@ -502,6 +502,7 @@ export default function NewTransactionScreen() {
                   isDark={isDark}
                   lang={lang}
                   t={t}
+                  onRequestSplit={enterMultiMode}
                 />
               ) : (
                 <SplitsSummaryCard
@@ -514,42 +515,6 @@ export default function NewTransactionScreen() {
                   t={t}
                 />
               )}
-
-              {/* Single-mode CTA — proper outlined button, transactions-
-                  accent border + label. Replaces the prior cyan link
-                  (D1 feedback). Only visible in single mode; multi mode
-                  has its own Edit / Back buttons inside the summary
-                  card. */}
-              {splitsMode === 'single' ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('transactions:entry.splits.toggleToMulti')}
-                  onPress={enterMultiMode}
-                  style={{
-                    flexDirection: 'row',
-                    alignSelf: 'flex-start',
-                    alignItems: 'center',
-                    gap: 6,
-                    paddingHorizontal: 14,
-                    paddingVertical: 10,
-                    marginBottom: 16,
-                    marginTop: -4,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: tokens.accent.transactions,
-                    backgroundColor: tokens.accent.transactions + '14',
-                    minHeight: 40,
-                  }}
-                >
-                  <Layers size={14} color={tokens.accent.transactions} />
-                  <Text
-                    className="font-sans-medium text-sm"
-                    style={{ color: tokens.accent.transactions }}
-                  >
-                    {t('transactions:entry.splits.toggleToMulti')}
-                  </Text>
-                </Pressable>
-              ) : null}
             </>
           ) : null}
 
@@ -722,9 +687,16 @@ type CategoryPickerProps = PickerCommonProps & {
   selectedId: string | null;
   onSelect: (id: string) => void;
   lang: Locale;
+  /**
+   * Optional split-mode entry. When provided, renders a divider +
+   * "Split across categories" button at the bottom of the picker
+   * card so the action lives inside the Category section instead of
+   * floating between cards (per user feedback).
+   */
+  onRequestSplit?: () => void;
 };
 
-function CategoryPicker({ categories, selectedId, onSelect, isDark, lang, t }: CategoryPickerProps) {
+function CategoryPicker({ categories, selectedId, onSelect, isDark, lang, t, onRequestSplit }: CategoryPickerProps) {
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
@@ -925,6 +897,37 @@ function CategoryPicker({ categories, selectedId, onSelect, isDark, lang, t }: C
           ) : null}
         </>
       )}
+      {/* Split-mode entry — lives inside the Category card, not as a
+          floating sibling button. Divider separates it from the chip
+          grid above. Only renders when the parent passed onRequestSplit
+          (i.e. only on expense / income, not transfers). */}
+      {onRequestSplit ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('transactions:entry.splits.toggleToMulti')}
+          onPress={onRequestSplit}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            marginTop: 14,
+            paddingTop: 14,
+            paddingBottom: 4,
+            borderTopWidth: 1,
+            borderTopColor: borderColor,
+            minHeight: 40,
+          }}
+        >
+          <Layers size={14} color={tokens.accent.transactions} />
+          <Text
+            className="font-sans-medium text-sm"
+            style={{ color: tokens.accent.transactions }}
+          >
+            {t('transactions:entry.splits.toggleToMulti')}
+          </Text>
+        </Pressable>
+      ) : null}
     </Card>
   );
 }

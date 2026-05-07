@@ -457,6 +457,7 @@ export default function EditTransactionScreen() {
                   isDark={isDark}
                   lang={lang}
                   t={t}
+                  onRequestSplit={enterMultiMode}
                 />
               ) : (
                 <SplitsSummaryCard
@@ -469,36 +470,6 @@ export default function EditTransactionScreen() {
                   t={t}
                 />
               )}
-              {splitsMode === 'single' ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('transactions:entry.splits.toggleToMulti')}
-                  onPress={enterMultiMode}
-                  style={{
-                    flexDirection: 'row',
-                    alignSelf: 'flex-start',
-                    alignItems: 'center',
-                    gap: 6,
-                    paddingHorizontal: 14,
-                    paddingVertical: 10,
-                    marginBottom: 16,
-                    marginTop: -4,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: tokens.accent.transactions,
-                    backgroundColor: tokens.accent.transactions + '14',
-                    minHeight: 40,
-                  }}
-                >
-                  <Layers size={14} color={tokens.accent.transactions} />
-                  <Text
-                    className="font-sans-medium text-sm"
-                    style={{ color: tokens.accent.transactions }}
-                  >
-                    {t('transactions:entry.splits.toggleToMulti')}
-                  </Text>
-                </Pressable>
-              ) : null}
             </>
           ) : null}
 
@@ -679,12 +650,13 @@ function AccountPicker({
 }
 
 function CategoryPicker({
-  categories, selectedId, onSelect, isDark, lang, t,
+  categories, selectedId, onSelect, isDark, lang, t, onRequestSplit,
 }: PickerCommonProps & {
   categories: Category[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   lang: Locale;
+  onRequestSplit?: () => void;
 }) {
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -836,6 +808,34 @@ function CategoryPicker({
           ) : null}
         </>
       )}
+      {/* Split-mode entry — same pattern as the new-tx CategoryPicker. */}
+      {onRequestSplit ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('transactions:entry.splits.toggleToMulti')}
+          onPress={onRequestSplit}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            marginTop: 14,
+            paddingTop: 14,
+            paddingBottom: 4,
+            borderTopWidth: 1,
+            borderTopColor: borderColor,
+            minHeight: 40,
+          }}
+        >
+          <Layers size={14} color={tokens.accent.transactions} />
+          <Text
+            className="font-sans-medium text-sm"
+            style={{ color: tokens.accent.transactions }}
+          >
+            {t('transactions:entry.splits.toggleToMulti')}
+          </Text>
+        </Pressable>
+      ) : null}
     </Card>
   );
 }
