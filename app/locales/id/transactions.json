@@ -108,7 +108,17 @@
     "tagsPickerTitle": "Filter berdasarkan label",
     "tagsPickerEmpty": "Belum ada label. Tambahkan label di transaksi dulu.",
     "tagsPickerCount_one": "{{count}} tx",
-    "tagsPickerCount_other": "{{count}} tx"
+    "tagsPickerCount_other": "{{count}} tx",
+    "categoryLabel": "Kategori",
+    "categoryAll": "Semua kategori",
+    "categoryCount_one": "{{count}} kategori",
+    "categoryCount_other": "{{count}} kategori",
+    "categoryPickerEmpty": "Belum ada kategori. Buat di Profil → Kategori.",
+    "accountLabel": "Akun",
+    "accountAll": "Semua akun",
+    "accountCount_one": "{{count}} akun",
+    "accountCount_other": "{{count}} akun",
+    "accountPickerEmpty": "Belum ada akun. Tambah di Profil → Akun."
   },
   "presets": {
     "savedLabel": "Tersimpan",

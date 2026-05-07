@@ -108,7 +108,17 @@
     "tagsPickerTitle": "Filter by tags",
     "tagsPickerEmpty": "No tags applied yet. Add tags to a transaction first.",
     "tagsPickerCount_one": "{{count}} tx",
-    "tagsPickerCount_other": "{{count}} txs"
+    "tagsPickerCount_other": "{{count}} txs",
+    "categoryLabel": "Category",
+    "categoryAll": "Any category",
+    "categoryCount_one": "{{count}} category",
+    "categoryCount_other": "{{count}} categories",
+    "categoryPickerEmpty": "No categories yet. Create one in Profile → Categories.",
+    "accountLabel": "Account",
+    "accountAll": "Any account",
+    "accountCount_one": "{{count}} account",
+    "accountCount_other": "{{count}} accounts",
+    "accountPickerEmpty": "No accounts yet. Add one from Profile → Accounts."
   },
   "presets": {
     "savedLabel": "Saved",

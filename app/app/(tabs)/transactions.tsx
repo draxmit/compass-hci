@@ -80,9 +80,17 @@ export default function TransactionsScreen() {
   // tag list. (Most users picking 2+ tags want "either/or" not "both",
   // matching how email-client tag filters work.)
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  // v3 phase A — 5: category + account multi-select filters. Same
+  // ANY-semantics as tags. Empty array = no constraint. Together with
+  // the existing dimensions these comprise the "advanced query" v3
+  // promised — visual filter rules composing AND across dimensions.
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [accountFilter, setAccountFilter] = useState<string[]>([]);
   // Which filter pill (if any) is currently expanded. Only one open at a
   // time — Mercury/Linear-style dropdown chip pattern.
-  const [openFilter, setOpenFilter] = useState<'type' | 'date' | 'tags' | null>(null);
+  const [openFilter, setOpenFilter] = useState<
+    'type' | 'date' | 'tags' | 'category' | 'account' | null
+  >(null);
 
   useEffect(() => {
     if (!wid) return;
@@ -116,9 +124,26 @@ export default function TransactionsScreen() {
         const anyMatch = tagFilter.some((t) => txTags.includes(t));
         if (!anyMatch) return false;
       }
+      // v3 phase A — 5: category filter. ANY-match across the tx's
+      // splits (a multi-split tx hitting any selected category counts).
+      if (categoryFilter.length > 0) {
+        const splitCats = tx.splits.map((s) => s.categoryId);
+        const anyCat = categoryFilter.some((c) => splitCats.includes(c));
+        if (!anyCat) return false;
+      }
+      // v3 phase A — 5: account filter. Both source AND destination
+      // for transfers — picking 'BCA' should surface "BCA → GoPay"
+      // transfers regardless of direction.
+      if (accountFilter.length > 0) {
+        const matchesSource = accountFilter.includes(tx.accountId);
+        const matchesDest = tx.toAccountId
+          ? accountFilter.includes(tx.toAccountId)
+          : false;
+        if (!matchesSource && !matchesDest) return false;
+      }
       return true;
     });
-  }, [txs, typeFilter, dateFilter, search, tagFilter]);
+  }, [txs, typeFilter, dateFilter, search, tagFilter, categoryFilter, accountFilter]);
 
   // Tag-suggestion list for the tag-filter picker — frequencies across
   // ALL loaded txs (the recent-50 slice), not just the currently
@@ -138,20 +163,33 @@ export default function TransactionsScreen() {
       setActivePresetId(null);
       return;
     }
+    // Helper for ANY-match array equality — order-insensitive since
+    // these are conceptually sets, not lists.
+    const presetCats = preset.categoryFilter ?? [];
+    const presetAccs = preset.accountFilter ?? [];
     const matches =
       preset.search === search
       && preset.typeFilter === typeFilter
       && preset.dateFilter === dateFilter
       && preset.tagFilter.length === tagFilter.length
-      && preset.tagFilter.every((t) => tagFilter.includes(t));
+      && preset.tagFilter.every((t) => tagFilter.includes(t))
+      && presetCats.length === categoryFilter.length
+      && presetCats.every((c) => categoryFilter.includes(c))
+      && presetAccs.length === accountFilter.length
+      && presetAccs.every((a) => accountFilter.includes(a));
     if (!matches) setActivePresetId(null);
-  }, [activePresetId, savedFilters, search, typeFilter, dateFilter, tagFilter]);
+  }, [
+    activePresetId, savedFilters, search, typeFilter, dateFilter,
+    tagFilter, categoryFilter, accountFilter,
+  ]);
 
   const applyPreset = (preset: SavedFilter) => {
     setSearch(preset.search);
     setTypeFilter(preset.typeFilter);
     setDateFilter(preset.dateFilter);
     setTagFilter(preset.tagFilter);
+    setCategoryFilter(preset.categoryFilter ?? []);
+    setAccountFilter(preset.accountFilter ?? []);
     setActivePresetId(preset.id);
     setOpenFilter(null);
   };
@@ -167,6 +205,8 @@ export default function TransactionsScreen() {
         typeFilter,
         dateFilter,
         tagFilter,
+        categoryFilter,
+        accountFilter,
       });
       setActivePresetId(id);
       setSavePresetDraft(null);
@@ -210,7 +250,12 @@ export default function TransactionsScreen() {
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
   const filtersDirty =
-    search.trim() !== '' || typeFilter !== 'all' || dateFilter !== 'this_month' || tagFilter.length > 0;
+    search.trim() !== ''
+    || typeFilter !== 'all'
+    || dateFilter !== 'this_month'
+    || tagFilter.length > 0
+    || categoryFilter.length > 0
+    || accountFilter.length > 0;
 
   // Single reset path used by the inline X-button on the filter pill row
   // AND the 'Clear filters' CTA inside the no-results card.
@@ -219,6 +264,8 @@ export default function TransactionsScreen() {
     setTypeFilter('all');
     setDateFilter('this_month');
     setTagFilter([]);
+    setCategoryFilter([]);
+    setAccountFilter([]);
     setOpenFilter(null);
   };
 
@@ -489,6 +536,27 @@ export default function TransactionsScreen() {
             onPress={() => setOpenFilter((cur) => (cur === 'tags' ? null : 'tags'))}
             isDark={isDark}
           />
+          {/* v3 phase A — 5: Category + Account filter pills. Pattern
+              mirrors the tag pill above (multi-select, ANY-match, count
+              displayed when applied). */}
+          <FilterPill
+            label={t('transactions:filters.categoryLabel')}
+            value={categoryFilter.length === 0
+              ? t('transactions:filters.categoryAll')
+              : t('transactions:filters.categoryCount', { count: categoryFilter.length, context: categoryFilter.length === 1 ? 'one' : 'other' })}
+            open={openFilter === 'category'}
+            onPress={() => setOpenFilter((cur) => (cur === 'category' ? null : 'category'))}
+            isDark={isDark}
+          />
+          <FilterPill
+            label={t('transactions:filters.accountLabel')}
+            value={accountFilter.length === 0
+              ? t('transactions:filters.accountAll')
+              : t('transactions:filters.accountCount', { count: accountFilter.length, context: accountFilter.length === 1 ? 'one' : 'other' })}
+            open={openFilter === 'account'}
+            onPress={() => setOpenFilter((cur) => (cur === 'account' ? null : 'account'))}
+            isDark={isDark}
+          />
           {filtersDirty ? (
             <Pressable
               accessibilityRole="button"
@@ -542,6 +610,33 @@ export default function TransactionsScreen() {
               setTagFilter((cur) => (cur.includes(tag)
                 ? cur.filter((t) => t !== tag)
                 : [...cur, tag]));
+            }}
+            isDark={isDark}
+            t={t}
+          />
+        ) : null}
+        {openFilter === 'category' ? (
+          <CategoryFilterPanel
+            categories={categories}
+            selectedCategoryIds={categoryFilter}
+            onToggle={(catId) => {
+              setCategoryFilter((cur) => (cur.includes(catId)
+                ? cur.filter((c) => c !== catId)
+                : [...cur, catId]));
+            }}
+            isDark={isDark}
+            lang={lang}
+            t={t}
+          />
+        ) : null}
+        {openFilter === 'account' ? (
+          <AccountFilterPanel
+            accounts={accounts}
+            selectedAccountIds={accountFilter}
+            onToggle={(accId) => {
+              setAccountFilter((cur) => (cur.includes(accId)
+                ? cur.filter((a) => a !== accId)
+                : [...cur, accId]));
             }}
             isDark={isDark}
             t={t}
@@ -844,6 +939,159 @@ function TagFilterPanel({ tagFrequencies, selectedTags, onToggle, isDark, t }: T
                 </Text>
                 <Text className="font-sans text-xs" style={{ color: mutedColor }}>
                   · {count}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ---------- v3 phase A — 5: Category + Account filter panels ----------
+
+type CategoryFilterPanelProps = {
+  categories: Category[];
+  selectedCategoryIds: string[];
+  onToggle: (id: string) => void;
+  isDark: boolean;
+  lang: Locale;
+  t: TFunction;
+};
+
+/**
+ * Multi-select category picker — mirrors TagFilterPanel layout. Uses
+ * the curated category color tinting from /budgets so the chips read as
+ * "the same Cafe you see everywhere in the app". Sorted by parent
+ * category for groupable scanning; archived categories hidden.
+ */
+function CategoryFilterPanel({
+  categories, selectedCategoryIds, onToggle, isDark, lang, t,
+}: CategoryFilterPanelProps) {
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+
+  const visible = categories.filter((c) => !c.isArchived);
+  return (
+    <View
+      style={{
+        padding: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor,
+        marginBottom: 12,
+      }}
+    >
+      {visible.length === 0 ? (
+        <Text className="font-sans text-xs" style={{ color: mutedColor, padding: 8 }}>
+          {t('transactions:filters.categoryPickerEmpty')}
+        </Text>
+      ) : (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {visible.map((cat) => {
+            const selected = selectedCategoryIds.includes(cat.id);
+            const tint = resolveCategoryColor(cat.color, isDark ? 'dark' : 'light');
+            return (
+              <Pressable
+                key={cat.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => onToggle(cat.id)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: selected ? tint : borderColor,
+                  backgroundColor: selected ? tint + '14' : 'transparent',
+                }}
+              >
+                <CategoryIcon name={cat.icon} color={tint} size={12} />
+                <Text
+                  className="font-sans-medium text-xs"
+                  style={{ color: selected ? tint : fgColor }}
+                >
+                  {cat.name[lang]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+type AccountFilterPanelProps = {
+  accounts: Account[];
+  selectedAccountIds: string[];
+  onToggle: (id: string) => void;
+  isDark: boolean;
+  t: TFunction;
+};
+
+/**
+ * Multi-select account picker. Same chip-grid layout as the tag and
+ * category panels. Archived accounts hidden. Each chip shows the
+ * account's name; selecting tints with the account's stored colour
+ * so it reads identically to the row in /accounts.
+ */
+function AccountFilterPanel({
+  accounts, selectedAccountIds, onToggle, isDark, t,
+}: AccountFilterPanelProps) {
+  const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
+  const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+  const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
+
+  const visible = accounts.filter((a) => !a.isArchived);
+  return (
+    <View
+      style={{
+        padding: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor,
+        marginBottom: 12,
+      }}
+    >
+      {visible.length === 0 ? (
+        <Text className="font-sans text-xs" style={{ color: mutedColor, padding: 8 }}>
+          {t('transactions:filters.accountPickerEmpty')}
+        </Text>
+      ) : (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {visible.map((acct) => {
+            const selected = selectedAccountIds.includes(acct.id);
+            const tint = resolveCategoryColor(acct.color, isDark ? 'dark' : 'light');
+            return (
+              <Pressable
+                key={acct.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => onToggle(acct.id)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: selected ? tint : borderColor,
+                  backgroundColor: selected ? tint + '14' : 'transparent',
+                }}
+              >
+                <CategoryIcon name={acct.icon} color={tint} size={12} />
+                <Text
+                  className="font-sans-medium text-xs"
+                  style={{ color: selected ? tint : fgColor }}
+                >
+                  {acct.name}
                 </Text>
               </Pressable>
             );

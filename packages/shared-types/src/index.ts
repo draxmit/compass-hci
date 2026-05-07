@@ -400,6 +400,19 @@ export type SavedFilter = {
   dateFilter: 'this_month' | 'last_month' | 'all_time';
   /** Tags applied (ANY-match semantics, mirrors the live tag filter). */
   tagFilter: string[];
+  /**
+   * Category ids applied (v3 phase A — 5). ANY-match semantics: a tx is
+   * kept if ANY of its splits' categoryId matches one of the listed ids.
+   * Empty array = no category constraint. Optional for legacy v2 docs
+   * that didn't carry the field — service read normaliser defaults to [].
+   */
+  categoryFilter?: string[];
+  /**
+   * Account ids applied (v3 phase A — 5). ANY-match semantics: a tx is
+   * kept if its `accountId` (or `toAccountId` for transfers) matches
+   * one of the listed ids. Empty array = no account constraint.
+   */
+  accountFilter?: string[];
   createdAt: unknown;
 };
 

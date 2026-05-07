@@ -19,6 +19,10 @@ export type CreateSavedFilterInput = {
   typeFilter: 'all' | TransactionType;
   dateFilter: 'this_month' | 'last_month' | 'all_time';
   tagFilter: string[];
+  /** v3 phase A — 5. Empty array = no constraint. */
+  categoryFilter: string[];
+  /** v3 phase A — 5. Empty array = no constraint. */
+  accountFilter: string[];
 };
 
 /**
@@ -31,9 +35,18 @@ export function subscribeSavedFilters(
   cb: (filters: SavedFilter[]) => void,
 ): () => void {
   return onSnapshot(savedFiltersCollection(wid), (snap) => {
-    const list = snap.docs.map(
-      (d) => ({ ...(d.data() as Omit<SavedFilter, 'id'>), id: d.id }),
-    );
+    const list = snap.docs.map((d) => {
+      const raw = d.data() as Omit<SavedFilter, 'id'>;
+      // v3 phase A — 5: defensive read normaliser. Legacy docs created
+      // before category/account filters existed get empty-array
+      // defaults so the dirty/divergence math doesn't NPE.
+      return {
+        ...raw,
+        categoryFilter: raw.categoryFilter ?? [],
+        accountFilter: raw.accountFilter ?? [],
+        id: d.id,
+      };
+    });
     // Stable sort: most recently created first. createdAt may be null
     // briefly during the local optimistic write window, so guard.
     list.sort((a, b) => {
@@ -61,6 +74,8 @@ export async function createSavedFilter(
     typeFilter: input.typeFilter,
     dateFilter: input.dateFilter,
     tagFilter: input.tagFilter,
+    categoryFilter: input.categoryFilter,
+    accountFilter: input.accountFilter,
     createdAt: serverTimestamp(),
   });
   return ref.id;
