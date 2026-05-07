@@ -26,6 +26,7 @@ import { DateField } from '@/shared/ui/DateField';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatAmountInput, minorToInputText, parseAmountInput } from '@/shared/utils/amountInput';
+import { formatDate } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
 
 /**
@@ -483,7 +484,9 @@ function GoalRow({
         </Text>
         {goal.targetDate ? (
           <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-            {t('goals:row.targetByDate', { date: goal.targetDate })}
+            {t('goals:row.targetByDate', {
+              date: formatDate(new Date(`${goal.targetDate}T00:00:00`), 'long', lang),
+            })}
           </Text>
         ) : null}
       </View>

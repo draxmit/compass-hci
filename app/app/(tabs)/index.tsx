@@ -45,7 +45,7 @@ import { convertToIDRMinor } from '@/shared/utils/fxRates';
  * visual needs. victory-native is deferred to v2 polish (per ADR-09 §3).
  */
 export default function DashboardScreen() {
-  const { t, i18n } = useTranslation(['dashboard', 'transactions', 'common']);
+  const { t, i18n } = useTranslation(['dashboard', 'transactions', 'goals', 'common']);
   const router = useRouter();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
@@ -880,15 +880,34 @@ function DashboardGoalRow({
               }}
             />
           </View>
-          <Text
-            className="font-mono tabular-nums text-xs mt-1.5"
-            style={{ color: mutedColor }}
-          >
-            {formatAmountForDisplay(goal.currentMinor, 'IDR', displayInIDR, lang).primary}
-            {' / '}
-            {formatAmountForDisplay(goal.targetMinor, 'IDR', displayInIDR, lang).primary}
-          </Text>
+          <View className="flex-row items-baseline justify-between mt-1.5">
+            <Text
+              className="font-mono tabular-nums text-xs"
+              style={{ color: mutedColor }}
+            >
+              {formatAmountForDisplay(goal.currentMinor, 'IDR', displayInIDR, lang).primary}
+              {' / '}
+              {formatAmountForDisplay(goal.targetMinor, 'IDR', displayInIDR, lang).primary}
+            </Text>
+            {goal.targetDate ? (
+              <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+                {t('goals:row.targetByDate', {
+                  date: formatDate(new Date(`${goal.targetDate}T00:00:00`), 'long', lang),
+                })}
+              </Text>
+            ) : null}
+          </View>
         </>
+      ) : null}
+      {/* Goals without a monetary target still benefit from showing
+          the date deadline if one is set — render it as a thin line
+          when there's no progress bar above. */}
+      {!hasTarget && goal.targetDate ? (
+        <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
+          {t('goals:row.targetByDate', {
+            date: formatDate(new Date(`${goal.targetDate}T00:00:00`), 'long', lang),
+          })}
+        </Text>
       ) : null}
     </Pressable>
   );
