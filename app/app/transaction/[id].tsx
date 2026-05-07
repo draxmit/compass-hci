@@ -258,11 +258,19 @@ export default function EditTransactionScreen() {
   };
 
   const enterMultiMode = () => {
+    // Match /transaction/new — block split entry until amount > 0.
     const totalAmount = parseAmountInput(amountText, lang);
+    if (totalAmount <= 0) {
+      appAlert(
+        t('transactions:entry.title'),
+        t('transactions:entry.errors.splitsNeedTotal'),
+      );
+      return;
+    }
     setSplitRows([
       {
         categoryId: categoryId,
-        amountText: totalAmount > 0 ? minorToInputText(totalAmount, lang) : '',
+        amountText: minorToInputText(totalAmount, lang),
       },
     ]);
     setSplitsMode('multi');

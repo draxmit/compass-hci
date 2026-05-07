@@ -8,6 +8,7 @@ import type { Locale } from '@/shared/i18n';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import { Text } from '@/shared/ui/Text';
+import { parseAmountInput } from '@/shared/utils/amountInput';
 
 import { SplitsBlock } from './SplitsBlock';
 import type { SplitRowState } from './SplitsBlock';
@@ -52,13 +53,25 @@ export function SplitsEditorModal({
   const overlayBg = isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'];
 
   // Validation gate — Done is blocked while any row is missing its
-  // category. Prevents the form-save handler from later rejecting the
-  // tx (the previous user-flagged ambiguity: "why empty category is
-  // allowed in split categories"). Empty-amount rows are NOT blocked
-  // here because zero-amount is still valid as 'I'll fill it in';
-  // the sum-mismatch check at form-save catches that.
+  // category OR when the row amounts don't sum to the form's total.
+  // Empty-amount rows fall under the sum check (sum < total →
+  // mismatch). Three states surface in the warning bar:
+  //   - hasEmptyCategory  → 'Pick a category for each row'
+  //   - sumMismatch       → 'Splits don't add up'
+  //   - both              → empty-category takes precedence
   const hasEmptyCategory = rows.some((r) => !r.categoryId);
-  const canConfirm = !hasEmptyCategory;
+  const total = parseAmountInput(totalText, lang);
+  const sum = rows.reduce(
+    (acc, r) => acc + parseAmountInput(r.amountText, lang),
+    0,
+  );
+  const sumMismatch = total > 0 && sum !== total;
+  const canConfirm = !hasEmptyCategory && !sumMismatch;
+  const warningKey = hasEmptyCategory
+    ? 'transactions:entry.errors.splitsMissingCategory'
+    : sumMismatch
+      ? 'transactions:entry.errors.splitsMustSumToTotal'
+      : null;
 
   return (
     <Modal
@@ -139,10 +152,11 @@ export function SplitsEditorModal({
           </Pressable>
         </View>
 
-        {/* Inline error bar — surfaces at the top of the body when any
-            row is missing its category. Mirrors the pattern in form
-            validation; explicit so the user knows why Done is greyed. */}
-        {hasEmptyCategory ? (
+        {/* Inline error bar — surfaces what's blocking Done. Two
+            possible blockers (empty-category, sum-mismatch); empty
+            takes precedence since you can't even start summing
+            until a category is picked. */}
+        {warningKey ? (
           <View
             style={{
               flexDirection: 'row',
@@ -160,7 +174,7 @@ export function SplitsEditorModal({
               className="font-sans text-xs flex-1"
               style={{ color: tokens.semantic.warning }}
             >
-              {t('transactions:entry.errors.splitsMissingCategory')}
+              {t(warningKey)}
             </Text>
           </View>
         ) : null}

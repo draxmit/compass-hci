@@ -45,7 +45,8 @@
       "sameAccount": "Akun asal & tujuan tidak boleh sama.",
       "createFailed": "Gagal menyimpan transaksi.",
       "splitsMustSumToTotal": "Pembagian belum pas: jumlah baris harus sama dengan total.",
-      "splitsMissingCategory": "Pilih kategori untuk tiap baris."
+      "splitsMissingCategory": "Pilih kategori untuk tiap baris.",
+      "splitsNeedTotal": "Isi jumlah total dulu, baru bisa dibagi ke beberapa kategori."
     },
     "voice": {
       "start": "Mulai dikte",

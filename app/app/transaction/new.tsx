@@ -262,12 +262,26 @@ export default function NewTransactionScreen() {
   };
 
   const enterMultiMode = () => {
-    // Seed with one row carrying the current single-mode selections.
+    // Block split-mode entry until the user has entered a total
+    // amount. Splits exist to divide that total across categories
+    // — without it, the modal can't show "X / Total" and Done can't
+    // verify the sum. Surface the friendly explanation rather than
+    // letting the user open an inert modal.
     const totalAmount = parseAmountInput(amountText, lang);
+    if (totalAmount <= 0) {
+      appAlert(
+        t('transactions:entry.title'),
+        t('transactions:entry.errors.splitsNeedTotal'),
+      );
+      return;
+    }
+    // Seed with one row carrying the current single-mode selections
+    // — full amount goes to the existing categoryId so a fresh modal
+    // open on a single tx already shows balanced.
     setSplitRows([
       {
         categoryId: categoryId,
-        amountText: totalAmount > 0 ? minorToInputText(totalAmount, lang) : '',
+        amountText: minorToInputText(totalAmount, lang),
       },
     ]);
     setSplitsMode('multi');

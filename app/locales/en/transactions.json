@@ -45,7 +45,8 @@
       "sameAccount": "From and to accounts must differ.",
       "createFailed": "Failed to save transaction.",
       "splitsMustSumToTotal": "Splits don't add up: row amounts must equal the total.",
-      "splitsMissingCategory": "Pick a category for each row."
+      "splitsMissingCategory": "Pick a category for each row.",
+      "splitsNeedTotal": "Enter the total amount first, then split it across categories."
     },
     "voice": {
       "start": "Start dictation",
