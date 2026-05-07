@@ -306,10 +306,15 @@ async function main() {
 
   // ---- Seed accounts ----
   log('Seeding accounts…');
+  // Initial balances chosen to absorb the 6-month seeded outflow
+  // without any account going negative. BCA gets monthly Gaji so its
+  // initial just needs to cover one-month float; GoPay + Cash get no
+  // income, so their initials must cover total 6-month outflow + a
+  // healthy positive ending balance.
   const accountSpecs = [
-    { localKey: 'bca',   name: 'BCA',           type: 'bank',        subtype: 'bca',        currency: 'IDR', initialBalance: 540_000_000, includedInNetWorth: true,  icon: 'landmark',    color: 'blue' },
-    { localKey: 'gopay', name: 'GoPay',         type: 'ewallet',     subtype: 'gopay',      currency: 'IDR', initialBalance: 85_000_000,  includedInNetWorth: true,  icon: 'wallet',      color: 'green' },
-    { localKey: 'cash',  name: 'Tunai',         type: 'cash',        subtype: 'cash',       currency: 'IDR', initialBalance: 30_000_000,  includedInNetWorth: true,  icon: 'wallet',      color: 'amber' },
+    { localKey: 'bca',   name: 'BCA',           type: 'bank',        subtype: 'bca',        currency: 'IDR', initialBalance: 1_200_000_000, includedInNetWorth: true,  icon: 'landmark',    color: 'blue' },   // Rp 12.000.000 (~1 month float)
+    { localKey: 'gopay', name: 'GoPay',         type: 'ewallet',     subtype: 'gopay',      currency: 'IDR', initialBalance: 400_000_000,   includedInNetWorth: true,  icon: 'wallet',      color: 'green' }, // Rp 4.000.000
+    { localKey: 'cash',  name: 'Tunai',         type: 'cash',        subtype: 'cash',       currency: 'IDR', initialBalance: 250_000_000,   includedInNetWorth: true,  icon: 'wallet',      color: 'amber' }, // Rp 2.500.000
     // Credit cards conceptually carry "amount you owe" but we track
     // them on the same number-line as cash accounts (negative =
     // you owe). Starting at 0 so the demo doesn't pre-load a debt
