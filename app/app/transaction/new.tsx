@@ -536,7 +536,10 @@ export default function NewTransactionScreen() {
             />
           ) : null}
 
-          {/* Description */}
+          {/* Notes group: Description + Tags. Both are non-financial
+              metadata that the user adds AFTER the core 'what / where'
+              decisions are made. Combined into one Card with internal
+              divider so the bottom of the form stays compact. */}
           <Card padding="lg" className="mb-4">
             <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
               {t('transactions:entry.fields.description')}
@@ -549,20 +552,25 @@ export default function NewTransactionScreen() {
               autoCapitalize="sentences"
               returnKeyType="done"
             />
-          </Card>
 
-          {/* Tags (ADR-17) — optional metadata for cross-cutting
-              filters. Suggestions come from the recent-50 tx slice. */}
-          <Card padding="lg" className="mb-4">
-            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
-              {t('transactions:entry.fields.tags')}
-            </Text>
-            <TagsInput
-              value={tags}
-              onChange={setTags}
-              suggestions={recentTagSet}
-              accent={tokens.accent.transactions}
-            />
+            <View
+              style={{
+                marginTop: 16,
+                paddingTop: 16,
+                borderTopWidth: 1,
+                borderTopColor: borderColor,
+              }}
+            >
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+                {t('transactions:entry.fields.tags')}
+              </Text>
+              <TagsInput
+                value={tags}
+                onChange={setTags}
+                suggestions={recentTagSet}
+                accent={tokens.accent.transactions}
+              />
+            </View>
           </Card>
 
           {/* Save / Cancel */}

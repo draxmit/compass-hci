@@ -490,7 +490,10 @@ export default function EditTransactionScreen() {
             />
           ) : null}
 
-          {/* Description */}
+          {/* Notes group: Description + Tags merged into one Card with
+              internal divider, matching /transaction/new. Both are
+              non-financial metadata; either can save via the cheap
+              updateTransaction path. */}
           <Card padding="lg" className="mb-4">
             <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
               {t('transactions:entry.fields.description')}
@@ -503,20 +506,25 @@ export default function EditTransactionScreen() {
               autoCapitalize="sentences"
               returnKeyType="done"
             />
-          </Card>
 
-          {/* Tags (ADR-17) — non-financial metadata. Saved via the cheap
-              updateTransaction path when nothing financial changed. */}
-          <Card padding="lg" className="mb-4">
-            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
-              {t('transactions:entry.fields.tags')}
-            </Text>
-            <TagsInput
-              value={tags}
-              onChange={setTags}
-              suggestions={recentTagSet}
-              accent={tokens.accent.transactions}
-            />
+            <View
+              style={{
+                marginTop: 16,
+                paddingTop: 16,
+                borderTopWidth: 1,
+                borderTopColor: borderColor,
+              }}
+            >
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+                {t('transactions:entry.fields.tags')}
+              </Text>
+              <TagsInput
+                value={tags}
+                onChange={setTags}
+                suggestions={recentTagSet}
+                accent={tokens.accent.transactions}
+              />
+            </View>
           </Card>
 
           <View className="flex-row gap-2 mt-2">
