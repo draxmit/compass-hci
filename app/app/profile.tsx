@@ -310,105 +310,101 @@ export default function ProfileScreen() {
         </Text>
       </Card>
 
-      {/* Accounts link — your money lives here. */}
-      <Card padding="none" className="mb-4 w-full">
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel={t('accounts:title')}
-          onPress={() => router.push('/accounts')}
-          className="flex-row items-center px-5 py-4 min-h-[44px]"
-        >
-          <Wallet size={20} color={mutedColor} />
-          <View className="ml-3 flex-1">
-            <Text className="font-sans-medium">{t('accounts:title')}</Text>
-            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-              {t('accounts:tagline')}
-            </Text>
-          </View>
-          <ChevronRight size={18} color={mutedColor} />
-        </Pressable>
-      </Card>
-
-      {/* Goals link — sinking funds lives here too. */}
-      <Card padding="none" className="mb-4 w-full">
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel={t('goals:title')}
-          onPress={() => router.push('/goals')}
-          className="flex-row items-center px-5 py-4 min-h-[44px]"
-        >
-          <Target size={20} color={mutedColor} />
-          <View className="ml-3 flex-1">
-            <Text className="font-sans-medium">{t('goals:title')}</Text>
-            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-              {t('goals:subtitle')}
-            </Text>
-          </View>
-          <ChevronRight size={18} color={mutedColor} />
-        </Pressable>
-      </Card>
-
-      {/* Categories link — your data lives in Profile, not Settings. */}
-      <Card padding="none" className="mb-4 w-full">
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel={t('categories:title')}
-          onPress={() => router.push('/categories')}
-          className="flex-row items-center px-5 py-4 min-h-[44px]"
-        >
-          <Tag size={20} color={mutedColor} />
-          <View className="ml-3 flex-1">
-            <Text className="font-sans-medium">{t('categories:title')}</Text>
-            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-              {t('categories:tagline')}
-            </Text>
-          </View>
-          <ChevronRight size={18} color={mutedColor} />
-        </Pressable>
-      </Card>
-
-      {/* CSV import — bulk-add transactions from a bank statement. Lives
-          in Profile next to the data-management cluster (Accounts /
-          Goals / Categories) since "import" is fundamentally a data
-          operation, not a preference. */}
-      <Card padding="none" className="mb-4 w-full">
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel={t('csvImport:title')}
-          onPress={() => router.push('/import-csv')}
-          className="flex-row items-center px-5 py-4 min-h-[44px]"
-        >
-          <FileSpreadsheet size={20} color={mutedColor} />
-          <View className="ml-3 flex-1">
-            <Text className="font-sans-medium">{t('csvImport:title')}</Text>
-            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-              {t('csvImport:subtitle')}
-            </Text>
-          </View>
-          <ChevronRight size={18} color={mutedColor} />
-        </Pressable>
-      </Card>
-
-      {/* Settings link */}
+      {/* Link cluster — Accounts / Goals / Categories / Import CSV /
+          Settings consolidated into a single Card with internal
+          dividers, iOS Settings list-section style. Replaces the prior
+          5-separate-cards pattern that read as blocky on mobile. */}
       <Card padding="none" className="w-full">
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel={t('settings:profile.settingsLink')}
+        <ProfileLinkRow
+          icon={<Wallet size={20} color={mutedColor} />}
+          title={t('accounts:title')}
+          subtitle={t('accounts:tagline')}
+          onPress={() => router.push('/accounts')}
+          mutedColor={mutedColor}
+          borderColor={isDark ? tokens.surface['dark-border'] : tokens.surface['light-border']}
+          showDivider={false}
+        />
+        <ProfileLinkRow
+          icon={<Target size={20} color={mutedColor} />}
+          title={t('goals:title')}
+          subtitle={t('goals:subtitle')}
+          onPress={() => router.push('/goals')}
+          mutedColor={mutedColor}
+          borderColor={isDark ? tokens.surface['dark-border'] : tokens.surface['light-border']}
+          showDivider
+        />
+        <ProfileLinkRow
+          icon={<Tag size={20} color={mutedColor} />}
+          title={t('categories:title')}
+          subtitle={t('categories:tagline')}
+          onPress={() => router.push('/categories')}
+          mutedColor={mutedColor}
+          borderColor={isDark ? tokens.surface['dark-border'] : tokens.surface['light-border']}
+          showDivider
+        />
+        <ProfileLinkRow
+          icon={<FileSpreadsheet size={20} color={mutedColor} />}
+          title={t('csvImport:title')}
+          subtitle={t('csvImport:subtitle')}
+          onPress={() => router.push('/import-csv')}
+          mutedColor={mutedColor}
+          borderColor={isDark ? tokens.surface['dark-border'] : tokens.surface['light-border']}
+          showDivider
+        />
+        <ProfileLinkRow
+          icon={<SettingsIcon size={20} color={mutedColor} />}
+          title={t('settings:profile.settingsLink')}
+          subtitle={t('settings:profile.settingsLinkDescription')}
           onPress={() => router.push('/settings')}
-          className="flex-row items-center px-5 py-4 min-h-[44px]"
-        >
-          <SettingsIcon size={20} color={mutedColor} />
-          <View className="ml-3 flex-1">
-            <Text className="font-sans-medium">{t('settings:profile.settingsLink')}</Text>
-            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-              {t('settings:profile.settingsLinkDescription')}
-            </Text>
-          </View>
-          <ChevronRight size={18} color={mutedColor} />
-        </Pressable>
+          mutedColor={mutedColor}
+          borderColor={isDark ? tokens.surface['dark-border'] : tokens.surface['light-border']}
+          showDivider
+        />
       </Card>
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+type ProfileLinkRowProps = {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  mutedColor: string;
+  borderColor: string;
+  showDivider: boolean;
+};
+
+/**
+ * Single-row pressable for the profile link cluster. All five rows
+ * (Accounts / Goals / Categories / Import CSV / Settings) share this
+ * shape — extracted to keep the JSX flat. `showDivider` draws a
+ * 1px hairline at the top, used on every row except the first.
+ */
+function ProfileLinkRow({
+  icon, title, subtitle, onPress, mutedColor, borderColor, showDivider,
+}: ProfileLinkRowProps) {
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={title}
+      onPress={onPress}
+      className="flex-row items-center px-5 py-4 min-h-[44px]"
+      style={{
+        borderTopWidth: showDivider ? 1 : 0,
+        borderTopColor: borderColor,
+      }}
+    >
+      {icon}
+      <View className="ml-3 flex-1">
+        <Text className="font-sans-medium">{title}</Text>
+        <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+          {subtitle}
+        </Text>
+      </View>
+      <ChevronRight size={18} color={mutedColor} />
+    </Pressable>
   );
 }
