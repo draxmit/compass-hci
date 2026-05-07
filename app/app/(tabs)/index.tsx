@@ -318,42 +318,56 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Goals section — collapsible. Default shows pinned goal only;
-            tap header chevron to reveal all goals. The whole section
-            is the entry point to /goals (Profile no longer carries a
+        {/* Goals section — collapsible only when there's more than 1
+            goal. With 0–1 goals there's nothing to expand TO, so the
+            toggle would be a no-op confusion. The whole section is
+            the entry point to /goals (Profile no longer carries a
             link, per user feedback that Goals were too hidden). */}
         {allLoaded && (allGoals.length > 0 || pinnedGoal) ? (
           <View className="mb-8">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: goalsExpanded }}
-              onPress={() => setGoalsExpanded((cur) => !cur)}
-              className="flex-row items-center justify-between mb-3"
-            >
+            {allGoals.length > 1 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: goalsExpanded }}
+                onPress={() => setGoalsExpanded((cur) => !cur)}
+                className="flex-row items-center justify-between mb-3"
+              >
+                <Text
+                  className="font-sans-medium text-xs uppercase tracking-wider"
+                  style={{ color: mutedColor }}
+                >
+                  {t('dashboard:goals.label')}
+                </Text>
+                <View className="flex-row items-center" style={{ gap: 4 }}>
+                  <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+                    {goalsExpanded
+                      ? t('dashboard:goals.collapse')
+                      : t('dashboard:goals.expand', { count: allGoals.length })}
+                  </Text>
+                  {goalsExpanded ? (
+                    <ChevronUp size={14} color={mutedColor} />
+                  ) : (
+                    <ChevronDown size={14} color={mutedColor} />
+                  )}
+                </View>
+              </Pressable>
+            ) : (
               <Text
-                className="font-sans-medium text-xs uppercase tracking-wider"
+                className="font-sans-medium text-xs uppercase tracking-wider mb-3"
                 style={{ color: mutedColor }}
               >
                 {t('dashboard:goals.label')}
               </Text>
-              <View className="flex-row items-center" style={{ gap: 4 }}>
-                <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-                  {goalsExpanded
-                    ? t('dashboard:goals.collapse')
-                    : t('dashboard:goals.expand', { count: allGoals.length, context: allGoals.length === 1 ? 'one' : 'other' })}
-                </Text>
-                {goalsExpanded ? (
-                  <ChevronUp size={14} color={mutedColor} />
-                ) : (
-                  <ChevronDown size={14} color={mutedColor} />
-                )}
-              </View>
-            </Pressable>
+            )}
 
-            {/* Collapsed: just the pinned goal (or first goal if no pin).
-                Expanded: every goal in createdAt-asc order. */}
+            {/* Render rule:
+                - 0 goals: handled by the empty-state branch below
+                - 1 goal: always show that single goal (no toggle)
+                - 2+ goals: collapsed → pinned (or first if none pinned),
+                            expanded → all */}
             {(() => {
-              const visibleGoals = goalsExpanded
+              const showAll = allGoals.length <= 1 || goalsExpanded;
+              const visibleGoals = showAll
                 ? allGoals
                 : pinnedGoal
                   ? [pinnedGoal]

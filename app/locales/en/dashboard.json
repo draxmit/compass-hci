@@ -32,8 +32,7 @@
   },
   "goals": {
     "label": "Your goals",
-    "expand_one": "Show {{count}} goal",
-    "expand_other": "Show all {{count}}",
+    "expand": "Show all {{count}}",
     "collapse": "Show pinned only",
     "manageLink": "Manage goals",
     "empty": "No goals yet — tap to create one"

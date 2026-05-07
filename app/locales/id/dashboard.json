@@ -32,8 +32,7 @@
   },
   "goals": {
     "label": "Tujuan kamu",
-    "expand_one": "Tampilkan {{count}} tujuan",
-    "expand_other": "Tampilkan semua {{count}}",
+    "expand": "Tampilkan semua {{count}}",
     "collapse": "Tampilkan yang dipasang saja",
     "manageLink": "Kelola tujuan",
     "empty": "Belum ada tujuan — tap untuk buat"
