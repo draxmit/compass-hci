@@ -209,11 +209,17 @@ export default function NewTransactionScreen() {
 
     setSaving(true);
     try {
+      // Source-account currency goes on the tx (denormalised) so the
+      // service can compute amountIDR via the FX snapshot. Defaults to
+      // IDR if for any reason the account isn't yet in state — the UI
+      // would have already blocked save by that point.
+      const sourceAccount = accounts.find((a) => a.id === accountId);
       await createTransaction(wid, {
         type,
         date,
         accountId,
         toAccountId: type === 'transfer' ? toAccountId : null,
+        currency: sourceAccount?.currency ?? 'IDR',
         amount,
         splits,
         description: description.trim() || (nlpInput.trim() || ''),

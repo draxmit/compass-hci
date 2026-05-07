@@ -1,5 +1,5 @@
 import type {
-  Account, AccountSubtype, AccountType, CategoryColor, CategoryIcon,
+  Account, AccountSubtype, AccountType, CategoryColor, CategoryIcon, Currency,
 } from '@compass/shared-types';
 import {
   collection, doc, getDocs, increment, onSnapshot,
@@ -19,6 +19,13 @@ export type CreateAccountInput = {
   name: string;
   type: AccountType;
   subtype: AccountSubtype;
+  /**
+   * Account currency (v2 multi-currency / ADR-16). Optional in the
+   * input shape so legacy callers still default to IDR; the service
+   * fills 'IDR' when omitted. New callers (account form, demo seed)
+   * pass an explicit value.
+   */
+  currency?: Currency;
   initialBalance: number;
   includedInNetWorth: boolean;
   icon: CategoryIcon;
@@ -36,13 +43,32 @@ export type UpdateAccountInput = Partial<
 >;
 
 /**
+ * Defensive read-layer normaliser. v1 docs have no `currency` field; v2
+ * widens the field but reads must tolerate the legacy shape. Anything
+ * that isn't a valid {@link Currency} string falls back to IDR.
+ *
+ * Cheap to call on every doc — the field-presence check is one property
+ * lookup. Kept centralised so callers downstream can trust `acc.currency`
+ * is always a real Currency.
+ */
+function normalizeAccount(raw: Omit<Account, 'id'>, id: string): Account {
+  const c = (raw as Account).currency;
+  const currency: Currency =
+    c === 'IDR' || c === 'USD' || c === 'SGD' || c === 'EUR' || c === 'AUD' ||
+    c === 'JPY' || c === 'GBP' || c === 'MYR' || c === 'THB' || c === 'CNY'
+      ? c
+      : 'IDR';
+  return { ...raw, currency, id };
+}
+
+/**
  * One-shot read. Filter + sort client-side (same rationale as
  * categoriesService — avoids the where()+orderBy() composite index).
  */
 export async function listAccounts(wid: string): Promise<Account[]> {
   const snap = await getDocs(accountsCollection(wid));
   return snap.docs
-    .map((d) => ({ ...(d.data() as Omit<Account, 'id'>), id: d.id }))
+    .map((d) => normalizeAccount(d.data() as Omit<Account, 'id'>, d.id))
     .filter((a) => !a.isArchived)
     .sort((a, b) => a.order - b.order);
 }
@@ -56,7 +82,7 @@ export function subscribeAccounts(
 ): () => void {
   return onSnapshot(accountsCollection(wid), (snap) => {
     const list = snap.docs
-      .map((d) => ({ ...(d.data() as Omit<Account, 'id'>), id: d.id }))
+      .map((d) => normalizeAccount(d.data() as Omit<Account, 'id'>, d.id))
       .filter((a) => !a.isArchived)
       .sort((a, b) => a.order - b.order);
     cb(list);
@@ -81,9 +107,9 @@ export async function createAccount(wid: string, input: CreateAccountInput): Pro
       name: input.name,
       type: input.type,
       subtype: input.subtype,
-      currency: 'IDR',
-      // Stored as integer minor units (×100 the displayed rupiah). Caller
-      // (accounts.tsx) uses parseBalanceInput to convert user input.
+      currency: input.currency ?? 'IDR',
+      // Stored as integer minor units (×100 the displayed amount, uniform
+      // across all currencies). Caller passes parsed minor units.
       currentBalance: input.initialBalance,
       initialBalance: input.initialBalance,
       includedInNetWorth: input.includedInNetWorth,

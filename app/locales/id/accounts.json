@@ -26,6 +26,9 @@
     "balancePlaceholder": "0",
     "balanceHint": "Saldo awal akan menjadi saldo saat ini.",
     "balanceEditHint": "Mengatur saldo akan menimpa nilai saat ini.",
+    "currency": "Mata uang",
+    "currencyHint": "Dipilih sekali saat akun dibuat. Saldo dan transaksi akun ini pakai mata uang ini.",
+    "currencyLockedHint": "Mata uang akun terkunci setelah dibuat — mengubahnya akan membuat saldo yang ada jadi tidak valid.",
     "icon": "Ikon",
     "color": "Warna",
     "includedInNetWorth": "Hitung di kekayaan bersih"

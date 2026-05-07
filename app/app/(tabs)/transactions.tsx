@@ -20,7 +20,7 @@ import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatDate } from '@/shared/utils/formatDate';
-import { formatIDR } from '@/shared/utils/formatIDR';
+import { formatCurrency } from '@/shared/utils/formatCurrency';
 
 type TypeFilter = 'all' | TransactionType;
 type DateFilter = 'this_month' | 'last_month' | 'all_time';
@@ -501,7 +501,7 @@ function TransactionRow({
         style={{ color: amountColor }}
       >
         {amountPrefix}
-        {formatIDR(tx.amount)}
+        {formatCurrency(tx.amount, tx.currency ?? 'IDR')}
       </Text>
     </Pressable>
   );

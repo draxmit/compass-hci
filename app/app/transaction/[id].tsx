@@ -204,12 +204,14 @@ export default function EditTransactionScreen() {
         }
         await updateTransaction(wid, loaded.id, { description: description.trim() });
       } else {
+        const sourceAccount = accounts.find((a) => a.id === accountId);
         await deleteTransaction(wid, loaded.id);
         await createTransaction(wid, {
           type,
           date: loaded.date,
           accountId,
           toAccountId: type === 'transfer' ? toAccountId : null,
+          currency: sourceAccount?.currency ?? loaded.currency ?? 'IDR',
           amount,
           splits,
           description: description.trim(),

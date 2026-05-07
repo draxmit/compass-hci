@@ -283,10 +283,15 @@ async function main() {
   // ---- Seed accounts ----
   log('Seeding accounts…');
   const accountSpecs = [
-    { localKey: 'bca',   name: 'BCA',           type: 'bank',        subtype: 'bca',        initialBalance: 540_000_000, includedInNetWorth: true,  icon: 'landmark',    color: 'blue' },
-    { localKey: 'gopay', name: 'GoPay',         type: 'ewallet',     subtype: 'gopay',      initialBalance: 85_000_000,  includedInNetWorth: true,  icon: 'wallet',      color: 'green' },
-    { localKey: 'cash',  name: 'Tunai',         type: 'cash',        subtype: 'cash',       initialBalance: 30_000_000,  includedInNetWorth: true,  icon: 'wallet',      color: 'amber' },
-    { localKey: 'card',  name: 'Mandiri Card',  type: 'credit_card', subtype: 'mastercard', initialBalance: -125_000_000, includedInNetWorth: true, icon: 'credit-card', color: 'red' },
+    { localKey: 'bca',   name: 'BCA',           type: 'bank',        subtype: 'bca',        currency: 'IDR', initialBalance: 540_000_000, includedInNetWorth: true,  icon: 'landmark',    color: 'blue' },
+    { localKey: 'gopay', name: 'GoPay',         type: 'ewallet',     subtype: 'gopay',      currency: 'IDR', initialBalance: 85_000_000,  includedInNetWorth: true,  icon: 'wallet',      color: 'green' },
+    { localKey: 'cash',  name: 'Tunai',         type: 'cash',        subtype: 'cash',       currency: 'IDR', initialBalance: 30_000_000,  includedInNetWorth: true,  icon: 'wallet',      color: 'amber' },
+    { localKey: 'card',  name: 'Mandiri Card',  type: 'credit_card', subtype: 'mastercard', currency: 'IDR', initialBalance: -125_000_000, includedInNetWorth: true, icon: 'credit-card', color: 'red' },
+    // v2: showcase the multi-currency feature with a USD savings account.
+    // $2,150 (215000 minor) at the snapshot rate of Rp 16,500/USD ≈ Rp 35.5M
+    // — appears on the dashboard net-worth via FX conversion + carries the
+    // 'USD' badge on the accounts list row.
+    { localKey: 'usd',   name: 'USD Savings',   type: 'bank',        subtype: 'bank_other', currency: 'USD', initialBalance: 215_000,     includedInNetWorth: true,  icon: 'landmark',    color: 'teal' },
   ];
   const acctIds = {};
   {
@@ -300,7 +305,7 @@ async function main() {
         name: spec.name,
         type: spec.type,
         subtype: spec.subtype,
-        currency: 'IDR',
+        currency: spec.currency,
         currentBalance: spec.initialBalance,    // we'll re-derive via tx writes below
         initialBalance: spec.initialBalance,
         includedInNetWorth: spec.includedInNetWorth,

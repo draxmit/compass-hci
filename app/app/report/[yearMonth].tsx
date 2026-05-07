@@ -23,6 +23,7 @@ import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { formatDate } from '@/shared/utils/formatDate';
+import { formatCurrency } from '@/shared/utils/formatCurrency';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { formatPercent } from '@/shared/utils/formatPercent';
 
@@ -588,7 +589,7 @@ function TopExpenseRow({
         </Text>
       </View>
       <Text className="font-mono tabular-nums text-sm" style={{ color: tokens.semantic.danger }}>
-        {formatIDR(tx.amount, lang)}
+        {formatCurrency(tx.amount, tx.currency ?? 'IDR', lang)}
       </Text>
     </Pressable>
   );

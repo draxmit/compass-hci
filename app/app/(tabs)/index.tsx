@@ -23,8 +23,10 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
+import { formatCurrency } from '@/shared/utils/formatCurrency';
 import { formatDate } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
+import { convertToIDRMinor } from '@/shared/utils/fxRates';
 
 /**
  * (tabs)/index.tsx — Dashboard. The visibility surface the whole app is
@@ -109,8 +111,15 @@ export default function DashboardScreen() {
     () => accounts.filter((a) => !a.isArchived && a.includedInNetWorth),
     [accounts],
   );
+  // Net worth is always IDR-denominated. Each non-IDR balance is
+  // converted via the FX snapshot before summing — keeps the value
+  // meaningful for users with mixed-currency accounts (e.g. an IDR
+  // BCA + a USD savings).
   const netWorth = useMemo(
-    () => includedAccounts.reduce((s, a) => s + a.currentBalance, 0),
+    () => includedAccounts.reduce(
+      (s, a) => s + convertToIDRMinor(a.currentBalance, a.currency),
+      0,
+    ),
     [includedAccounts],
   );
 
@@ -601,7 +610,7 @@ function RecentRow({
         style={{ color: amountColor }}
       >
         {amountPrefix}
-        {formatIDR(tx.amount)}
+        {formatCurrency(tx.amount, tx.currency ?? 'IDR', lang)}
       </Text>
     </Pressable>
   );

@@ -121,6 +121,22 @@ export type Category = {
 };
 
 /**
+ * ISO 4217 currency codes — the set Compass supports out of the box. v2
+ * launches with a ten-currency menu covering IDR + the currencies most
+ * commonly held by Indonesian residents (USD/SGD/EUR/AUD/JPY/GBP) plus
+ * three regional neighbours (MYR/THB/CNY). Adding a new currency requires
+ * extending this union AND adding metadata in `currencyMeta.ts` AND an FX
+ * rate in `fxRates.ts` AND a translation key in `accounts.json`.
+ *
+ * `IDR` is the de-facto base currency throughout v2 (see comments on
+ * `Transaction.amountIDR`). `users.baseCurrency` lets users choose USD as
+ * their reporting baseline but v2.0 ships with IDR pinned — base-currency
+ * switching lands in v2.1 alongside live FX fetches.
+ */
+export type Currency =
+  | 'IDR' | 'USD' | 'SGD' | 'EUR' | 'AUD' | 'JPY' | 'GBP' | 'MYR' | 'THB' | 'CNY';
+
+/**
  * Account types — top-level grouping for the accounts list (T5 / ADR-06).
  * Investment accounts are out of scope for v1; landing in v3.
  */
@@ -162,7 +178,15 @@ export type Account = {
   name: string;
   type: AccountType;
   subtype: AccountSubtype;
-  currency: 'IDR';
+  /**
+   * Account currency. v1 was pinned to 'IDR'; v2 (multi-currency) widens
+   * to the {@link Currency} union. `currentBalance` is denormalised in
+   * THIS currency — it is NOT pre-converted to IDR. Cross-currency
+   * aggregation (Dashboard net worth) converts at read time via
+   * `convertToIDRMinor`. Existing accounts with no `currency` field
+   * (created before v2) are treated as IDR by the read layer.
+   */
+  currency: Currency;
   currentBalance: number;
   initialBalance: number;
   includedInNetWorth: boolean;
@@ -212,9 +236,24 @@ export type Transaction = {
   yearMonth: string;     // 'YYYY-MM' denormalised
   accountId: string;     // for expense/income: source/sink. For transfer: from-account.
   toAccountId: string | null;  // transfer only — destination account
-  currency: 'IDR';
-  amount: number;        // integer minor units
-  amountIDR: number;     // == amount in v1; v2 multi-currency uses FX snapshot
+  /**
+   * Transaction currency — denormalised from the source account at
+   * write-time. v1 always 'IDR'; v2 widens to the full {@link Currency}
+   * union. Stored on the tx so that historical reports remain valid
+   * even if the user later changes the account's currency (which v2
+   * does not yet permit — but the field is correct either way).
+   */
+  currency: Currency;
+  amount: number;        // integer minor units in `currency`
+  /**
+   * IDR-denominated equivalent at the FX rate used at write-time.
+   * Used by every cross-account aggregation (dashboard net worth,
+   * monthly totals, budgets, reports, insights). For IDR-currency
+   * transactions, `amountIDR === amount`. For non-IDR, computed via
+   * `convertToIDRMinor` and stored so the FX snapshot doesn't drift
+   * even when rates update later.
+   */
+  amountIDR: number;
   splits: Split[];       // length 1 in v1; [] for transfers
   description: string;
   source: 'manual' | 'nlp';

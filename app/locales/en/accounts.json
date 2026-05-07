@@ -26,6 +26,9 @@
     "balancePlaceholder": "0",
     "balanceHint": "The initial balance becomes the current balance.",
     "balanceEditHint": "Setting balance overrides the current value.",
+    "currency": "Currency",
+    "currencyHint": "Set once at create time. Balances and transactions on this account use this currency.",
+    "currencyLockedHint": "Currency is locked after the account is created — changing it would invalidate the existing balance.",
     "icon": "Icon",
     "color": "Colour",
     "includedInNetWorth": "Include in net worth"

@@ -153,6 +153,12 @@ export default function ImportCsvScreen() {
     setImportProgress({ done: 0, total: validCount });
     let imported = 0;
     try {
+      // Source-account currency goes on every imported tx so amountIDR
+      // gets computed via the FX snapshot. CSV files from non-IDR banks
+      // (e.g. Citibank USD, DBS SGD) will land correctly when the user
+      // picks a matching destination account.
+      const sourceAccount = accounts.find((a) => a.id === accountId);
+      const txCurrency = sourceAccount?.currency ?? 'IDR';
       for (const row of parsed.rows) {
         const dateStr = row[dateCol] ?? '';
         const amountStr = row[amountCol] ?? '';
@@ -166,6 +172,7 @@ export default function ImportCsvScreen() {
           date,
           accountId,
           toAccountId: null,
+          currency: txCurrency,
           amount: Math.abs(amount),
           splits: [{ categoryId, amount: Math.abs(amount) }],
           description: desc.trim() || `CSV: ${fileName}`,

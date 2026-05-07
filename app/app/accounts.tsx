@@ -1,6 +1,6 @@
 import type {
   Account, AccountSubtype, AccountType, CategoryColor,
-  CategoryIcon as CategoryIconKey,
+  CategoryIcon as CategoryIconKey, Currency,
 } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, Plus } from 'lucide-react-native';
@@ -25,7 +25,10 @@ import { Card } from '@/shared/ui/Card';
 import { CATEGORY_ICON_KEYS, CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
+import { CURRENCIES, CURRENCY_META } from '@/shared/utils/currencyMeta';
+import { formatCurrency } from '@/shared/utils/formatCurrency';
 import { formatIDR } from '@/shared/utils/formatIDR';
+import { convertToIDRMinor } from '@/shared/utils/fxRates';
 
 type EditTarget = { mode: 'create' } | { mode: 'edit'; account: Account };
 
@@ -77,10 +80,14 @@ export default function AccountsScreen() {
     })).filter((g) => g.accounts.length > 0);
   }, [accounts]);
 
+  // Total balance is always reported in IDR (the de-facto base currency
+  // throughout v2 — see ADR-16). Non-IDR accounts get their balance
+  // converted via the FX snapshot before summing. v2.1 will let users
+  // pick a base currency and re-anchor this; for now IDR is the rule.
   const totalBalance = useMemo(
     () => accounts
       .filter((a) => a.includedInNetWorth)
-      .reduce((sum, a) => sum + a.currentBalance, 0),
+      .reduce((sum, a) => sum + convertToIDRMinor(a.currentBalance, a.currency), 0),
     [accounts],
   );
 
@@ -262,15 +269,35 @@ function AccountGroup({ type, accounts, isDark, onEditAccount }: AccountGroupPro
               <Text className="font-sans-medium" style={{ color: fgColor }} numberOfLines={1}>
                 {account.name}
               </Text>
-              <Text className="font-sans text-xs" style={{ color: mutedColor }} numberOfLines={1}>
-                {t(`accounts:subtypes.${account.subtype}`)}
-              </Text>
+              <View className="flex-row items-center" style={{ gap: 6 }}>
+                <Text className="font-sans text-xs" style={{ color: mutedColor }} numberOfLines={1}>
+                  {t(`accounts:subtypes.${account.subtype}`)}
+                </Text>
+                {account.currency !== 'IDR' ? (
+                  <View
+                    style={{
+                      paddingHorizontal: 6,
+                      paddingVertical: 1,
+                      borderRadius: 4,
+                      borderWidth: 1,
+                      borderColor: borderColor,
+                    }}
+                  >
+                    <Text
+                      className="font-sans-semibold"
+                      style={{ color: mutedColor, fontSize: 10, letterSpacing: 0.5 }}
+                    >
+                      {account.currency}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
             <Text
               className="font-mono tabular-nums text-base"
               style={{ color: fgColor }}
             >
-              {formatIDR(account.currentBalance)}
+              {formatCurrency(account.currentBalance, account.currency)}
             </Text>
           </Pressable>
         );
@@ -367,6 +394,9 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
   const [name, setName] = useState(editing?.name ?? '');
   const [type, setType] = useState<AccountType>(initialType);
   const [subtype, setSubtypeState] = useState<AccountSubtype>(initialSubtype);
+  // Currency is set once at create time and locked thereafter — see comment
+  // on the picker below for why edits don't allow changes.
+  const [currency, setCurrency] = useState<Currency>(editing?.currency ?? 'IDR');
   const [balanceText, setBalanceText] = useState(
     editing ? minorUnitsToInputText(editing.currentBalance, lang) : '',
   );
@@ -423,12 +453,15 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
           name: name.trim(),
           type,
           subtype,
+          currency,
           initialBalance: balance,
           includedInNetWorth,
           icon,
           color,
         });
       } else {
+        // Currency intentionally NOT in this patch — it's locked at
+        // create time. See picker comment below.
         await updateAccount(wid, editing!.id, {
           name: name.trim(),
           type,
@@ -625,6 +658,66 @@ function AccountEditPanel({ target, onClose, wid, isDark, lang }: AccountEditPan
               </Pressable>
             );
           })}
+        </Card>
+
+        {/* Currency — locked after create time. Editing the currency of
+            an existing account would invalidate currentBalance (still in
+            the old currency) and break historical aggregations, so we
+            simply don't allow it. The picker still renders on edit, in
+            read-only form, so the user knows what currency is set. */}
+        <Card padding="lg" className="mb-4">
+          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
+            {t('accounts:fields.currency')}
+          </Text>
+          <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+            {CURRENCIES.map((code) => {
+              const meta = CURRENCY_META[code];
+              const selected = currency === code;
+              const disabled = isEdit && !selected;
+              return (
+                <Pressable
+                  key={code}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected, disabled }}
+                  disabled={disabled}
+                  onPress={() => setCurrency(code)}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 8,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    minHeight: 36,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    borderColor: selected ? tokens.accent.dashboard : borderColor,
+                    backgroundColor: selected
+                      ? tokens.accent.dashboard + '14'
+                      : 'transparent',
+                    opacity: disabled ? 0.4 : 1,
+                  }}
+                >
+                  <Text
+                    className="font-sans-semibold text-xs"
+                    style={{ color: selected ? tokens.accent.dashboard : mutedColor }}
+                  >
+                    {code}
+                  </Text>
+                  <Text
+                    className="font-sans text-xs"
+                    style={{ color: selected ? tokens.accent.dashboard : fgColor }}
+                  >
+                    {meta.label[lang]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text className="font-sans text-xs mt-3" style={{ color: mutedColor }}>
+            {isEdit
+              ? t('accounts:fields.currencyLockedHint')
+              : t('accounts:fields.currencyHint')}
+          </Text>
         </Card>
 
         {/* Balance */}

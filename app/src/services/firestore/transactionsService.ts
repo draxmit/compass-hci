@@ -1,8 +1,10 @@
-import type { Split, Transaction, TransactionType } from '@compass/shared-types';
+import type { Currency, Split, Transaction, TransactionType } from '@compass/shared-types';
 import {
   collection, doc, getCountFromServer, getDoc, getDocs, increment, onSnapshot,
   orderBy, limit as fsLimit, query, serverTimestamp, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
+
+import { convertToIDRMinor } from '@/shared/utils/fxRates';
 
 import { db } from '../firebase/client';
 import { addToCategoryMonthTotal } from './categoryMonthTotalsService';
@@ -21,9 +23,17 @@ export type CreateTransactionInput = {
   type: TransactionType;
   date: string;                // YYYY-MM-DD
   accountId: string;
-  toAccountId: string | null;  // transfer only
-  amount: number;              // integer minor units
-  splits: Split[];             // length 1 in v1; [] for transfers
+  toAccountId: string | null;  // transfer only — must be same currency in v2
+  /**
+   * Tx currency, denormalised from the source account at write time.
+   * Optional in the input shape so legacy callers (pre-multi-currency)
+   * still default to IDR. New callers (form, NLP, CSV import) pass the
+   * account's currency explicitly. Cross-currency transfers are not
+   * supported in v2 — caller (UI) enforces same-currency.
+   */
+  currency?: Currency;
+  amount: number;              // integer minor units in `currency`
+  splits: Split[];             // length 1 in v1; [] for transfers; in `currency`
   description: string;
   source: 'manual' | 'nlp';
   rawInput: string | null;
@@ -48,6 +58,10 @@ export async function createTransaction(
 ): Promise<string> {
   const txRef = doc(transactionsCollection(wid));
   const yearMonth = input.date.slice(0, 7);  // 'YYYY-MM'
+  const currency: Currency = input.currency ?? 'IDR';
+  // FX snapshot at write time — frozen on the doc so historical reports
+  // remain stable when rates update later. For IDR this is identity.
+  const amountIDR = convertToIDRMinor(input.amount, currency);
 
   const batch = writeBatch(db);
   batch.set(txRef, {
@@ -56,9 +70,9 @@ export async function createTransaction(
     yearMonth,
     accountId: input.accountId,
     toAccountId: input.toAccountId,
-    currency: 'IDR',
+    currency,
     amount: input.amount,
-    amountIDR: input.amount,  // v1 single-currency; v2 FX snapshot
+    amountIDR,
     splits: input.splits,
     description: input.description,
     source: input.source,
@@ -93,10 +107,18 @@ export async function createTransaction(
     }
   }
 
-  // Category month totals (expense only)
+  // Category month totals (expense only) — denominated in IDR so the
+  // dashboard "this month" total + budget progress are meaningful across
+  // accounts of different currencies. For multi-split, distribute the
+  // tx's amountIDR proportionally to each split's share of tx.amount,
+  // so the per-split IDR amounts always sum back to amountIDR exactly.
+  // For single-split (the v2 norm), splitIDR === amountIDR.
   if (input.type === 'expense') {
     for (const split of input.splits) {
-      addToCategoryMonthTotal(batch, wid, yearMonth, split.categoryId, split.amount, 1);
+      const splitIDR = input.amount === 0
+        ? 0
+        : Math.round(split.amount * (amountIDR / input.amount));
+      addToCategoryMonthTotal(batch, wid, yearMonth, split.categoryId, splitIDR, 1);
     }
   }
 
@@ -225,8 +247,16 @@ export async function deleteTransaction(wid: string, id: string): Promise<void> 
       currentBalance: increment(tx.amount),
       updatedAt: serverTimestamp(),
     });
+    // Mirror the create-time proportional distribution so the reversal
+    // exactly cancels the original increment, even on multi-split
+    // non-IDR transactions. tx.amountIDR is the FX snapshot frozen at
+    // create time — using it here keeps deletes drift-free against
+    // later rate changes.
     for (const split of tx.splits) {
-      addToCategoryMonthTotal(batch, wid, tx.yearMonth, split.categoryId, -split.amount, -1);
+      const splitIDR = tx.amount === 0
+        ? 0
+        : Math.round(split.amount * (tx.amountIDR / tx.amount));
+      addToCategoryMonthTotal(batch, wid, tx.yearMonth, split.categoryId, -splitIDR, -1);
     }
   } else if (tx.type === 'income') {
     batch.update(accountRef(wid, tx.accountId), {
