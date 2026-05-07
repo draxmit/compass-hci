@@ -4,6 +4,7 @@
     "tagline": "Your account on Compass.",
     "section": {
       "identity": "IDENTITY",
+      "goal": "GOAL",
       "activity": "ACTIVITY",
       "achievements": "ACHIEVEMENTS"
     },
@@ -17,6 +18,17 @@
     "settingsLink": "Settings",
     "settingsLinkDescription": "Theme, language, sign out",
     "you": "You",
+    "goal": {
+      "label": "On your mind",
+      "placeholder": "New bike, Lebaran 2027, emergency fund…",
+      "empty": "No goal set",
+      "setCta": "Set a goal",
+      "edit": "Edit goal",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "saveFailed": "Couldn't save goal."
+    },
     "errors": {
       "updateNameTitle": "Could not update name",
       "updateNameFallback": "Update failed."
@@ -29,10 +41,13 @@
   },
   "settings": {
     "title": "Settings",
-    "tagline": "Theme, language, sign out — full version in T11.",
+    "tagline": "Theme, language, security, and account.",
     "section": {
+      "preferences": "PREFERENCES",
       "theme": "THEME",
-      "language": "LANGUAGE"
+      "language": "LANGUAGE",
+      "security": "SECURITY",
+      "account": "ACCOUNT"
     },
     "theme": {
       "light": "Light",
@@ -44,6 +59,23 @@
       "id": "Bahasa",
       "en": "English",
       "setTo": "Set language to {{label}}"
+    },
+    "security": {
+      "biometricLabel": "Unlock with biometrics",
+      "biometricHint": "Use Face ID / Touch ID to open the app.",
+      "encryptedCacheLabel": "Encrypted cache",
+      "encryptedCacheHint": "Encrypt local data on this device.",
+      "comingInV3": "Coming in v3"
+    },
+    "account": {
+      "deleteLabel": "Delete account",
+      "deleteHelp": "Permanently delete all your Compass data.",
+      "deleteConfirmTitle": "Delete account forever?",
+      "deleteConfirmBody": "All accounts, transactions, budgets, and categories will be deleted. Your sign-in is removed too. This cannot be undone.",
+      "deleteConfirmAction": "Delete forever",
+      "deleting": "Deleting account…",
+      "deleteFailedTitle": "Couldn't delete account",
+      "requiresRecentLoginBody": "For security, please sign out and sign in again, then try Delete account once more."
     },
     "signOut": "Sign out",
     "signingOut": "Signing out…",

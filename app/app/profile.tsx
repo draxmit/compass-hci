@@ -5,9 +5,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { auth, updateDisplayName } from '@/services/firebase';
+import { auth, updateDisplayName, updateUserDoc } from '@/services/firebase';
 import { getTransactionCount } from '@/services/firestore/transactionsService';
-import { useAuthUser } from '@/stores/authStore';
+import { useAuthStore, useAuthUser, useUserDoc } from '@/stores/authStore';
 import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
@@ -30,6 +30,18 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
+  const userDoc = useUserDoc();
+  const goalText = userDoc?.primaryGoal?.trim() ?? '';
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalDraft, setGoalDraft] = useState(goalText);
+  const [savingGoal, setSavingGoal] = useState(false);
+
+  // Reset the goal draft whenever the saved value changes (e.g. external
+  // write from onboarding wizard) so the editor always opens with the
+  // latest value.
+  useEffect(() => {
+    setGoalDraft(goalText);
+  }, [goalText]);
   const [createdAt, setCreatedAt] = useState<Date | null>(null);
   const [txCount, setTxCount] = useState<number | null>(null);
   const isDark = resolvedScheme === 'dark';
@@ -97,6 +109,31 @@ export default function ProfileScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveGoal = async () => {
+    if (savingGoal) return;
+    const uid = useAuthStore.getState().uid;
+    if (!uid) return;
+    const trimmed = goalDraft.trim();
+    setSavingGoal(true);
+    try {
+      // Empty input → clear the goal back to null; matches onboarding
+      // step-1 semantics. The user-doc subscription propagates the
+      // change to Dashboard's pill within milliseconds.
+      await updateUserDoc(uid, { primaryGoal: trimmed.length > 0 ? trimmed : null });
+      setEditingGoal(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t('settings:profile.goal.saveFailed');
+      Alert.alert(t('settings:profile.goal.saveFailed'), msg);
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+
+  const handleCancelGoalEdit = () => {
+    setGoalDraft(goalText);
+    setEditingGoal(false);
   };
 
   const handleCancelEdit = () => {
@@ -268,6 +305,119 @@ export default function ProfileScreen() {
           </View>
         </Card>
       ) : null}
+
+      {/* Goal card — inline edit, mirrors the displayName edit-pencil
+          pattern in the identity card above. Empty state renders a
+          "+ Set a goal" outline button instead of the text + pencil. */}
+      <Card padding="lg" className="mb-4 w-full">
+        <Text className={sectionLabelClass} style={{ color: mutedColor }}>
+          {t('settings:profile.section.goal')}
+        </Text>
+        {editingGoal ? (
+          <View>
+            <TextField
+              label={t('settings:profile.goal.label')}
+              value={goalDraft}
+              onChangeText={setGoalDraft}
+              placeholder={t('settings:profile.goal.placeholder')}
+              autoCapitalize="sentences"
+              returnKeyType="done"
+              onSubmitEditing={handleSaveGoal}
+            />
+            <View className="flex-row gap-2 mt-3">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('settings:profile.goal.save')}
+                disabled={savingGoal}
+                onPress={handleSaveGoal}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  backgroundColor: tokens.accent.dashboard,
+                  opacity: savingGoal ? 0.5 : 1,
+                  minHeight: 44,
+                }}
+              >
+                <Check size={16} color="#fff" />
+                <Text className="font-sans-medium text-white text-sm">
+                  {savingGoal ? t('settings:profile.goal.saving') : t('settings:profile.goal.save')}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('settings:profile.goal.cancel')}
+                onPress={handleCancelGoalEdit}
+                disabled={savingGoal}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: isDark
+                    ? tokens.surface['dark-border']
+                    : tokens.surface['light-border'],
+                  minHeight: 44,
+                  opacity: savingGoal ? 0.5 : 1,
+                }}
+              >
+                <X size={16} color={fgColor} />
+                <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
+                  {t('settings:profile.goal.cancel')}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : goalText.length > 0 ? (
+          <View className="flex-row items-center">
+            <Text className="font-sans-semibold text-base flex-1" style={{ color: fgColor }} numberOfLines={2}>
+              {goalText}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('settings:profile.goal.edit')}
+              onPress={() => setEditingGoal(true)}
+              hitSlop={8}
+              className="ml-2 w-9 h-9 items-center justify-center rounded-lg"
+            >
+              <Pencil size={16} color={mutedColor} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('settings:profile.goal.setCta')}
+            onPress={() => setEditingGoal(true)}
+            style={{
+              flexDirection: 'row',
+              alignSelf: 'flex-start',
+              alignItems: 'center',
+              gap: 6,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: isDark
+                ? tokens.surface['dark-border']
+                : tokens.surface['light-border'],
+              minHeight: 36,
+            }}
+          >
+            <Pencil size={14} color={fgColor} />
+            <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
+              {t('settings:profile.goal.setCta')}
+            </Text>
+          </Pressable>
+        )}
+      </Card>
 
       {/* Activity stats card */}
       <Card padding="lg" className="mb-4 w-full">

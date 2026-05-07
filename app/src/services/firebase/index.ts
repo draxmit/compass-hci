@@ -14,4 +14,6 @@ export {
   useGoogleSignIn,
 } from './auth';
 export type { GoogleSignInResult, UseGoogleSignIn } from './auth';
-export { ensureUserDoc, getUserDoc, subscribeUserDoc, updateUserDoc } from './firestore';
+export {
+  deleteUserAccount, ensureUserDoc, getUserDoc, subscribeUserDoc, updateUserDoc,
+} from './firestore';

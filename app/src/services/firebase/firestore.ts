@@ -1,8 +1,12 @@
 import type { UserDoc, WorkspaceDoc } from '@compass/shared-types';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { deleteUser } from 'firebase/auth';
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, onSnapshot,
+  serverTimestamp, updateDoc, writeBatch,
+} from 'firebase/firestore';
 
-import { db } from './client';
+import { auth, db } from './client';
 import { seedPresets } from '../firestore/categoriesService';
 
 /**
@@ -88,12 +92,88 @@ export function subscribeUserDoc(
 
 /**
  * Patch fields on the user doc. Used by the onboarding wizard to write
- * `primaryGoal`, `budgetStyle`, and `onboardingComplete` step-by-step
- * without overwriting the rest of the doc.
+ * `primaryGoal`, `budgetStyle`, and `onboardingComplete` step-by-step,
+ * by Settings to flip `biometricEnabled`, and by /profile inline-edit
+ * for `primaryGoal` and `displayName`. Never overwrites the rest of the
+ * doc — typed to the v1 mutable surface only.
  */
 export async function updateUserDoc(
   uid: string,
-  patch: Partial<Pick<UserDoc, 'primaryGoal' | 'budgetStyle' | 'onboardingComplete' | 'displayName' | 'locale' | 'theme'>>,
+  patch: Partial<
+    Pick<
+      UserDoc,
+      | 'primaryGoal'
+      | 'budgetStyle'
+      | 'onboardingComplete'
+      | 'displayName'
+      | 'locale'
+      | 'theme'
+      | 'biometricEnabled'
+    >
+  >,
 ): Promise<void> {
   await updateDoc(doc(db, 'users', uid), patch);
+}
+
+/**
+ * Order of subcollections wiped during account deletion. Order matters
+ * only as defence-in-depth — Firestore enforces no referential
+ * integrity, but if a step fails partway, leaving the user's `accounts`
+ * around (deleted last) lets sign-back-in render a useful "your data is
+ * partly gone" state instead of a wholly-orphaned shell. Per ADR-12 §3.
+ */
+const DELETION_SUBCOLLECTIONS = [
+  'budgets',
+  'category_month_totals',
+  'transactions',
+  'categories',
+  'accounts',
+] as const;
+
+/**
+ * Wipe a single subcollection in chunked batches. Firestore's batch
+ * limit is 500 writes; we chunk at 400 for headroom. Sequential per
+ * chunk to keep error surfaces obvious.
+ */
+async function wipeSubcollection(wid: string, name: string): Promise<void> {
+  const ref = collection(db, 'workspaces', wid, name);
+  const snap = await getDocs(ref);
+  if (snap.empty) return;
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += 400) {
+    const batch = writeBatch(db);
+    for (const d of docs.slice(i, i + 400)) batch.delete(d.ref);
+    await batch.commit();
+  }
+}
+
+/**
+ * Client-side account deletion (T11 / ADR-12 §3). Wipes the entire
+ * user subtree, then the user doc, then the Firebase Auth user. Order
+ * is fixed: subcollections → workspace → user doc → Auth user.
+ *
+ * Throws on `auth/requires-recent-login`; callers should catch that
+ * specific code and surface the friendly "sign in again" copy. Other
+ * errors propagate as-is.
+ *
+ * AuthGate auto-redirects to /(auth)/sign-in once `auth.currentUser`
+ * flips to null after `deleteUser` resolves — no manual nav needed.
+ */
+export async function deleteUserAccount(): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('deleteUserAccount: not signed in');
+  const uid = user.uid;
+  const wid = `solo-${uid}`;
+
+  // Subcollections first.
+  for (const name of DELETION_SUBCOLLECTIONS) {
+    await wipeSubcollection(wid, name);
+  }
+  // Workspace doc.
+  await deleteDoc(doc(db, 'workspaces', wid));
+  // User doc.
+  await deleteDoc(doc(db, 'users', uid));
+  // Auth identity LAST. Throws auth/requires-recent-login if the
+  // sign-in is stale; caller catches by error.code.
+  await deleteUser(user);
 }

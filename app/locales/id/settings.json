@@ -4,6 +4,7 @@
     "tagline": "Akunmu di Compass.",
     "section": {
       "identity": "IDENTITAS",
+      "goal": "TUJUAN",
       "activity": "AKTIVITAS",
       "achievements": "PENCAPAIAN"
     },
@@ -17,6 +18,17 @@
     "settingsLink": "Pengaturan",
     "settingsLinkDescription": "Tema, bahasa, keluar",
     "you": "Kamu",
+    "goal": {
+      "label": "Lagi mikirin",
+      "placeholder": "Beli motor, Lebaran 2027, dana darurat…",
+      "empty": "Belum ada tujuan",
+      "setCta": "Tambah tujuan",
+      "edit": "Ubah tujuan",
+      "save": "Simpan",
+      "saving": "Menyimpan…",
+      "cancel": "Batal",
+      "saveFailed": "Gagal menyimpan tujuan."
+    },
     "errors": {
       "updateNameTitle": "Tidak bisa update nama",
       "updateNameFallback": "Update gagal."
@@ -29,10 +41,13 @@
   },
   "settings": {
     "title": "Pengaturan",
-    "tagline": "Tema, bahasa, keluar — versi lengkap di T11.",
+    "tagline": "Tema, bahasa, keamanan, dan akun.",
     "section": {
+      "preferences": "PREFERENSI",
       "theme": "TEMA",
-      "language": "BAHASA"
+      "language": "BAHASA",
+      "security": "KEAMANAN",
+      "account": "AKUN"
     },
     "theme": {
       "light": "Terang",
@@ -44,6 +59,23 @@
       "id": "Bahasa",
       "en": "English",
       "setTo": "Atur bahasa ke {{label}}"
+    },
+    "security": {
+      "biometricLabel": "Buka pakai biometrik",
+      "biometricHint": "Touch ID / Face ID untuk membuka aplikasi.",
+      "encryptedCacheLabel": "Cache terenkripsi",
+      "encryptedCacheHint": "Enkripsi data lokal di perangkat ini.",
+      "comingInV3": "Hadir di v3"
+    },
+    "account": {
+      "deleteLabel": "Hapus akun",
+      "deleteHelp": "Hapus semua data Compass-mu secara permanen.",
+      "deleteConfirmTitle": "Hapus akun selamanya?",
+      "deleteConfirmBody": "Semua akun, transaksi, budget, dan kategori akan terhapus. Sign-in juga dihapus. Tidak bisa dibatalkan.",
+      "deleteConfirmAction": "Hapus selamanya",
+      "deleting": "Menghapus akun…",
+      "deleteFailedTitle": "Gagal menghapus akun",
+      "requiresRecentLoginBody": "Demi keamanan, silakan keluar dan masuk lagi, lalu coba Hapus akun sekali lagi."
     },
     "signOut": "Keluar",
     "signingOut": "Keluar…",
