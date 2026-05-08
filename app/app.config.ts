@@ -35,12 +35,19 @@ const config: ExpoConfig = {
     'expo-font',
     'expo-localization',
     // SDK-54 splash screen replacement for the legacy `splash` field.
-    // No image — just a solid black background while the bundle loads.
+    // The plugin generates `drawable/splashscreen_logo` regardless of
+    // config — even when `image` is omitted — so we MUST point it at
+    // a real PNG that exists on disk, otherwise Android resource
+    // linking fails. `assets/splash-icon.png` is a 200×200 brand-
+    // emerald square with a small white centre dot generated at
+    // build-config time.
     [
       'expo-splash-screen',
       {
         backgroundColor: '#000000',
+        image: './assets/splash-icon.png',
         resizeMode: 'contain',
+        imageWidth: 200,
       },
     ],
     // Camera — used by receipt OCR (snap a photo → ML Kit reads the
