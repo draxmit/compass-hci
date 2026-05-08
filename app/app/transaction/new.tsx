@@ -1,7 +1,7 @@
 import type { Account, Category, TransactionType } from '@compass/shared-types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
-import { ChevronDown, ChevronLeft, ChevronRight, Layers, Mic, MicOff } from 'lucide-react-native';
+import { Camera as CameraIcon, ChevronDown, ChevronLeft, ChevronRight, Layers, Mic, MicOff } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -73,7 +73,18 @@ export default function NewTransactionScreen() {
   // close-fallback target when there's no Stack frame to pop (we arrived
   // via router.replace, not push). Falls back to /transactions if absent
   // or invalid.
-  const params = useLocalSearchParams<{ from?: string }>();
+  // OCR params arrive when the user came from /transaction/scan-receipt.
+  // `ocrAmount` is a stringified minor-units integer (e.g. '15750000' for
+  // Rp 157,500.00); `ocrMerchant` is the best-guess merchant string. Both
+  // are independent — receipt photos sometimes yield only one or the
+  // other depending on glare / contrast / cropping. We apply each only
+  // if (a) the param is present AND (b) the user hasn't yet manually
+  // edited that field, mirroring the touched[] guard the NLP path uses.
+  const params = useLocalSearchParams<{
+    from?: string;
+    ocrAmount?: string;
+    ocrMerchant?: string;
+  }>();
   const fromTab: Href = resolveFrom(params.from);
 
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
@@ -114,8 +125,10 @@ export default function NewTransactionScreen() {
   // modal is closed, the form shows a compact summary card instead.
   const [splitsModalOpen, setSplitsModalOpen] = useState(false);
 
-  // Voice input → NLP field. Web only in v2 launch (native variant
-  // requires expo-speech-recognition + EAS dev client; v2.5 polish).
+  // Voice input → NLP field. Web uses the browser SpeechRecognition
+  // API; native uses expo-speech-recognition (SiriKit on iOS, Google
+  // Speech Service on Android). Metro picks `voiceInput.native.ts`
+  // for native and `voiceInput.ts` for web — same external shape.
   const voice = useVoiceInput({
     locale: lang,
     onResult: (transcript) => {
@@ -144,6 +157,31 @@ export default function NewTransactionScreen() {
     });
     return () => { unsubA(); unsubC(); unsubR(); };
   }, [wid]);
+
+  // One-shot apply of OCR params from /transaction/scan-receipt. The
+  // scanner navigates here via router.replace with ?ocrAmount=<minor>
+  // &ocrMerchant=<name>; we pre-fill amount + description on first
+  // mount and mark those fields as touched so the NLP re-parse doesn't
+  // clobber them later. Guarded with a ref so a re-render doesn't
+  // re-apply (which would override edits the user made post-scan).
+  const ocrAppliedRef = useRef(false);
+  useEffect(() => {
+    if (ocrAppliedRef.current) return;
+    const { ocrAmount, ocrMerchant } = params;
+    if (!ocrAmount && !ocrMerchant) return;
+    if (ocrAmount) {
+      const minor = Number(ocrAmount);
+      if (Number.isFinite(minor) && minor > 0) {
+        touched.current.amount = true;
+        setAmountText(minorToInputText(minor, lang));
+      }
+    }
+    if (ocrMerchant) {
+      touched.current.description = true;
+      setDescription(ocrMerchant);
+    }
+    ocrAppliedRef.current = true;
+  }, [params, lang]);
 
   // Hardware back: same fallback as Profile — we may have arrived here via
   // router.replace from the FAB (mobile), in which case the Stack is empty
@@ -394,10 +432,11 @@ export default function NewTransactionScreen() {
                   returnKeyType="done"
                 />
               </View>
-              {/* Voice button — web only in v2 launch (per ADR-15).
-                  Native taps surface a friendly explanation rather than
-                  failing silently. The button stays visible on both so
-                  the layout is stable across platforms. */}
+              {/* Voice button — works on web (browser SpeechRecognition
+                  API) and native (expo-speech-recognition wrapping
+                  SiriKit / Google Speech). The voiceInput hook splits
+                  between voiceInput.ts and voiceInput.native.ts; both
+                  expose the same shape so the UI is platform-agnostic. */}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={
@@ -405,15 +444,8 @@ export default function NewTransactionScreen() {
                     ? t('transactions:entry.voice.stop')
                     : t('transactions:entry.voice.start')
                 }
-                accessibilityState={{ disabled: !voice.supported && Platform.OS === 'web' }}
+                accessibilityState={{ disabled: !voice.supported }}
                 onPress={() => {
-                  if (Platform.OS !== 'web') {
-                    appAlert(
-                      t('transactions:entry.voice.unavailableTitle'),
-                      t('transactions:entry.voice.unavailableNative'),
-                    );
-                    return;
-                  }
                   if (!voice.supported) {
                     appAlert(
                       t('transactions:entry.voice.unavailableTitle'),
@@ -439,6 +471,36 @@ export default function NewTransactionScreen() {
                 ) : (
                   <Mic size={18} color={mutedColor} />
                 )}
+              </Pressable>
+              {/* Scan-receipt button — opens the full-screen camera
+                  scanner. Native only; on web we surface the same
+                  unavailable alert the scan screen uses internally so
+                  users discover the limitation without a navigation
+                  round-trip. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('transactions:entry.scanReceipt.captureCta')}
+                onPress={() => {
+                  if (Platform.OS === 'web') {
+                    appAlert(
+                      t('transactions:entry.scanReceipt.webUnavailableTitle'),
+                      t('transactions:entry.scanReceipt.webUnavailableBody'),
+                    );
+                    return;
+                  }
+                  router.push('/transaction/scan-receipt');
+                }}
+                style={{
+                  width: 48,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor,
+                  backgroundColor: 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CameraIcon size={18} color={mutedColor} />
               </Pressable>
             </View>
             <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>

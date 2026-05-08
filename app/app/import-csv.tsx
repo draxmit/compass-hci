@@ -97,33 +97,67 @@ export default function ImportCsvScreen() {
     return () => sub.remove();
   }, [router]);
 
-  // ---- File pick (web) ----
+  // ---- File pick (cross-platform) ----
+  //
+  // Web uses a transient <input type="file"> + FileReader.
+  // Native uses `expo-document-picker` (now in the dev-client APK)
+  // + `fetch(uri)` to read the file's text content. Same downstream
+  // parse + state-update path on both sides.
 
-  const handlePickFile = () => {
-    if (Platform.OS !== 'web') {
-      appAlert(t('csvImport:stepPickFile.unavailableTitle'), t('csvImport:stepPickFile.unavailableNative'));
+  const handlePickFile = async () => {
+    if (Platform.OS === 'web') {
+      if (typeof document === 'undefined') return;
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv,text/csv,text/plain,application/vnd.ms-excel';
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        setFileName(file.name);
+        const reader = new FileReader();
+        reader.onload = () => {
+          const text = String(reader.result ?? '');
+          const result = parseCsvText(text);
+          setParsed(result);
+          setDateCol(result.guess.dateCol);
+          setAmountCol(result.guess.amountCol);
+          setDescCol(result.guess.descCol);
+        };
+        reader.readAsText(file);
+      };
+      input.click();
       return;
     }
-    if (typeof document === 'undefined') return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv,text/csv,text/plain,application/vnd.ms-excel';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      setFileName(file.name);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const text = String(reader.result ?? '');
-        const result = parseCsvText(text);
-        setParsed(result);
-        setDateCol(result.guess.dateCol);
-        setAmountCol(result.guess.amountCol);
-        setDescCol(result.guess.descCol);
-      };
-      reader.readAsText(file);
-    };
-    input.click();
+
+    // Native — expo-document-picker dynamic-imported so the package
+    // doesn't enter the web bundle (web doesn't need it).
+    try {
+      const DocumentPicker = await import('expo-document-picker');
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/plain', 'text/comma-separated-values', '*/*'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset) return;
+      setFileName(asset.name);
+      // Native URI is a content:// or file:// path — fetch reads
+      // both fine on RN. Return value is the raw CSV text.
+      const response = await fetch(asset.uri);
+      const text = await response.text();
+      const parsedResult = parseCsvText(text);
+      setParsed(parsedResult);
+      setDateCol(parsedResult.guess.dateCol);
+      setAmountCol(parsedResult.guess.amountCol);
+      setDescCol(parsedResult.guess.descCol);
+    } catch (err) {
+      console.warn('[csv-import] native pick failed', err);
+      appAlert(
+        t('csvImport:stepPickFile.unavailableTitle'),
+        err instanceof Error ? err.message : 'Failed to read file.',
+      );
+    }
   };
 
   // ---- Import ----

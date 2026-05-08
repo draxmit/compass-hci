@@ -57,6 +57,21 @@
       "unavailableNative": "Voice input is web-only for now. Mobile support arrives in v2.5.",
       "unavailableBrowser": "This browser doesn't support voice input. Try Chrome, Edge, or Safari."
     },
+    "scanReceipt": {
+      "title": "Scan receipt",
+      "hint": "Frame the total — Compass reads the amount and merchant.",
+      "captureCta": "Capture",
+      "scanning": "Reading receipt…",
+      "permissionTitle": "Camera access needed",
+      "permissionBody": "Compass uses the camera only when you tap Capture. Photos stay on your device.",
+      "permissionGrantCta": "Allow camera",
+      "webUnavailableTitle": "Receipt scan available on mobile",
+      "webUnavailableBody": "Open Compass on your phone to scan paper receipts. The desktop version doesn't have camera access.",
+      "noResultTitle": "Couldn't read this receipt",
+      "noResultBody": "Try better lighting, a flatter receipt, or steadier framing. You can also enter the amount by hand.",
+      "errorTitle": "Scan failed",
+      "errorBody": "Something went wrong. Try again or enter the amount by hand."
+    },
     "splits": {
       "toggleToMulti": "Split across categories",
       "toggleToSingle": "Back to single category",

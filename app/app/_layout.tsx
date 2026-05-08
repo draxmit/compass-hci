@@ -121,6 +121,17 @@ function StackTree() {
         }}
       />
       <Stack.Screen
+        name="transaction/scan-receipt"
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'none',
+          animationDuration: 0,
+          // Scanner is full-bleed black — overlayBg would briefly flash
+          // a themed surface before the CameraView mounts.
+          contentStyle: { backgroundColor: '#000' },
+        }}
+      />
+      <Stack.Screen
         name="report/[yearMonth]"
         options={{
           presentation: 'fullScreenModal',

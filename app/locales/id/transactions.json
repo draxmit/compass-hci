@@ -57,6 +57,21 @@
       "unavailableNative": "Input suara untuk sementara hanya di versi web. Versi mobile hadir di v2.5.",
       "unavailableBrowser": "Browser ini belum dukung input suara. Coba pakai Chrome, Edge, atau Safari."
     },
+    "scanReceipt": {
+      "title": "Pindai struk",
+      "hint": "Arahkan ke total — Compass baca jumlah & nama tokonya.",
+      "captureCta": "Ambil foto",
+      "scanning": "Membaca struk…",
+      "permissionTitle": "Izin kamera dibutuhkan",
+      "permissionBody": "Compass pakai kamera hanya saat kamu tap Ambil foto. Foto tetap di HP kamu.",
+      "permissionGrantCta": "Izinkan kamera",
+      "webUnavailableTitle": "Pindai struk hanya di HP",
+      "webUnavailableBody": "Buka Compass di HP untuk pindai struk kertas. Versi desktop belum bisa akses kamera.",
+      "noResultTitle": "Struk belum terbaca",
+      "noResultBody": "Coba pencahayaan lebih terang, struk yang lebih rata, atau pegang HP lebih stabil. Atau bisa langsung ketik jumlahnya.",
+      "errorTitle": "Pindai gagal",
+      "errorBody": "Ada yang salah. Coba lagi atau ketik jumlahnya manual."
+    },
     "splits": {
       "toggleToMulti": "Bagi ke beberapa kategori",
       "toggleToSingle": "Pakai satu kategori",
