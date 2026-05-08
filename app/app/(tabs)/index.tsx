@@ -8,6 +8,7 @@ import { ChevronDown, ChevronRight, ChevronUp, Pin, Plus, Sparkles, Target } fro
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
+import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
@@ -99,7 +100,11 @@ export default function DashboardScreen() {
       setMonthTotals(data);
       setMonthTotalsLoaded(true);
     });
-    const unsubR = subscribeRecent(wid, 5, (data) => {
+    // Subscribe to 50 most recent — feeds BOTH the 'Recent' strip
+    // (slices first 5) AND the 7-day sparkline below the This Month
+    // card (filters by date >= 7 days ago). One subscription, two
+    // derived views.
+    const unsubR = subscribeRecent(wid, 50, (data) => {
       setRecentTxs(data);
       setRecentLoaded(true);
     });
@@ -175,6 +180,36 @@ export default function DashboardScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [thisYearMonth, thisMonthSpent],
   );
+
+  // Last-7-days expense totals (v3 polish — daily-spend sparkline).
+  // Index 6 = today, 0 = 6 days ago. Pulls from the recent-50 tx
+  // subscription which covers a typical week's worth of activity for
+  // most users; high-volume users in a single week may get truncated
+  // older days but the sparkline's value is mostly 'today vs the
+  // recent past', not exact 6-day-ago totals.
+  const last7Days = useMemo(() => {
+    const totals = new Array<number>(7).fill(0);
+    const now = new Date();
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayLabels: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(todayMidnight.getFullYear(), todayMidnight.getMonth(), todayMidnight.getDate() - i);
+      dayLabels.push(d.toLocaleString(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'narrow' }));
+    }
+    for (const tx of recentTxs) {
+      if (tx.type !== 'expense') continue;
+      const txMid = new Date(`${tx.date}T00:00:00`);
+      const daysFromToday = Math.floor(
+        (todayMidnight.getTime() - txMid.getTime()) / 86_400_000,
+      );
+      if (daysFromToday >= 0 && daysFromToday < 7) {
+        const idx = 6 - daysFromToday;
+        totals[idx] = (totals[idx] ?? 0) + tx.amount;
+      }
+    }
+    const max = Math.max(...totals, 1);
+    return { totals, max, dayLabels };
+  }, [recentTxs, lang]);
 
   const top3 = useMemo(
     () => [...monthTotals].sort((a, b) => b.totalIDR - a.totalIDR).slice(0, 3),
@@ -544,6 +579,18 @@ export default function DashboardScreen() {
                   })}
                 </Text>
               ) : null}
+              {/* Last-7-days sparkline — pulse-check 'is today on track
+                  with the recent week?'. Today's dot is larger and
+                  filled; other days are smaller. */}
+              <DailySparkline
+                totals={last7Days.totals}
+                max={last7Days.max}
+                dayLabels={last7Days.dayLabels}
+                accent={tokens.accent.dashboard}
+                mutedColor={mutedColor}
+                fgColor={fgColor}
+                lang={lang}
+              />
             </>
           )}
         </View>
@@ -814,6 +861,123 @@ type DashboardGoalRowProps = {
   onPress: () => void;
   t: TFunction;
 };
+
+// ---------- DailySparkline ----------
+
+type DailySparklineProps = {
+  /** 7 daily expense totals (minor units), oldest → today (left → right). */
+  totals: number[];
+  /** Max across the 7 days for normalising bar heights. */
+  max: number;
+  /** 7 short weekday labels aligned with totals. */
+  dayLabels: string[];
+  accent: string;
+  mutedColor: string;
+  fgColor: string;
+  lang: Locale;
+};
+
+/**
+ * Compact 7-day spend sparkline rendered under the This Month card.
+ * Tiny SVG polyline + dots, no axis labels (just weekday initials
+ * below). Today's dot is rendered larger + filled to anchor "where
+ * am I now". Days with zero spend get a smaller dot at the baseline
+ * so the line still has a continuous shape.
+ *
+ * Width measured via onLayout so the SVG coordinate space matches
+ * the rendered width 1:1 — keeps dots round (not stretched ovals)
+ * across desktop/mobile breakpoints.
+ */
+function DailySparkline({
+  totals, max, dayLabels, accent, mutedColor, fgColor, lang,
+}: DailySparklineProps) {
+  const [chartW, setChartW] = useState(280);
+  const W = chartW;
+  const H = 50;
+  const padX = 6;
+  const padTop = 8;
+  const padBot = 8;
+  const usableX = W - 2 * padX;
+  const usableY = H - padTop - padBot;
+  const stepX = totals.length > 1 ? usableX / (totals.length - 1) : 0;
+  const todaysTotal = totals[totals.length - 1] ?? 0;
+
+  const points = totals.map((total, i) => {
+    const x = padX + i * stepX;
+    const y = padTop + (1 - total / max) * usableY;
+    return { x, y, total };
+  });
+  const polyStr = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+  return (
+    <View
+      style={{ marginTop: 12 }}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0 && w !== chartW) setChartW(w);
+      }}
+    >
+      <View className="flex-row items-baseline justify-between mb-1">
+        <Text className="font-sans-medium text-[10px] uppercase tracking-wider" style={{ color: mutedColor }}>
+          {/* short label — 'last 7 days' / '7 hari terakhir' */}
+          {lang === 'id' ? '7 hari terakhir' : 'Last 7 days'}
+        </Text>
+        <Text
+          className="font-mono tabular-nums text-xs"
+          style={{ color: todaysTotal > 0 ? fgColor : mutedColor }}
+        >
+          {/* today's total inline so the eye lands on a number not just a dot */}
+          {lang === 'id' ? 'Hari ini · ' : 'Today · '}
+          {formatIDR(todaysTotal, lang)}
+        </Text>
+      </View>
+      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <Polyline
+          points={polyStr}
+          fill="none"
+          stroke={accent}
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          opacity={0.8}
+        />
+        {points.map((p, i) => {
+          const isToday = i === points.length - 1;
+          const isZero = p.total === 0;
+          return (
+            <Circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r={isToday ? 3.5 : isZero ? 1.5 : 2.5}
+              fill={accent}
+              opacity={isToday ? 1 : isZero ? 0.4 : 0.7}
+            />
+          );
+        })}
+      </Svg>
+      <View className="flex-row" style={{ marginTop: 2 }}>
+        {dayLabels.map((label, i) => {
+          const isToday = i === dayLabels.length - 1;
+          return (
+            <Text
+              key={i}
+              className="font-sans-medium"
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                fontSize: 9,
+                color: isToday ? accent : mutedColor,
+              }}
+            >
+              {label}
+            </Text>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 /**
  * Compact Dashboard goal row — name + percent + progress bar +
