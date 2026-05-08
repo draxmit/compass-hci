@@ -3,6 +3,7 @@ import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 import accountsEn from '../../../locales/en/accounts.json';
+import askEn from '../../../locales/en/ask.json';
 import authEn from '../../../locales/en/auth.json';
 import budgetsEn from '../../../locales/en/budgets.json';
 import categoriesEn from '../../../locales/en/categories.json';
@@ -16,6 +17,7 @@ import reportEn from '../../../locales/en/report.json';
 import settingsEn from '../../../locales/en/settings.json';
 import transactionsEn from '../../../locales/en/transactions.json';
 import accountsId from '../../../locales/id/accounts.json';
+import askId from '../../../locales/id/ask.json';
 import authId from '../../../locales/id/auth.json';
 import budgetsId from '../../../locales/id/budgets.json';
 import categoriesId from '../../../locales/id/categories.json';
@@ -46,6 +48,7 @@ const NAMESPACES = [
   'insights',
   'goals',
   'csvImport',
+  'ask',
 ] as const;
 
 const resources = {
@@ -63,6 +66,7 @@ const resources = {
     insights: insightsId,
     goals: goalsId,
     csvImport: csvImportId,
+    ask: askId,
   },
   en: {
     common: commonEn,
@@ -78,6 +82,7 @@ const resources = {
     insights: insightsEn,
     goals: goalsEn,
     csvImport: csvImportEn,
+    ask: askEn,
   },
 } as const;
 

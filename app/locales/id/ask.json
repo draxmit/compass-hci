@@ -1,0 +1,42 @@
+{
+  "title": "Tanya Compass",
+  "entryCta": "Tanya Compass",
+  "entrySubtitle": "Insight pengeluaran kamu pakai AI — tanya apa aja.",
+  "inputPlaceholder": "Tanya soal keuangan kamu…",
+  "thinking": "Lagi mikir…",
+  "voice": {
+    "button": "Suara",
+    "start": "Mulai dikte",
+    "stop": "Stop",
+    "unavailableTitle": "Suara belum tersedia",
+    "unavailableBody": "HP ini belum dukung input suara. Coba ketik pertanyaannya."
+  },
+  "actions": {
+    "send": "Kirim",
+    "sending": "Mengirim…"
+  },
+  "emptyState": {
+    "title": "Hai, aku Compass",
+    "body": "Tanya soal pengeluaran, minta saran budget, atau cari transaksi tertentu. Aku punya data 90 hari terakhir kamu."
+  },
+  "starters": {
+    "spendingThisMonth": "Bulan ini aku habis berapa?",
+    "topCategory": "Kategori paling boros aku apa?",
+    "budgetSuggestion": "Sarankan budget bulanan dari kebiasaan belanja aku.",
+    "savingsTowardGoal": "Tabungan aku sesuai target nggak?"
+  },
+  "clearHistory": {
+    "confirmTitle": "Hapus chat?",
+    "confirmBody": "Semua percakapan akan dihapus dan nggak bisa dipulihkan.",
+    "confirmCta": "Hapus"
+  },
+  "errors": {
+    "sendFailedTitle": "Gagal kirim pesan",
+    "sendFailed": "Coba lagi atau periksa koneksi internet.",
+    "clearFailedTitle": "Gagal hapus chat"
+  },
+  "notConfigured": {
+    "title": "Chat belum dikonfigurasi",
+    "body": "URL Gemini Worker belum di-set. Deploy worker-nya dulu (lihat packages/gemini-worker/README.md) dan tambahkan URL-nya ke app.config.ts."
+  }
+}

@@ -1,0 +1,20 @@
+name = "compass-gemini"
+main = "src/index.ts"
+compatibility_date = "2026-05-08"
+
+# Cloudflare KV namespace for per-user chat history (last 10 turns).
+# `id` and `preview_id` get filled in after running:
+#   wrangler kv:namespace create compass-gemini-history
+#   wrangler kv:namespace create compass-gemini-history --preview
+[[kv_namespaces]]
+binding = "HISTORY"
+id = ""
+preview_id = ""
+
+# Public, non-secret config. Override per-environment if needed.
+[vars]
+FIREBASE_PROJECT_ID = "compass-app-7a751"
+
+# GEMINI_API_KEY is set as a SECRET, not declared here. Run:
+#   wrangler secret put GEMINI_API_KEY
+# Paste the key from Google AI Studio when prompted.

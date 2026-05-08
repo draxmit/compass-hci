@@ -1,0 +1,42 @@
+{
+  "title": "Ask Compass",
+  "entryCta": "Ask Compass",
+  "entrySubtitle": "AI-powered insights into your spending — ask anything.",
+  "inputPlaceholder": "Ask about your finances…",
+  "thinking": "Thinking…",
+  "voice": {
+    "button": "Voice",
+    "start": "Start dictation",
+    "stop": "Stop",
+    "unavailableTitle": "Voice not available",
+    "unavailableBody": "This device doesn't support voice input. Type your question instead."
+  },
+  "actions": {
+    "send": "Send",
+    "sending": "Sending…"
+  },
+  "emptyState": {
+    "title": "Hi, I'm Compass",
+    "body": "Ask me about your spending, get budget suggestions, or pull up specific transactions. I work with your last 90 days of data."
+  },
+  "starters": {
+    "spendingThisMonth": "How much have I spent this month?",
+    "topCategory": "What's my biggest expense category?",
+    "budgetSuggestion": "Suggest a monthly budget based on my recent spending.",
+    "savingsTowardGoal": "Am I on track for my savings goal?"
+  },
+  "clearHistory": {
+    "confirmTitle": "Clear conversation?",
+    "confirmBody": "All chat history will be deleted. This can't be undone.",
+    "confirmCta": "Clear"
+  },
+  "errors": {
+    "sendFailedTitle": "Couldn't send message",
+    "sendFailed": "Try again or check your network.",
+    "clearFailedTitle": "Couldn't clear history"
+  },
+  "notConfigured": {
+    "title": "Chat not configured",
+    "body": "The Gemini Worker URL hasn't been set yet. Deploy the worker (see packages/gemini-worker/README.md) and add the URL to app.config.ts to enable chat."
+  }
+}

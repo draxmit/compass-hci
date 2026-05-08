@@ -62,7 +62,7 @@ type AnomalyTransaction = {
 type Anomaly = AnomalyCategory | AnomalyTransaction;
 
 export default function InsightsScreen() {
-  const { t, i18n } = useTranslation(['insights', 'common']);
+  const { t, i18n } = useTranslation(['insights', 'common', 'ask']);
   const router = useRouter();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
@@ -541,6 +541,15 @@ export default function InsightsScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md lg:max-w-3xl">
+        {/* ===== ASK COMPASS ENTRY (v3 phase B, ADR-23) ===== */}
+        <AskCompassCta
+          isDark={isDark}
+          fgColor={fgColor}
+          mutedColor={mutedColor}
+          t={t}
+          onPress={() => router.push('/ask')}
+        />
+
         {/* ===== TREND ===== */}
         {loaded ? (
           <View className="mb-8">
@@ -818,6 +827,77 @@ type AnomalyCardProps = {
   borderColor: string;
   t: TFunction;
 };
+
+/**
+ * Top-of-Insights entry point to the Gemini chat assistant
+ * (ADR-23). Visually distinctive emerald-tinted card so it doesn't
+ * read as just-another-section header — it's the single most novel
+ * surface in the app and warrants the eye-catch. Goes ABOVE the
+ * 6-month trend so users see it before scrolling into analytics.
+ */
+function AskCompassCta({
+  isDark,
+  fgColor,
+  mutedColor,
+  t,
+  onPress,
+}: {
+  isDark: boolean;
+  fgColor: string;
+  mutedColor: string;
+  t: TFunction;
+  onPress: () => void;
+}) {
+  void isDark;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t('ask:entryCta')}
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        padding: 16,
+        marginBottom: 24,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: tokens.accent.dashboard + '55',
+        backgroundColor: tokens.accent.dashboard + '12',
+      }}
+    >
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          backgroundColor: tokens.accent.dashboard + '22',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Sparkles size={22} color={tokens.accent.dashboard} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text
+          className="font-sans-bold text-base"
+          style={{ color: fgColor }}
+          numberOfLines={1}
+        >
+          {t('ask:entryCta')}
+        </Text>
+        <Text
+          className="font-sans text-xs mt-0.5"
+          style={{ color: mutedColor }}
+          numberOfLines={2}
+        >
+          {t('ask:entrySubtitle')}
+        </Text>
+      </View>
+      <ChevronRight size={18} color={mutedColor} />
+    </Pressable>
+  );
+}
 
 function AnomalyCard({ anomaly, isDark, lang, fgColor, mutedColor, borderColor, t }: AnomalyCardProps) {
   const cat = anomaly.category;
