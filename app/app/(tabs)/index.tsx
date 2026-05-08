@@ -503,8 +503,12 @@ export default function DashboardScreen() {
                       borderStyle: 'dashed',
                       borderColor: borderColor,
                       alignItems: 'center',
+                      flexDirection: 'row',
+                      justifyContent: 'center',
+                      gap: 8,
                     }}
                   >
+                    <Target size={14} color={mutedColor} />
                     <Text className="font-sans text-xs" style={{ color: mutedColor }}>
                       {t('dashboard:goals.empty')}
                     </Text>

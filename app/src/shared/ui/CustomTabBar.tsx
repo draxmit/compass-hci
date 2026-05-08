@@ -44,6 +44,8 @@ function TabCell({ iconColor, label, selected, onPress, renderIcon }: TabCellPro
         style={{
           position: 'absolute',
           top: 0,
+          left: '50%',
+          marginLeft: -12,
           width: 24,
           height: 3,
           borderBottomLeftRadius: 2,
