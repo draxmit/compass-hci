@@ -1691,10 +1691,14 @@ function TransactionRow({
       accessibilityLabel={primary}
       onPress={onPress}
       className="flex-row items-center px-4 py-3 min-h-[44px]"
-      style={{
+      style={({ hovered, pressed }) => ({
         borderTopWidth: showDivider ? 1 : 0,
         borderTopColor: borderColor,
-      }}
+        backgroundColor:
+          (hovered as boolean | undefined) || pressed
+            ? (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')
+            : 'transparent',
+      })}
     >
       <View
         style={{
