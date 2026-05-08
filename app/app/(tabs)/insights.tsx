@@ -5,7 +5,7 @@ import type { TFunction } from 'i18next';
 import {
   CalendarDays, ChevronLeft, ChevronRight, Plus, Sparkles, TrendingUp, Zap,
 } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
 import { LinearGradient as RNLinearGradient } from 'expo-linear-gradient';
@@ -1146,19 +1146,37 @@ function TrendLineChart({
             strokeLinecap="round"
           />
           {/* Dots — selected dot biggest, latest mid-size, others small.
-              Dots use a fixed small radius regardless of the SVG
-              horizontal stretch since preserveAspectRatio="none" would
-              otherwise turn them into ovals. */}
+              Selected/latest get a halo ring (the "current price" treatment
+              from trading-app charts) so the focal point reads at a glance.
+              Other dots stay minimal so the polyline + gradient area carry
+              most of the visual weight. */}
           {points.map((p, i) => {
             const isSelected = i === selectedIdx;
             const isLatest = i === points.length - 1;
-            const r = isSelected ? 5 : isLatest ? 4 : 2.5;
+            const isHero = isSelected || (selectedIdx === null && isLatest);
+            if (isHero) {
+              return (
+                <React.Fragment key={p.yearMonth}>
+                  <Circle cx={p.x} cy={p.y} r={11} fill={accent} opacity={0.12} />
+                  <Circle
+                    cx={p.x}
+                    cy={p.y}
+                    r={8}
+                    fill="none"
+                    stroke={accent}
+                    strokeWidth={1.2}
+                    opacity={0.55}
+                  />
+                  <Circle cx={p.x} cy={p.y} r={isSelected ? 5 : 4} fill={accent} />
+                </React.Fragment>
+              );
+            }
             return (
               <Circle
                 key={p.yearMonth}
                 cx={p.x}
                 cy={p.y}
-                r={r}
+                r={2.5}
                 fill={accent}
               />
             );

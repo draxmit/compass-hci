@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { ChevronDown, ChevronRight, ChevronUp, Eye, EyeOff, Pin, Plus, Sparkles, Target } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
 import { LinearGradient as RNLinearGradient } from 'expo-linear-gradient';
@@ -659,9 +659,33 @@ export default function DashboardScreen() {
               const cat = categoriesById.get(row.categoryId);
               const tint = cat ? resolveCategoryColor(cat.color, isDark ? 'dark' : 'light') : mutedColor;
               const widthPct = top3Max > 0 ? (row.totalIDR / top3Max) * 100 : 0;
+              const rank = idx + 1;
               return (
                 <View key={row.categoryId} className={idx === top3.length - 1 ? '' : 'mb-3'}>
                   <View className="flex-row items-center mb-1">
+                    {/* Rank badge (#1/#2/#3) — pinned to the left of
+                        the icon so the eye reads "1, then category"
+                        and the Top-3 ordering is visually obvious
+                        without the user counting rows. Mono font for
+                        consistent column alignment when many rows. */}
+                    <View
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 9,
+                        backgroundColor: tint + '22',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 8,
+                      }}
+                    >
+                      <Text
+                        className="font-mono text-[10px]"
+                        style={{ color: tint, fontWeight: '700' }}
+                      >
+                        {rank}
+                      </Text>
+                    </View>
                     {cat ? (
                       <View
                         style={{
@@ -1049,14 +1073,36 @@ function DailySparkline({
         {points.map((p, i) => {
           const isToday = i === points.length - 1;
           const isZero = p.total === 0;
+          if (isToday) {
+            // Today's marker gets a halo ring + filled centre dot, the
+            // same "current price" treatment trading apps use on their
+            // latest tick. Halo is two stacked circles (outer faint
+            // ring at 18% opacity, inner stroke ring at 50% opacity)
+            // so the dot reads as anchored even at small sizes.
+            return (
+              <React.Fragment key={i}>
+                <Circle cx={p.x} cy={p.y} r={7} fill={accent} opacity={0.12} />
+                <Circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={5.5}
+                  fill="none"
+                  stroke={accent}
+                  strokeWidth={1}
+                  opacity={0.55}
+                />
+                <Circle cx={p.x} cy={p.y} r={3.5} fill={accent} />
+              </React.Fragment>
+            );
+          }
           return (
             <Circle
               key={i}
               cx={p.x}
               cy={p.y}
-              r={isToday ? 3.5 : isZero ? 1.5 : 2.5}
+              r={isZero ? 1.5 : 2.5}
               fill={accent}
-              opacity={isToday ? 1 : isZero ? 0.4 : 0.7}
+              opacity={isZero ? 0.4 : 0.7}
             />
           );
         })}
