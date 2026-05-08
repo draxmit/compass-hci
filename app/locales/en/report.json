@@ -23,6 +23,8 @@
   },
   "export": {
     "cta": "Export to Word",
+    "ctaWord": "Word",
+    "ctaPdf": "PDF",
     "exporting": "Exporting…",
     "successTitle": "Report exported",
     "successBody": "Saved as {{filename}}.",

@@ -198,12 +198,11 @@ export default function MonthlyReportScreen() {
 
   const noData = loaded && thisExpenseTotal === 0 && thisIncomeTotal === 0;
 
-  // Export to DOCX. Web-only in v3 launch — `Packer.toBlob` from the
-  // `docx` package is browser-targeted, and bundling its native variant
-  // for React Native requires a Buffer polyfill we don't ship in v3.
-  // Native shows a friendly "use the web app" alert; the web download
-  // path uses an anchor + Blob URL with a deterministic filename.
-  const handleExport = async () => {
+  // Export to Word OR PDF. Web-only — both `docx` and `jspdf` are
+  // browser-targeted and pull in deps Metro rejects at bundle time.
+  // Both modules are dynamic-imported on click so native bundles
+  // cleanly. Native click shows a friendly 'use the web app' alert.
+  const handleExport = async (format: 'docx' | 'pdf') => {
     if (!yearMonth || !loaded || noData || exporting) return;
     if (Platform.OS !== 'web') {
       appAlert(
@@ -214,22 +213,13 @@ export default function MonthlyReportScreen() {
     }
     setExporting(true);
     try {
-      // Dynamic import — the `docx` package is browser-targeted and
-      // pulls in jszip + Node polyfills that Metro rejects at bundle
-      // time. Loading it only at export-click means the rest of the
-      // screen (and the rest of the app) bundles cleanly on native,
-      // while web pulls it lazily on first export click.
-      const { generateReportDocxBlob, reportDocxFilename } = await import(
-        '@/features/reports/generateReportDocx'
-      );
       // i18next's TFunction returns a special detailed-result type
-      // depending on the key's namespace. The DOCX generator only needs
-      // a string-out; bridge with a thin adaptor that forces the result
-      // through `String(...)`. Safe — every key we pass is a plain
-      // template string with no nested-object resources.
+      // depending on the key's namespace. The generators only need a
+      // string-out; bridge with a thin adaptor that forces the result
+      // through `String(...)`.
       const tStr = (key: string, opts?: Record<string, unknown>) =>
         String(t(key, opts as never));
-      const blob = await generateReportDocxBlob({
+      const sharedInput = {
         yearMonth,
         lang,
         monthLabel,
@@ -244,12 +234,25 @@ export default function MonthlyReportScreen() {
         categoriesById,
         accountsById,
         t: tStr,
-      });
-      const filename: string = reportDocxFilename(yearMonth);
-      // Browser download via a transient anchor element — same pattern
-      // CSV import uses on the inverse direction. Object URL released
-      // after the click handler so the browser has had a chance to
-      // start the download.
+      };
+      let blob: Blob;
+      let filename: string;
+      if (format === 'docx') {
+        const { generateReportDocxBlob, reportDocxFilename } = await import(
+          '@/features/reports/generateReportDocx'
+        );
+        blob = await generateReportDocxBlob(sharedInput);
+        filename = reportDocxFilename(yearMonth);
+      } else {
+        const { generateReportPdfBlob, reportPdfFilename } = await import(
+          '@/features/reports/generateReportPdf'
+        );
+        blob = await generateReportPdfBlob(sharedInput);
+        filename = reportPdfFilename(yearMonth);
+      }
+      // Browser download via a transient anchor element. ObjectURL
+      // released after the click handler so the browser has had a
+      // chance to start the download.
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -297,43 +300,70 @@ export default function MonthlyReportScreen() {
             </Text>
           </Pressable>
 
-          {/* Title row — heading on the left, Export-to-Word button on the
-              right. Button hidden until data has loaded AND the month
-              isn't empty (nothing to export). On native, it stays
-              visible but the handler short-circuits with a friendly
-              "web only for now" alert. */}
+          {/* Title row — heading on the left, two Export buttons (Word
+              + PDF) on the right. Buttons hidden until data has loaded
+              AND the month isn't empty (nothing to export). On native,
+              both stay visible but the handler short-circuits with a
+              friendly "web only for now" alert. */}
           <View className="flex-row items-start justify-between mb-6" style={{ gap: 12 }}>
             <Text className="font-sans-bold text-3xl flex-1" numberOfLines={2}>
               {t('report:title', { month: monthLabel })}
             </Text>
             {loaded && !noData ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('report:export.cta')}
-                accessibilityState={{ disabled: exporting }}
-                onPress={handleExport}
-                disabled={exporting}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: 12,
-                  paddingVertical: 9,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor,
-                  minHeight: 38,
-                  opacity: exporting ? 0.5 : 1,
-                  marginTop: 4,
-                }}
-              >
-                <FileDown size={14} color={fgColor} />
-                <Text className="font-sans-medium text-xs" style={{ color: fgColor }}>
-                  {exporting
-                    ? t('report:export.exporting')
-                    : t('report:export.cta')}
-                </Text>
-              </Pressable>
+              <View className="flex-row" style={{ gap: 6, marginTop: 4, flexShrink: 0 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('report:export.ctaWord')}
+                  accessibilityState={{ disabled: exporting }}
+                  onPress={() => handleExport('docx')}
+                  disabled={exporting}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingHorizontal: 10,
+                    paddingVertical: 8,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor,
+                    minHeight: 36,
+                    opacity: exporting ? 0.5 : 1,
+                  }}
+                >
+                  <FileDown size={13} color={fgColor} />
+                  <Text className="font-sans-medium text-xs" style={{ color: fgColor }}>
+                    {exporting
+                      ? t('report:export.exporting')
+                      : t('report:export.ctaWord')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('report:export.ctaPdf')}
+                  accessibilityState={{ disabled: exporting }}
+                  onPress={() => handleExport('pdf')}
+                  disabled={exporting}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingHorizontal: 10,
+                    paddingVertical: 8,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor,
+                    minHeight: 36,
+                    opacity: exporting ? 0.5 : 1,
+                  }}
+                >
+                  <FileDown size={13} color={fgColor} />
+                  <Text className="font-sans-medium text-xs" style={{ color: fgColor }}>
+                    {exporting
+                      ? t('report:export.exporting')
+                      : t('report:export.ctaPdf')}
+                  </Text>
+                </Pressable>
+              </View>
             ) : null}
           </View>
 

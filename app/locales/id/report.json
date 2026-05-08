@@ -23,6 +23,8 @@
   },
   "export": {
     "cta": "Ekspor ke Word",
+    "ctaWord": "Word",
+    "ctaPdf": "PDF",
     "exporting": "Mengekspor…",
     "successTitle": "Laporan berhasil diekspor",
     "successBody": "Tersimpan sebagai {{filename}}.",
