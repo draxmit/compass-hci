@@ -10,7 +10,7 @@
     "body": "Add a bank, e-wallet, or cash account to start tracking transactions.",
     "cta": "Add your first account"
   },
-  "totalBalance": "Net worth",
+  "totalBalance": "Total balance",
   "liabilitiesNote": "After {{amount}} owed on credit cards",
   "row": {
     "owed": "owed"
@@ -36,7 +36,7 @@
     "currencyLockedHint": "Currency is locked after the account is created — changing it would invalidate the existing balance.",
     "icon": "Icon",
     "color": "Colour",
-    "includedInNetWorth": "Include in net worth"
+    "includedInNetWorth": "Include in total balance"
   },
   "actions": {
     "save": "Save",

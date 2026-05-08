@@ -38,6 +38,17 @@ export type UserDoc = {
    * legacy v1 docs compatible — read-side helpers default to `false`.
    */
   displayInIDR?: boolean;
+  /**
+   * Banking-app-style balance privacy. When `true`, large balance
+   * amounts (Total Balance hero, per-account row balances, big-number
+   * monthly totals) render as masked dots instead of digits, so the
+   * user can use the app in public without exposing their balance.
+   * Per-transaction amounts stay visible — same convention BCA / Mandiri /
+   * Jenius use. Toggled via the eye icon next to Total Balance on the
+   * Dashboard. Optional for backward compat with v3-and-earlier docs;
+   * default false.
+   */
+  balancesHidden?: boolean;
   fcmTokens: string[];
   onboardingComplete: boolean;
   /**

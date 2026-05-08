@@ -1,9 +1,9 @@
 {
   "title": "Dashboard",
   "comingSoon": "Coming in T8.",
-  "netWorthLabel": "NET WORTH · placeholder",
+  "netWorthLabel": "TOTAL BALANCE · placeholder",
   "cards": {
-    "netWorth": "Net worth",
+    "netWorth": "Total balance",
     "acrossNAccounts_one": "Across {{count}} account",
     "acrossNAccounts_other": "Across {{count}} accounts",
     "thisMonth": "This month",
@@ -15,13 +15,17 @@
     "projection_one": "At this rate: ~{{amount}} by month-end ({{days}} day left)",
     "projection_other": "At this rate: ~{{amount}} by month-end ({{days}} days left)"
   },
+  "balancesHidden": {
+    "hide": "Hide balances",
+    "show": "Show balances"
+  },
   "delta": {
     "up": "↑ {{amount}} more",
     "down": "↓ {{amount}} less",
     "same": "no change"
   },
   "empty": {
-    "netWorth": "Add an account to see your net worth.",
+    "netWorth": "Add an account to see your total balance.",
     "addAccount": "Add account",
     "thisMonth": "No spending yet this month.",
     "topCategories": "Log a transaction to see top categories.",

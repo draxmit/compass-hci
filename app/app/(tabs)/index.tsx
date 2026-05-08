@@ -4,12 +4,13 @@ import type {
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { ChevronDown, ChevronRight, ChevronUp, Pin, Plus, Sparkles, Target } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, ChevronUp, Eye, EyeOff, Pin, Plus, Sparkles, Target } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 
+import { updateUserDoc } from '@/services/firebase';
 import { subscribeAccounts } from '@/services/firestore/accountsService';
 import { subscribeCategories } from '@/services/firestore/categoriesService';
 import {
@@ -30,6 +31,7 @@ import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
 import { formatDate, formatTimeUntil } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { convertToIDRMinor } from '@/shared/utils/fxRates';
+import { maskAmount } from '@/shared/utils/maskBalance';
 
 /**
  * (tabs)/index.tsx — Dashboard. The visibility surface the whole app is
@@ -56,6 +58,7 @@ export default function DashboardScreen() {
   const wid = user ? `solo-${user.uid}` : null;
   const userDoc = useUserDoc();
   const displayInIDR = userDoc?.displayInIDR ?? false;
+  const balancesHidden = userDoc?.balancesHidden ?? false;
   const pinnedGoalId = userDoc?.pinnedGoalId ?? null;
   const [pinnedGoal, setPinnedGoal] = useState<Goal | null>(null);
   // All goals — needed for the expanded view of the Goals section.
@@ -313,12 +316,46 @@ export default function DashboardScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md lg:max-w-3xl">
-        {/* Net Worth — flat editorial layout. Section label in page column,
-            hero number floats freely (no card). */}
+        {/* Total Balance — flat editorial layout. Section label + eye
+            toggle in a row, hero number below. The eye button toggles
+            `users.balancesHidden`, banking-app style: when on, the
+            big amount shows as masked dots. The toggle stays visible
+            even when the user has no accounts so they discover it. */}
         <View className="mb-8">
-          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
-            {t('dashboard:cards.netWorth')}
-          </Text>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+              {t('dashboard:cards.netWorth')}
+            </Text>
+            {user ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t(balancesHidden
+                  ? 'dashboard:balancesHidden.show'
+                  : 'dashboard:balancesHidden.hide')}
+                onPress={() => {
+                  void updateUserDoc(user.uid, {
+                    balancesHidden: !balancesHidden,
+                  }).catch((err: unknown) => {
+                    console.warn('[dashboard] balancesHidden toggle failed', err);
+                  });
+                }}
+                hitSlop={8}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {balancesHidden ? (
+                  <EyeOff size={16} color={mutedColor} />
+                ) : (
+                  <Eye size={16} color={mutedColor} />
+                )}
+              </Pressable>
+            ) : null}
+          </View>
           {!allLoaded ? null : includedAccounts.length === 0 ? (
             <View>
               <Text className="font-sans text-sm mb-3" style={{ color: mutedColor }}>
@@ -354,7 +391,7 @@ export default function DashboardScreen() {
                 adjustsFontSizeToFit
                 numberOfLines={1}
               >
-                {formatIDR(netWorth)}
+                {maskAmount(formatIDR(netWorth), balancesHidden)}
               </Text>
               <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>
                 {t('dashboard:cards.acrossNAccounts', {
@@ -554,7 +591,7 @@ export default function DashboardScreen() {
                 adjustsFontSizeToFit
                 numberOfLines={1}
               >
-                {formatIDR(thisMonthSpent)}
+                {maskAmount(formatIDR(thisMonthSpent), balancesHidden)}
               </Text>
               <DeltaLine
                 delta={monthDelta}
@@ -598,6 +635,7 @@ export default function DashboardScreen() {
                 mutedColor={mutedColor}
                 fgColor={fgColor}
                 lang={lang}
+                balancesHidden={balancesHidden}
               />
             </>
           )}
@@ -886,6 +924,10 @@ type DailySparklineProps = {
   mutedColor: string;
   fgColor: string;
   lang: Locale;
+  /** When true, today's amount renders as masked dots (banking-app
+      privacy mode). The dots + line still draw at correct heights —
+      shape isn't sensitive info, just the digits. */
+  balancesHidden: boolean;
 };
 
 /**
@@ -900,7 +942,7 @@ type DailySparklineProps = {
  * across desktop/mobile breakpoints.
  */
 function DailySparkline({
-  totals, max, dayLabels, accent, mutedColor, fgColor, lang,
+  totals, max, dayLabels, accent, mutedColor, fgColor, lang, balancesHidden,
 }: DailySparklineProps) {
   const [chartW, setChartW] = useState(280);
   const W = chartW;
@@ -939,7 +981,7 @@ function DailySparkline({
         >
           {/* today's total inline so the eye lands on a number not just a dot */}
           {lang === 'id' ? 'Hari ini · ' : 'Today · '}
-          {formatIDR(todaysTotal, lang)}
+          {maskAmount(formatIDR(todaysTotal, lang), balancesHidden)}
         </Text>
       </View>
       <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>

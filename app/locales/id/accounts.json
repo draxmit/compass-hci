@@ -10,7 +10,7 @@
     "body": "Tambahkan akun bank, e-wallet, atau dompet tunai untuk mulai mencatat transaksi.",
     "cta": "Tambahkan akun pertama"
   },
-  "totalBalance": "Kekayaan bersih",
+  "totalBalance": "Total saldo",
   "liabilitiesNote": "Setelah {{amount}} utang kartu kredit",
   "row": {
     "owed": "utang"
@@ -36,7 +36,7 @@
     "currencyLockedHint": "Mata uang akun terkunci setelah dibuat — mengubahnya akan membuat saldo yang ada jadi tidak valid.",
     "icon": "Ikon",
     "color": "Warna",
-    "includedInNetWorth": "Hitung di kekayaan bersih"
+    "includedInNetWorth": "Hitung di total saldo"
   },
   "actions": {
     "save": "Simpan",

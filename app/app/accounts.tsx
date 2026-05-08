@@ -30,6 +30,7 @@ import { CURRENCY_META } from '@/shared/utils/currencyMeta';
 import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
 import { formatIDR } from '@/shared/utils/formatIDR';
 import { convertToIDRMinor } from '@/shared/utils/fxRates';
+import { maskAmount } from '@/shared/utils/maskBalance';
 
 type EditTarget = { mode: 'create' } | { mode: 'edit'; account: Account };
 
@@ -51,6 +52,7 @@ export default function AccountsScreen() {
 
   const userDoc = useUserDoc();
   const displayInIDR = userDoc?.displayInIDR ?? false;
+  const balancesHidden = userDoc?.balancesHidden ?? false;
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
 
@@ -207,14 +209,16 @@ export default function AccountsScreen() {
                     className="font-mono tabular-nums text-2xl mt-1"
                     style={{ color: fgColor }}
                   >
-                    {formatIDR(totalBalance)}
+                    {maskAmount(formatIDR(totalBalance), balancesHidden)}
                   </Text>
                   {totalLiabilities > 0 ? (
                     <Text
                       className="font-sans text-xs mt-1"
                       style={{ color: mutedColor }}
                     >
-                      {t('accounts:liabilitiesNote', { amount: formatIDR(totalLiabilities) })}
+                      {t('accounts:liabilitiesNote', {
+                        amount: maskAmount(formatIDR(totalLiabilities), balancesHidden),
+                      })}
                     </Text>
                   ) : null}
                 </Card>
@@ -226,6 +230,7 @@ export default function AccountsScreen() {
                     isDark={isDark}
                     lang={lang}
                     displayInIDR={displayInIDR}
+                    balancesHidden={balancesHidden}
                     onEditAccount={(a) => setEditTarget({ mode: 'edit', account: a })}
                   />
                 ))}
@@ -244,10 +249,13 @@ type AccountGroupProps = {
   isDark: boolean;
   lang: Locale;
   displayInIDR: boolean;
+  balancesHidden: boolean;
   onEditAccount: (a: Account) => void;
 };
 
-function AccountGroup({ type, accounts, isDark, lang, displayInIDR, onEditAccount }: AccountGroupProps) {
+function AccountGroup({
+  type, accounts, isDark, lang, displayInIDR, balancesHidden, onEditAccount,
+}: AccountGroupProps) {
   const { t } = useTranslation(['accounts']);
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -338,7 +346,7 @@ function AccountGroup({ type, accounts, isDark, lang, displayInIDR, onEditAccoun
                       className="font-mono tabular-nums text-base"
                       style={{ color: owed ? tokens.semantic.danger : fgColor }}
                     >
-                      {display.primary}
+                      {maskAmount(display.primary, balancesHidden)}
                     </Text>
                     {owed ? (
                       <Text
@@ -352,7 +360,7 @@ function AccountGroup({ type, accounts, isDark, lang, displayInIDR, onEditAccoun
                         className="font-mono tabular-nums text-xs"
                         style={{ color: mutedColor, marginTop: 2 }}
                       >
-                        {display.secondary}
+                        {maskAmount(display.secondary, balancesHidden)}
                       </Text>
                     ) : null}
                   </>
