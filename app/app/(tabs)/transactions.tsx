@@ -204,7 +204,32 @@ export default function TransactionsScreen() {
         if (customFrom && tx.date < customFrom) return false;
         if (customTo && tx.date > customTo) return false;
       }
-      if (lower && !tx.description.toLowerCase().includes(lower)) return false;
+      // Free-text search now matches across: description, tags,
+      // category names (locale-aware), account names (source +
+       // destination), and the raw amount in major units. Builds one
+      // lowercase haystack per tx and does a single includes check —
+      // O(N) on the 500-tx subscription, trivial on hot path. Means
+      // typing 'warteg' finds tx that's only categorised as Warteg
+      // even when the description is empty, and typing '150' finds
+      // Rp 150,000 expenses.
+      if (lower) {
+        const catNames = tx.splits
+          .map((s) => categoriesById.get(s.categoryId)?.name[lang] ?? '')
+          .join(' ');
+        const acctSrc = accountsById.get(tx.accountId)?.name ?? '';
+        const acctDest = tx.toAccountId
+          ? accountsById.get(tx.toAccountId)?.name ?? ''
+          : '';
+        const haystack = [
+          tx.description,
+          (tx.tags ?? []).join(' '),
+          catNames,
+          acctSrc,
+          acctDest,
+          Math.floor(tx.amount / 100).toString(),
+        ].join(' ').toLowerCase();
+        if (!haystack.includes(lower)) return false;
+      }
       if (tagFilter.length > 0) {
         const txTags = tx.tags ?? [];
         const anyMatch = tagFilter.some((t) => txTags.includes(t));
@@ -229,7 +254,13 @@ export default function TransactionsScreen() {
       }
       return true;
     });
-  }, [txs, typeFilter, dateFilter, customFrom, customTo, search, tagFilter, categoryFilter, accountFilter]);
+  }, [
+    txs, typeFilter, dateFilter, customFrom, customTo, search,
+    tagFilter, categoryFilter, accountFilter,
+    // Search-haystack deps — `accountsById` / `categoriesById` are
+    // memoised maps, `lang` is the active locale for category names.
+    accountsById, categoriesById, lang,
+  ]);
 
   // Tag-suggestion list for the tag-filter picker — frequencies across
   // ALL loaded txs (the recent-50 slice), not just the currently

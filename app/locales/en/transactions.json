@@ -94,7 +94,7 @@
     "deleteFailed": "Failed to delete transaction."
   },
   "filters": {
-    "search": "Search…",
+    "search": "Search description, category, tag, account, or amount…",
     "allTypes": "All",
     "thisMonth": "This month",
     "lastMonth": "Last month",
