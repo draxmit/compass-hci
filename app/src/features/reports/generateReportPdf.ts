@@ -56,12 +56,19 @@ const RGB: Record<'fg' | 'muted' | 'border' | 'positive' | 'danger' | 'zebra', R
 export async function generateReportPdfBlob(
   input: GenerateReportPdfInput,
 ): Promise<Blob> {
-  // Dynamic import keeps jspdf out of the Metro graph for native
-  // bundles (it relies on browser globals). The autotable plugin
-  // monkey-patches jsPDF on import, so its side-effect import is
-  // intentional — we don't reference it directly.
+  // Dynamic imports keep jspdf out of the Metro graph for native
+  // bundles. The autotable plugin's `.mjs` build auto-applies via
+  // `window.jsPDF` — but Metro gives us a separate jsPDF module
+  // instance that's never on the window, so the auto-apply skips.
+  // Use the function-style `autoTable(doc, options)` API instead,
+  // which doesn't depend on monkey-patching.
   const { jsPDF } = await import('jspdf');
-  await import('jspdf-autotable');
+  const autoTableModule = await import('jspdf-autotable');
+  // The .mjs default export IS the autoTable function. Webpack's
+  // UMD bundle wrapped it in `.default` — keep both fallbacks.
+  const autoTable: (doc: unknown, options: unknown) => void =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (autoTableModule as any).default ?? (autoTableModule as any).autoTable ?? autoTableModule;
 
   const { lang, monthLabel, t } = input;
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -102,7 +109,7 @@ export async function generateReportPdfBlob(
     summaryCellText(input.thisExpenseTotal, expenseDelta, true, lang, t),
   ]];
    
-  (doc as any).autoTable({
+  autoTable(doc, {
     head: summaryHead,
     body: summaryBody,
     startY: y,
@@ -171,7 +178,7 @@ export async function generateReportPdfBlob(
       '100%',
     ]);
      
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [[
         t('report:export.col.category'),
         t('report:export.col.amount'),
@@ -228,7 +235,7 @@ export async function generateReportPdfBlob(
       return [dateLabel, desc, catName, formatIDR(tx.amount, lang)];
     });
      
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [[
         t('report:export.col.date'),
         t('report:export.col.description'),
