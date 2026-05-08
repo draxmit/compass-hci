@@ -48,9 +48,16 @@ const finalConfig = withNativeWind(config, { input: './global.css' });
 // `jspdf-autotable` has only one `main` entry and is fine to bundle
 // directly on web; on native it's redirected to the same empty shim.
 const emptyShimPath = path.resolve(projectRoot, 'src/shared/utils/empty-module.js');
-const jspdfBrowserPath = path.resolve(
-  projectRoot, 'node_modules/jspdf/dist/jspdf.es.min.js',
-);
+// pnpm hoists jspdf to the workspace root (not app/node_modules), so
+// resolve from workspaceRoot. Existence is checked with `require.resolve`
+// at module-load time so a missing file fails loud instead of producing
+// an opaque 'Failed to get SHA-1' Metro error at bundle time.
+const jspdfBrowserPath = require.resolve('jspdf/dist/jspdf.es.min.js', {
+  paths: [
+    path.resolve(projectRoot, 'node_modules'),
+    path.resolve(workspaceRoot, 'node_modules'),
+  ],
+});
 const previousResolveRequest = finalConfig.resolver.resolveRequest;
 finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === 'jspdf') {
