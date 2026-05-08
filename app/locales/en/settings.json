@@ -47,6 +47,7 @@
       "theme": "THEME",
       "language": "LANGUAGE",
       "security": "SECURITY",
+      "notifications": "NOTIFICATIONS",
       "account": "ACCOUNT"
     },
     "theme": {
@@ -70,6 +71,36 @@
       "encryptedCacheLabel": "Encrypted cache",
       "encryptedCacheHint": "Encrypt local data on this device.",
       "comingInV3": "Coming in v3.5"
+    },
+    "notifications": {
+      "permissionDeniedTitle": "Notifications blocked",
+      "permissionDeniedBody": "Compass needs notification permission to send reminders. Open your device's Settings → Notifications → Compass to enable.",
+      "daily": {
+        "label": "Daily logging reminder",
+        "hint": "A nudge to log today's expenses, sent once a day at the time you pick.",
+        "timeLabel": "Time of day",
+        "times": {
+          "0800": "8 AM",
+          "1200": "12 PM",
+          "2000": "8 PM"
+        },
+        "notifTitle": "Track today's expenses",
+        "notifBody": "How did the day go? Open Compass to log your transactions."
+      },
+      "budget": {
+        "label": "Budget alerts",
+        "hint": "Notify when a category crosses your monthly limit threshold.",
+        "thresholdLabel": "Alert at",
+        "notifTitle": "Budget alert: {{categoryName}}",
+        "notifBody": "You're at {{percent}}% of your {{categoryName}} budget — {{spent}} of {{limit}}."
+      },
+      "goal": {
+        "label": "Goal deadline reminders",
+        "hint": "Remind me 7 days and 1 day before each goal's target date.",
+        "notifTitle": "Goal reminder: {{goalName}}",
+        "notifBody7d": "{{goalName}} target is in 7 days. You've saved {{progress}} of {{target}}.",
+        "notifBody1d": "{{goalName}} target is tomorrow. You've saved {{progress}} of {{target}}."
+      }
     },
     "account": {
       "deleteLabel": "Delete account",

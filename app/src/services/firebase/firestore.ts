@@ -112,6 +112,7 @@ export async function updateUserDoc(
       | 'displayInIDR'
       | 'balancesHidden'
       | 'pinnedGoalId'
+      | 'notifications'
     >
   >,
 ): Promise<void> {

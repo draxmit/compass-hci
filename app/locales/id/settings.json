@@ -47,6 +47,7 @@
       "theme": "TEMA",
       "language": "BAHASA",
       "security": "KEAMANAN",
+      "notifications": "NOTIFIKASI",
       "account": "AKUN"
     },
     "theme": {
@@ -70,6 +71,36 @@
       "encryptedCacheLabel": "Cache terenkripsi",
       "encryptedCacheHint": "Enkripsi data lokal di perangkat ini.",
       "comingInV3": "Hadir di v3.5"
+    },
+    "notifications": {
+      "permissionDeniedTitle": "Notifikasi diblokir",
+      "permissionDeniedBody": "Compass perlu izin notifikasi untuk kirim pengingat. Buka Pengaturan HP → Notifikasi → Compass untuk mengaktifkan.",
+      "daily": {
+        "label": "Pengingat catat transaksi",
+        "hint": "Notifikasi harian untuk catat pengeluaran hari ini, di jam yang kamu pilih.",
+        "timeLabel": "Waktu pengingat",
+        "times": {
+          "0800": "Pagi",
+          "1200": "Siang",
+          "2000": "Malam"
+        },
+        "notifTitle": "Catat pengeluaran hari ini",
+        "notifBody": "Hari ini gimana? Buka Compass buat catat transaksi."
+      },
+      "budget": {
+        "label": "Peringatan budget",
+        "hint": "Beri tahu saat budget kategori melewati ambang batas bulanan.",
+        "thresholdLabel": "Beri tahu saat",
+        "notifTitle": "Peringatan budget: {{categoryName}}",
+        "notifBody": "Budget {{categoryName}} kamu sudah {{percent}}% — {{spent}} dari {{limit}}."
+      },
+      "goal": {
+        "label": "Pengingat target",
+        "hint": "Beri tahu 7 hari dan 1 hari sebelum tanggal target.",
+        "notifTitle": "Pengingat target: {{goalName}}",
+        "notifBody7d": "Target {{goalName}} 7 hari lagi. Kamu sudah nabung {{progress}} dari {{target}}.",
+        "notifBody1d": "Target {{goalName}} besok. Kamu sudah nabung {{progress}} dari {{target}}."
+      }
     },
     "account": {
       "deleteLabel": "Hapus akun",

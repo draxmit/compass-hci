@@ -6,7 +6,11 @@ import { useTranslation } from 'react-i18next';
 import { Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { readSettings } from '@/features/notifications/scheduler';
 import { deleteUserAccount, signOut, updateUserDoc } from '@/services/firebase';
+import {
+  notificationsSupported, requestNotificationPermission,
+} from '@/services/notifications';
 import { i18next, persistLocale } from '@/shared/i18n';
 import type { Locale } from '@/shared/i18n';
 import { tokens } from '@/shared/theme/tokens';
@@ -114,6 +118,68 @@ export default function SettingsScreen() {
     void updateUserDoc(uid, { displayInIDR: next }).catch((err: unknown) => {
       console.warn('[settings] displayInIDR flag write failed', err);
     });
+  };
+
+  // ---- Notification settings (ADR-24) ----
+  // Read off the user doc with all-off defaults. Toggles flip the
+  // matching field; useNotificationSync reschedules automatically when
+  // the user doc changes (via the subscribed userDoc in the auth
+  // store). First-time enable triggers the OS permission prompt.
+  const notifSettings = readSettings(userDoc);
+  const updateNotifSettings = async (
+    patch: Partial<NonNullable<typeof userDoc>['notifications']>,
+  ) => {
+    const uid = useAuthStore.getState().uid;
+    if (!uid) return;
+    const next = { ...notifSettings, ...patch };
+    try {
+      await updateUserDoc(uid, { notifications: next });
+    } catch (err: unknown) {
+      console.warn('[settings] notification settings write failed', err);
+    }
+  };
+  const enableNotificationsWithPermissionGate = async (
+    patch: Partial<NonNullable<typeof userDoc>['notifications']>,
+  ) => {
+    // Any toggle going from false→true triggers a permission check.
+    // Subsequent toggles reuse the existing grant (or fail silently if
+    // the user revoked it via system settings — not our problem).
+    const ok = await requestNotificationPermission();
+    if (!ok) {
+      appAlert(
+        t('settings:settings.notifications.permissionDeniedTitle'),
+        t('settings:settings.notifications.permissionDeniedBody'),
+      );
+      return;
+    }
+    await updateNotifSettings(patch);
+  };
+  const handleToggleDailyReminder = (next: boolean) => {
+    if (next) {
+      void enableNotificationsWithPermissionGate({ dailyReminder: true });
+    } else {
+      void updateNotifSettings({ dailyReminder: false });
+    }
+  };
+  const handleToggleBudgetAlerts = (next: boolean) => {
+    if (next) {
+      void enableNotificationsWithPermissionGate({ budgetAlerts: true });
+    } else {
+      void updateNotifSettings({ budgetAlerts: false });
+    }
+  };
+  const handleToggleGoalReminders = (next: boolean) => {
+    if (next) {
+      void enableNotificationsWithPermissionGate({ goalReminders: true });
+    } else {
+      void updateNotifSettings({ goalReminders: false });
+    }
+  };
+  const handleSelectThreshold = (v: 0.8 | 0.9 | 1.0) => {
+    void updateNotifSettings({ budgetThreshold: v });
+  };
+  const handleSelectDailyTime = (hhmm: string) => {
+    void updateNotifSettings({ dailyReminderTime: hhmm });
   };
 
   const handleDelete = () => {
@@ -355,6 +421,159 @@ export default function SettingsScreen() {
               showDivider
             />
           </Card>
+
+          {/* ===== NOTIFICATIONS (ADR-24) ===== */}
+          {notificationsSupported ? (
+            <>
+              <Text className={sectionLabelClass} style={{ color: mutedColor }}>
+                {t('settings:settings.section.notifications')}
+              </Text>
+              <Card padding="none" className="mb-6 w-full">
+                {/* Daily reminder toggle */}
+                <SecurityRow
+                  label={t('settings:settings.notifications.daily.label')}
+                  hint={t('settings:settings.notifications.daily.hint')}
+                  value={notifSettings.dailyReminder}
+                  onValueChange={handleToggleDailyReminder}
+                  isDark={isDark}
+                  fgColor={fgColor}
+                  mutedColor={mutedColor}
+                  borderColor={borderColor}
+                  showDivider={false}
+                />
+                {notifSettings.dailyReminder ? (
+                  <View
+                    style={{
+                      paddingHorizontal: 20,
+                      paddingTop: 0,
+                      paddingBottom: 14,
+                    }}
+                  >
+                    <Text
+                      className="font-sans text-xs mb-2"
+                      style={{ color: mutedColor }}
+                    >
+                      {t('settings:settings.notifications.daily.timeLabel')}
+                    </Text>
+                    <View className="flex-row" style={{ gap: 6 }}>
+                      {(['08:00', '12:00', '20:00'] as const).map((time) => {
+                        const selected = notifSettings.dailyReminderTime === time;
+                        return (
+                          <Pressable
+                            key={time}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected }}
+                            onPress={() => handleSelectDailyTime(time)}
+                            style={{
+                              flex: 1,
+                              paddingVertical: 10,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: selected
+                                ? tokens.accent.dashboard
+                                : borderColor,
+                              backgroundColor: selected
+                                ? tokens.accent.dashboard + '14'
+                                : 'transparent',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minHeight: 38,
+                            }}
+                          >
+                            <Text
+                              className="font-sans-medium text-xs"
+                              style={{
+                                color: selected ? tokens.accent.dashboard : fgColor,
+                              }}
+                            >
+                              {t(`settings:settings.notifications.daily.times.${time.replace(':', '')}`)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
+                {/* Budget alerts toggle */}
+                <SecurityRow
+                  label={t('settings:settings.notifications.budget.label')}
+                  hint={t('settings:settings.notifications.budget.hint')}
+                  value={notifSettings.budgetAlerts}
+                  onValueChange={handleToggleBudgetAlerts}
+                  isDark={isDark}
+                  fgColor={fgColor}
+                  mutedColor={mutedColor}
+                  borderColor={borderColor}
+                  showDivider
+                />
+                {notifSettings.budgetAlerts ? (
+                  <View
+                    style={{
+                      paddingHorizontal: 20,
+                      paddingTop: 0,
+                      paddingBottom: 14,
+                    }}
+                  >
+                    <Text
+                      className="font-sans text-xs mb-2"
+                      style={{ color: mutedColor }}
+                    >
+                      {t('settings:settings.notifications.budget.thresholdLabel')}
+                    </Text>
+                    <View className="flex-row" style={{ gap: 6 }}>
+                      {([0.8, 0.9, 1.0] as const).map((v) => {
+                        const selected = notifSettings.budgetThreshold === v;
+                        return (
+                          <Pressable
+                            key={v}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected }}
+                            onPress={() => handleSelectThreshold(v)}
+                            style={{
+                              flex: 1,
+                              paddingVertical: 10,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: selected
+                                ? tokens.accent.dashboard
+                                : borderColor,
+                              backgroundColor: selected
+                                ? tokens.accent.dashboard + '14'
+                                : 'transparent',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minHeight: 38,
+                            }}
+                          >
+                            <Text
+                              className="font-sans-medium text-xs"
+                              style={{
+                                color: selected ? tokens.accent.dashboard : fgColor,
+                              }}
+                            >
+                              {Math.round(v * 100)}%
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
+                {/* Goal reminders toggle */}
+                <SecurityRow
+                  label={t('settings:settings.notifications.goal.label')}
+                  hint={t('settings:settings.notifications.goal.hint')}
+                  value={notifSettings.goalReminders}
+                  onValueChange={handleToggleGoalReminders}
+                  isDark={isDark}
+                  fgColor={fgColor}
+                  mutedColor={mutedColor}
+                  borderColor={borderColor}
+                  showDivider
+                />
+              </Card>
+            </>
+          ) : null}
 
           {/* ===== ACCOUNT ===== */}
           <Text className={sectionLabelClass} style={{ color: mutedColor }}>

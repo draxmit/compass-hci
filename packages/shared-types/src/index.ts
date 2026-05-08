@@ -70,6 +70,27 @@ export type UserDoc = {
    * v1/v2-pre-pin docs compatible.
    */
   pinnedGoalId?: string | null;
+  /**
+   * v3 phase B (ADR-24) — local notification preferences. Stored on
+   * the user doc so settings sync across the user's devices, even
+   * though the actual scheduling happens per-device via expo-
+   * notifications. Optional for backward compat with pre-v3-phase-B
+   * docs — read-side helpers treat absence as "all reminders off".
+   *
+   * Categories:
+   *   - dailyReminder: a fixed-time daily nudge to log expenses
+   *   - budgetAlerts: fired when a tx pushes a budget over threshold
+   *   - goalReminders: fired N days before a goal's target date
+   */
+  notifications?: {
+    dailyReminder: boolean;
+    /** 'HH:MM' 24-hour clock, defaults '20:00' (8pm). */
+    dailyReminderTime: string;
+    budgetAlerts: boolean;
+    /** Fraction of limit at which an alert fires (0.8 = 80%). */
+    budgetThreshold: 0.8 | 0.9 | 1.0;
+    goalReminders: boolean;
+  };
   createdAt: unknown;
   defaultWorkspaceId: string;
   workspaceIds: string[];

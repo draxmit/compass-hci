@@ -14,6 +14,7 @@ import type { ReactNode } from 'react';
 
 import '../global.css';
 import { BiometricGate } from '@/features/auth/BiometricGate';
+import { useNotificationSync } from '@/features/notifications/useNotificationSync';
 import { signOut, useAuthSubscription } from '@/services/firebase';
 import { hydratePersistedLocale, initI18n } from '@/shared/i18n';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
@@ -186,6 +187,12 @@ function StackTree() {
  */
 function AuthGate({ children }: { children: ReactNode }) {
   useAuthSubscription();
+  // Mount the notification scheduler whenever we have an authed user
+  // doc. Hook internally guards on `wid`/`userDoc` so it's safe to
+  // mount before sign-in resolves; doing it here means a single
+  // instance lives for the session, capturing budget-cross events
+  // across every screen.
+  useNotificationSync();
   const isLoading = useAuthLoading();
   const isAuthed = useIsAuthed();
   const userDoc = useUserDoc();

@@ -70,6 +70,14 @@ const config: ExpoConfig = {
         androidSpeechServicePackages: ['com.google.android.googlequicksearchbox'],
       },
     ],
+    // Local notifications — daily logging reminders, budget alerts,
+    // and goal deadline reminders (ADR-24). We DON'T set up FCM /
+    // APNs push — all reminders are scheduled on-device via the
+    // platform's local notification API. Cross-device sync is
+    // unnecessary because the underlying state (budget %, tx history,
+    // goal targets) syncs via Firestore and the scheduler runs on
+    // each device independently.
+    'expo-notifications',
   ],
   experiments: {
     typedRoutes: true,
