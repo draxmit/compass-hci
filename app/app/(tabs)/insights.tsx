@@ -8,6 +8,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
+import { LinearGradient as RNLinearGradient } from 'expo-linear-gradient';
 import Svg, {
   Circle, Defs, LinearGradient, Path, Line as SvgLine, Polyline, Stop,
 } from 'react-native-svg';
@@ -832,10 +833,11 @@ type AnomalyCardProps = {
 
 /**
  * Top-of-Insights entry point to the Gemini chat assistant
- * (ADR-23). Visually distinctive emerald-tinted card so it doesn't
- * read as just-another-section header — it's the single most novel
- * surface in the app and warrants the eye-catch. Goes ABOVE the
- * 6-month trend so users see it before scrolling into analytics.
+ * (ADR-23). Visually distinctive emerald-tinted card with an angled
+ * gradient background so it doesn't read as just-another-section
+ * header — it's the single most novel surface in the app and
+ * warrants the eye-catch. Goes ABOVE the 6-month trend so users see
+ * it before scrolling into analytics.
  */
 function AskCompassCta({
   isDark,
@@ -857,46 +859,62 @@ function AskCompassCta({
       accessibilityLabel={t('ask:entryCta')}
       onPress={onPress}
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 14,
-        padding: 16,
         marginBottom: 24,
         borderRadius: 14,
         borderWidth: 1,
         borderColor: tokens.accent.dashboard + '55',
-        backgroundColor: tokens.accent.dashboard + '12',
+        overflow: 'hidden',
       }}
     >
-      <View
+      {/* Diagonal accent gradient — mirrors the "AI feature" treatment
+          banks/fintech apps use for new ML-powered surfaces. Soft
+          corner-to-corner stops keep the card readable in both light
+          and dark themes. */}
+      <RNLinearGradient
+        colors={[
+          tokens.accent.dashboard + '1f',
+          tokens.accent.dashboard + '14',
+          tokens.accent.dashboard + '08',
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={{
-          width: 44,
-          height: 44,
-          borderRadius: 12,
-          backgroundColor: tokens.accent.dashboard + '22',
+          flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'center',
+          gap: 14,
+          padding: 16,
         }}
       >
-        <Sparkles size={22} color={tokens.accent.dashboard} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text
-          className="font-sans-bold text-base"
-          style={{ color: fgColor }}
-          numberOfLines={1}
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: tokens.accent.dashboard + '22',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
-          {t('ask:entryCta')}
-        </Text>
-        <Text
-          className="font-sans text-xs mt-0.5"
-          style={{ color: mutedColor }}
-          numberOfLines={2}
-        >
-          {t('ask:entrySubtitle')}
-        </Text>
-      </View>
-      <ChevronRight size={18} color={mutedColor} />
+          <Sparkles size={22} color={tokens.accent.dashboard} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            className="font-sans-bold text-base"
+            style={{ color: fgColor }}
+            numberOfLines={1}
+          >
+            {t('ask:entryCta')}
+          </Text>
+          <Text
+            className="font-sans text-xs mt-0.5"
+            style={{ color: mutedColor }}
+            numberOfLines={2}
+          >
+            {t('ask:entrySubtitle')}
+          </Text>
+        </View>
+        <ChevronRight size={18} color={mutedColor} />
+      </RNLinearGradient>
     </Pressable>
   );
 }
