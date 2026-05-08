@@ -576,6 +576,14 @@ export default function DashboardScreen() {
                     amount: formatIDR(cashflowProjection.projectedMinor, lang),
                     days: cashflowProjection.daysRemaining,
                     count: cashflowProjection.daysRemaining,
+                    // Explicit context forces i18next to look up
+                    // `cards.projection_one` / `cards.projection_other`
+                    // directly without relying on locale-specific plural
+                    // rules (Indonesian only has one plural form, which
+                    // can confuse the auto-resolver and fall back to the
+                    // bare key 'cards.projection'). Matches the pattern
+                    // used by `cards.acrossNAccounts` elsewhere.
+                    context: cashflowProjection.daysRemaining === 1 ? 'one' : 'other',
                   })}
                 </Text>
               ) : null}
@@ -681,7 +689,10 @@ export default function DashboardScreen() {
               </Text>
             </Pressable>
           </View>
-          {recentTxs.map((tx, idx) => (
+          {/* Recent strip — only the 5 newest. The subscription pulls
+              50 to also feed the 7-day sparkline above; this strip is
+              just the head of that list. */}
+          {recentTxs.slice(0, 5).map((tx, idx) => (
             <RecentRow
               key={tx.id}
               tx={tx}
