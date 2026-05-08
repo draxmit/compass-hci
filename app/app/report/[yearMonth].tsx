@@ -7,6 +7,7 @@ import type { TFunction } from 'i18next';
 import { ChevronLeft, FileDown } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BackHandler, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -669,18 +670,20 @@ function BreakdownRow({
       </View>
       <View
         style={{
-          height: 4,
+          height: 6,
           marginLeft: 40,
-          borderRadius: 2,
+          borderRadius: 3,
           backgroundColor: borderColor,
           overflow: 'hidden',
         }}
       >
-        <View
+        <LinearGradient
+          colors={[catColor + 'b3', catColor]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
           style={{
             width: `${ratio * 100}%`,
-            height: 4,
-            backgroundColor: catColor,
+            height: '100%',
           }}
         />
       </View>

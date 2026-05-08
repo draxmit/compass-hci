@@ -8,6 +8,7 @@ import { ChevronDown, ChevronRight, ChevronUp, Eye, EyeOff, Pin, Plus, Sparkles,
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
+import { LinearGradient as RNLinearGradient } from 'expo-linear-gradient';
 import Svg, {
   Circle, Defs, LinearGradient, Path, Polyline, Stop,
 } from 'react-native-svg';
@@ -688,17 +689,23 @@ export default function DashboardScreen() {
                   </View>
                   <View
                     style={{
-                      height: 4,
-                      borderRadius: 2,
+                      height: 6,
+                      borderRadius: 3,
                       backgroundColor: isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'],
                       overflow: 'hidden',
                     }}
                   >
-                    <View
+                    {/* Filled portion uses a horizontal gradient
+                        (light→full saturation) so longer bars feel
+                        weightier toward their leading edge. Subtle
+                        polish over the prior flat fill. */}
+                    <RNLinearGradient
+                      colors={[tint + 'b3', tint]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
                       style={{
                         width: `${widthPct}%`,
                         height: '100%',
-                        backgroundColor: tint,
                       }}
                     />
                   </View>
@@ -1155,17 +1162,19 @@ function DashboardGoalRow({
         <>
           <View
             style={{
-              height: 4,
+              height: 6,
               borderRadius: 999,
               backgroundColor: accent + '22',
               overflow: 'hidden',
             }}
           >
-            <View
+            <RNLinearGradient
+              colors={[accent + 'b3', accent]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
               style={{
                 width: `${Math.round(ratio * 100)}%`,
                 height: '100%',
-                backgroundColor: accent,
               }}
             />
           </View>

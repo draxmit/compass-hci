@@ -4,6 +4,7 @@ import type {
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Check, ChevronRight, FileText, Pencil, Plus, Trash2, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -684,11 +685,11 @@ function BudgetRow({
           flexDirection: 'row',
         }}
       >
-        <View
-          style={{
-            width: `${fillRatio * 100}%`,
-            backgroundColor: fillColor,
-          }}
+        <LinearGradient
+          colors={[fillColor + 'b3', fillColor]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ width: `${fillRatio * 100}%` }}
         />
         {overflowRatio > 0 ? (
           <View
@@ -992,11 +993,11 @@ function BucketCard({
           flexDirection: 'row',
         }}
       >
-        <View
-          style={{
-            width: `${fillRatio * 100}%`,
-            backgroundColor: fillColor,
-          }}
+        <LinearGradient
+          colors={[fillColor + 'b3', fillColor]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ width: `${fillRatio * 100}%` }}
         />
         {overflowRatio > 0 ? (
           <View
