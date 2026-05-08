@@ -75,16 +75,23 @@ export function EmptyState({
               key={k}
               accessibilityRole="button"
               onPress={() => onPickPrompt(prompt)}
-              style={{
+              style={({ hovered, pressed }) => ({
                 paddingHorizontal: 14,
                 paddingVertical: 12,
                 borderRadius: 10,
                 borderWidth: 1,
-                borderColor: border,
-                backgroundColor: 'transparent',
+                borderColor:
+                  (hovered as boolean | undefined) || pressed
+                    ? tokens.accent.dashboard + '66'
+                    : border,
+                backgroundColor:
+                  (hovered as boolean | undefined) || pressed
+                    ? tokens.accent.dashboard + '0d'
+                    : 'transparent',
                 minHeight: 44,
                 justifyContent: 'center',
-              }}
+                transform: [{ scale: pressed ? 0.99 : 1 }],
+              })}
             >
               <Text
                 className="font-sans text-sm"

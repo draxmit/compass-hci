@@ -34,7 +34,7 @@ export function ActionCard({
       accessibilityRole="button"
       accessibilityLabel={action.label}
       onPress={onPress}
-      style={{
+      style={({ hovered, pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
@@ -42,12 +42,19 @@ export function ActionCard({
         paddingVertical: 8,
         borderRadius: 10,
         borderWidth: 1,
-        borderColor,
-        backgroundColor: tokens.accent.dashboard + '10',
+        borderColor:
+          (hovered as boolean | undefined) || pressed
+            ? tokens.accent.dashboard + '88'
+            : borderColor,
+        backgroundColor:
+          (hovered as boolean | undefined) || pressed
+            ? tokens.accent.dashboard + '1f'
+            : tokens.accent.dashboard + '10',
         alignSelf: 'flex-start',
         marginTop: 4,
         minHeight: 36,
-      }}
+        transform: [{ scale: pressed ? 0.97 : 1 }],
+      })}
     >
       <View
         style={{
