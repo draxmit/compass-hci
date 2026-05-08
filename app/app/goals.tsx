@@ -5,6 +5,7 @@ import {
 } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -466,11 +467,17 @@ function GoalRow({
           marginBottom: 8,
         }}
       >
-        <View
+        <LinearGradient
+          colors={
+            reached
+              ? [tokens.semantic.positive + 'b3', tokens.semantic.positive]
+              : [accent + 'b3', accent]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
           style={{
             width: `${Math.max(fillRatio * 100, ratio > 0 ? 2 : 0)}%`,
             height: 8,
-            backgroundColor: reached ? tokens.semantic.positive : accent,
           }}
         />
       </View>
