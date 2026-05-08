@@ -77,7 +77,44 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         setError('not-allowed');
         return;
       }
-      const recogLang = locale === 'id' ? 'id-ID' : 'en-US';
+      // ALWAYS Indonesian for the voice recogniser — Compass is an
+      // Indonesian banking app, and merchants / numbers / slang are
+      // overwhelmingly Indonesian regardless of UI locale. Tying voice
+      // to the UI language meant English-locale users (testing, language-
+      // toggle accidents) got their Indonesian speech transcribed as
+      // English. The `locale` param is still accepted but ignored on
+      // native; if a future iteration needs proper bilingual voice,
+      // that's a Settings-level toggle, not a UI-locale spillover.
+      void locale; // intentionally unused on native
+      const recogLang = 'id-ID';
+      // Discover available recognition services. We then pick the first
+      // one Android exposes — picking explicitly bypasses the device's
+      // default routing, which on some Samsung / Xiaomi ROMs prefers a
+      // service that silently falls back to the device's primary
+      // language when id-ID isn't installed offline. Best candidate is
+      // Google's quick search box (universally cloud-backed for id-ID),
+      // then the Google text-to-speech recogniser, then anything else.
+      let recogServicePackage: string | undefined;
+      try {
+        const services: string[] =
+          (ExpoSpeechRecognitionModule.getSpeechRecognitionServices?.() as string[] | undefined) ??
+          [];
+        const preferOrder = [
+          'com.google.android.googlequicksearchbox',
+          'com.google.android.tts',
+          'com.google.android.as',
+        ];
+        for (const candidate of preferOrder) {
+          if (services.includes(candidate)) {
+            recogServicePackage = candidate;
+            break;
+          }
+        }
+        // Falls through to undefined (= use system default) if none of
+        // the preferred services are present — better than crashing.
+      } catch {
+        /* no-op — getSpeechRecognitionServices may throw on older devices */
+      }
       ExpoSpeechRecognitionModule.start({
         lang: recogLang,
         // We only consume the FINAL transcript — interim updates
@@ -87,36 +124,42 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         // Single-utterance mode — stops automatically when the user
         // pauses for a moment.
         continuous: false,
-        // Android: prefer on-device recognition when available;
-        // falls back to network if not. Network mode is critical for
-        // Indonesian — many devices don't have the offline pack
-        // installed, so cloud fallback ensures id-ID actually works.
+        // Network mode is critical for Indonesian — many devices don't
+        // have the offline pack installed, so cloud fallback ensures
+        // id-ID actually works.
         requiresOnDeviceRecognition: false,
         // Don't keep the mic alive after stop() — saves battery.
         maxAlternatives: 1,
+        // Pin the recogniser to a known service that supports id-ID via
+        // cloud, bypassing device-default routing that might pick a
+        // service ignoring the BCP-47 lang tag. Undefined falls back to
+        // system default if none of our preferred services exist.
+        ...(recogServicePackage
+          ? { androidRecognitionServicePackage: recogServicePackage }
+          : {}),
         // Bias the recogniser toward Indonesian banking + merchant
         // vocabulary so amounts and merchants get transcribed
-        // correctly. Without these hints, recognition often falls back
-        // to phonetic English (e.g. 'rb' → 'are be' instead of 'ribu').
-        // Empty list on en-US — English defaults are fine.
-        contextualStrings:
-          locale === 'id'
-            ? [
-                // Top Indonesian banks
-                'BCA', 'Mandiri', 'BRI', 'BNI', 'CIMB', 'Permata',
-                'Jago', 'Jenius', 'BSI', 'Danamon',
-                // E-wallets
-                'GoPay', 'OVO', 'Dana', 'ShopeePay', 'LinkAja',
-                // Common merchants
-                'Indomaret', 'Alfamart', 'Gojek', 'Grab', 'Tokopedia',
-                'Shopee', 'Tokpedia', 'Blibli', 'Lazada', 'Traveloka',
-                // Amount slang
-                'ribu', 'juta', 'rupiah', 'rb', 'jt',
-                // Common spend categories
-                'warteg', 'kopi', 'bensin', 'pulsa', 'parkir',
-                'ojek', 'taksi', 'belanja', 'makan', 'jajan',
-              ]
-            : [],
+        // correctly. Without these hints, "rb" was getting heard as
+        // "are be" instead of "ribu", and "BCA" as "be see ay".
+        contextualStrings: [
+          // Top Indonesian banks
+          'BCA', 'Mandiri', 'BRI', 'BNI', 'CIMB', 'Permata',
+          'Jago', 'Jenius', 'BSI', 'Danamon',
+          // E-wallets
+          'GoPay', 'OVO', 'Dana', 'ShopeePay', 'LinkAja',
+          // Common merchants
+          'Indomaret', 'Alfamart', 'Gojek', 'Grab', 'Tokopedia',
+          'Shopee', 'Tokpedia', 'Blibli', 'Lazada', 'Traveloka',
+          'Starbucks', 'KFC', 'McDonalds',
+          // Amount slang + multipliers
+          'ribu', 'juta', 'rupiah', 'rb', 'jt',
+          'lima', 'sepuluh', 'dua puluh', 'lima puluh', 'seratus',
+          // Common spend categories
+          'warteg', 'kopi', 'bensin', 'pulsa', 'parkir',
+          'ojek', 'taksi', 'belanja', 'makan', 'jajan',
+          // Common verbs
+          'bayar', 'transfer', 'pakai', 'dari', 'untuk',
+        ],
         // Prefer free-form dictation over short web-search queries —
         // banking sentences are longer than typical voice queries.
         // The top-level `lang` field already maps to EXTRA_LANGUAGE
