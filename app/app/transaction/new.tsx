@@ -5,7 +5,7 @@ import { Camera as CameraIcon, ChevronDown, ChevronLeft, ChevronRight, Layers, M
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { BackHandler, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { subscribeAccounts } from '@/services/firestore/accountsService';
@@ -13,7 +13,7 @@ import { subscribeCategories } from '@/services/firestore/categoriesService';
 import {
   createTransaction, InsufficientBalanceError, subscribeRecent,
 } from '@/services/firestore/transactionsService';
-import { useAuthUser } from '@/stores/authStore';
+import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import { SplitsEditorModal } from '@/features/transactions/SplitsEditorModal';
 import { SplitsSummaryCard } from '@/features/transactions/SplitsSummaryCard';
 import { TagsInput } from '@/features/transactions/TagsInput';
@@ -35,6 +35,8 @@ import { parseTransaction } from '@/shared/utils/nlpParser';
 import type { NlpResult } from '@/shared/utils/nlpParser';
 import { collectTagFrequencies, normaliseTagList } from '@/shared/utils/tags';
 import { useVoiceInput } from '@/shared/utils/voiceInput';
+import { buildContextSnapshot } from '@/features/ask/contextSnapshot';
+import { isConfigured as isGeminiConfigured, parseTextWithGemini } from '@/features/ask/geminiClient';
 
 const TYPES: readonly TransactionType[] = ['expense', 'income', 'transfer'];
 
@@ -68,22 +70,28 @@ export default function NewTransactionScreen() {
   const isDark = resolvedScheme === 'dark';
   const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
   const user = useAuthUser();
+  const userDoc = useUserDoc();
   const wid = user ? `solo-${user.uid}` : null;
+  const pinnedGoalId = userDoc?.pinnedGoalId ?? null;
   // Source tab passed by the FAB / welcome cards via ?from=. Used as the
   // close-fallback target when there's no Stack frame to pop (we arrived
   // via router.replace, not push). Falls back to /transactions if absent
   // or invalid.
   // OCR params arrive when the user came from /transaction/scan-receipt.
-  // `ocrAmount` is a stringified minor-units integer (e.g. '15750000' for
-  // Rp 157,500.00); `ocrMerchant` is the best-guess merchant string. Both
-  // are independent — receipt photos sometimes yield only one or the
-  // other depending on glare / contrast / cropping. We apply each only
-  // if (a) the param is present AND (b) the user hasn't yet manually
-  // edited that field, mirroring the touched[] guard the NLP path uses.
+  //   - `ocrAmount`     stringified minor-units integer ('5000000' = Rp 50.000)
+  //   - `ocrMerchant`   merchant name ('Warteg Bahari')
+  //   - `ocrCategoryId` Gemini's best-guess category id (multimodal vision only)
+  //   - `ocrDate`       receipt date as 'YYYY-MM-DD' (multimodal vision only)
+  // Each is independent — receipt photos and Gemini's confidence vary
+  // by field. We apply each only if (a) the param is present AND
+  // (b) the user hasn't yet manually edited that field, mirroring the
+  // touched[] guard the NLP path uses.
   const params = useLocalSearchParams<{
     from?: string;
     ocrAmount?: string;
     ocrMerchant?: string;
+    ocrCategoryId?: string;
+    ocrDate?: string;
   }>();
   const fromTab: Href = resolveFrom(params.from);
 
@@ -129,12 +137,30 @@ export default function NewTransactionScreen() {
   // API; native uses expo-speech-recognition (SiriKit on iOS, Google
   // Speech Service on Android). Metro picks `voiceInput.native.ts`
   // for native and `voiceInput.ts` for web — same external shape.
+  //
+  // After the transcript settles, we ALSO try a Gemini /parse-text
+  // round-trip in the background (ADR-23 multimodal extension). The
+  // native nlpParser still runs synchronously on every keystroke so
+  // the form pre-fills immediately; Gemini comes in a moment later
+  // and overrides any not-touched fields with its richer results.
+  const lastVoiceTranscriptRef = useRef<string | null>(null);
+  const [voiceParseTrigger, setVoiceParseTrigger] = useState(0);
+  const [geminiParsing, setGeminiParsing] = useState(false);
+
   const voice = useVoiceInput({
     locale: lang,
     onResult: (transcript) => {
       // Append to whatever's already in the input rather than replacing —
       // user might be mid-sentence dictating extra detail.
-      setNlpInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      setNlpInput((prev) => {
+        const merged = prev ? `${prev} ${transcript}` : transcript;
+        lastVoiceTranscriptRef.current = merged;
+        return merged;
+      });
+      // Bump trigger so the Gemini-parse effect below re-runs on the
+      // newly-merged text. Counter pattern so consecutive identical
+      // transcripts still re-fire.
+      setVoiceParseTrigger((n) => n + 1);
     },
   });
 
@@ -167,8 +193,8 @@ export default function NewTransactionScreen() {
   const ocrAppliedRef = useRef(false);
   useEffect(() => {
     if (ocrAppliedRef.current) return;
-    const { ocrAmount, ocrMerchant } = params;
-    if (!ocrAmount && !ocrMerchant) return;
+    const { ocrAmount, ocrMerchant, ocrCategoryId, ocrDate } = params;
+    if (!ocrAmount && !ocrMerchant && !ocrCategoryId && !ocrDate) return;
     if (ocrAmount) {
       const minor = Number(ocrAmount);
       if (Number.isFinite(minor) && minor > 0) {
@@ -179,6 +205,21 @@ export default function NewTransactionScreen() {
     if (ocrMerchant) {
       touched.current.description = true;
       setDescription(ocrMerchant);
+    }
+    // Gemini multimodal vision returns the best-matching categoryId
+    // from the user's snapshot; the regex parser doesn't know about
+    // categories so this is a Gemini-only field.
+    if (ocrCategoryId) {
+      touched.current.category = true;
+      setCategoryId(ocrCategoryId);
+    }
+    // Receipt date — apply if it's a valid YYYY-MM-DD AND it's not in
+    // the future (defends against OCR misreading a year).
+    if (ocrDate && /^\d{4}-\d{2}-\d{2}$/.test(ocrDate)) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (ocrDate <= today) {
+        setDate(ocrDate);
+      }
     }
     ocrAppliedRef.current = true;
   }, [params, lang]);
@@ -219,6 +260,56 @@ export default function NewTransactionScreen() {
     if (!touched.current.category && r.categoryId) setCategoryId(r.categoryId);
     if (!touched.current.description && r.description) setDescription(r.description);
   }, [nlpInput, accounts, categories, date, lang]);
+
+  // Voice-triggered Gemini upgrade. Fires after the user finishes
+  // speaking — uses the merged transcript captured in the ref. Falls
+  // back silently if Gemini isn't configured (the native parser
+  // already populated the form), so first-time users without the
+  // Worker URL set still get a working voice flow.
+  useEffect(() => {
+    if (voiceParseTrigger === 0) return;
+    const text = lastVoiceTranscriptRef.current;
+    if (!text || !wid) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!(await isGeminiConfigured())) return;
+        setGeminiParsing(true);
+        const ctx = await buildContextSnapshot(wid, lang, pinnedGoalId);
+        const { parsed } = await parseTextWithGemini(text, ctx);
+        if (cancelled) return;
+        // Apply Gemini's richer parse, respecting user edits via the
+        // existing touched-flags. Gemini overrides the native parser's
+        // earlier output for fields the user hasn't touched.
+        if (parsed.type && !touched.current.type) setType(parsed.type);
+        if (parsed.amountMinor != null && !touched.current.amount) {
+          setAmountText(minorToInputText(parsed.amountMinor, lang));
+        }
+        if (parsed.accountId && !touched.current.account) {
+          setAccountId(parsed.accountId);
+        }
+        if (parsed.toAccountId && !touched.current.toAccount) {
+          setToAccountId(parsed.toAccountId);
+        }
+        if (parsed.categoryId && !touched.current.category) {
+          setCategoryId(parsed.categoryId);
+        }
+        if (parsed.description && !touched.current.description) {
+          setDescription(parsed.description);
+        }
+        // Gemini's confidence usually beats the regex parser's; if we
+        // got a useful number, surface it on the chip.
+        if (parsed.confidence > 0) setConfidence(parsed.confidence);
+      } catch {
+        // Silent — native parser already populated the form.
+      } finally {
+        if (!cancelled) setGeminiParsing(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [voiceParseTrigger, wid, lang, pinnedGoalId]);
 
   const handleSave = async () => {
     if (saving || !wid) return;
@@ -415,7 +506,17 @@ export default function NewTransactionScreen() {
               <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
                 {t('transactions:entry.nlpLabel')}
               </Text>
-              {confidence > 0 ? (
+              {geminiParsing ? (
+                <View className="flex-row items-center" style={{ gap: 6 }}>
+                  <ActivityIndicator size="small" color={tokens.accent.dashboard} />
+                  <Text
+                    className="font-sans text-xs"
+                    style={{ color: tokens.accent.dashboard }}
+                  >
+                    {t('transactions:entry.aiParsing')}
+                  </Text>
+                </View>
+              ) : confidence > 0 ? (
                 <Text className="font-sans text-xs" style={{ color: mutedColor }}>
                   {t('transactions:entry.confidence', { percent: Math.round(confidence * 100) })}
                 </Text>

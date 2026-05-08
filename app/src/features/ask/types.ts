@@ -99,3 +99,34 @@ export type ChatResponse = {
   reply: ChatMessage;
   history: ChatMessage[];
 };
+
+/**
+ * Parsed transaction fields returned by Gemini — both text-only NLP
+ * parsing (/parse-text) and multimodal receipt vision (/scan-receipt)
+ * use this same shape so the entry form has a single pre-fill path.
+ *
+ * Each field is optional; the LLM omits fields it can't infer rather
+ * than returning bogus defaults. `confidence` is the only required
+ * field and reflects the LLM's overall certainty.
+ */
+export type ParsedTransactionFields = {
+  type?: 'expense' | 'income' | 'transfer';
+  amountMinor?: number;
+  merchant?: string;
+  description?: string;
+  date?: string;
+  categoryId?: string;
+  accountId?: string;
+  toAccountId?: string;
+  confidence: number;
+};
+
+export type ParseTextResponse = {
+  parsed: ParsedTransactionFields;
+  echoText: string;
+};
+
+export type ScanReceiptResponse = {
+  parsed: ParsedTransactionFields;
+  rawText: string;
+};

@@ -13,6 +13,7 @@
     "nlpPlaceholder": "Ketik atau bicara…",
     "nlpHint": "Misal: Makan warteg 25rb bca",
     "confidence": "{{percent}}% cocok",
+    "aiParsing": "AI memproses…",
     "fields": {
       "type": "Jenis",
       "amount": "Jumlah",

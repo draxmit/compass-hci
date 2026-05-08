@@ -6,11 +6,17 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { buildContextSnapshot } from '@/features/ask/contextSnapshot';
+import {
+  isConfigured as isGeminiConfigured, scanReceiptWithGemini,
+} from '@/features/ask/geminiClient';
+import type { Locale } from '@/shared/i18n';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Text } from '@/shared/ui/Text';
 import { parseReceiptText } from '@/shared/utils/parseReceiptText';
+import { useAuthUser, useUserDoc } from '@/stores/authStore';
 
 /**
  * /transaction/scan-receipt — full-screen camera scanner for OCR-driven
@@ -31,12 +37,17 @@ import { parseReceiptText } from '@/shared/utils/parseReceiptText';
  */
 
 export default function ScanReceiptScreen() {
-  const { t } = useTranslation(['transactions', 'common']);
+  const { t, i18n } = useTranslation(['transactions', 'common']);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const appAlert = useAppAlert();
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
+  const lang = (i18n.language === 'en' ? 'en' : 'id') as Locale;
+  const user = useAuthUser();
+  const userDoc = useUserDoc();
+  const wid = user ? `solo-${user.uid}` : null;
+  const pinnedGoalId = userDoc?.pinnedGoalId ?? null;
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const cameraRef = useRef<CameraView | null>(null);
@@ -122,29 +133,72 @@ export default function ScanReceiptScreen() {
     );
   }
 
-  // Take a picture, OCR, navigate back with parsed fields.
+  // Take a picture, OCR, navigate back with parsed fields. Two-tier
+  // strategy:
+  //   1. Try Gemini multimodal vision first (better accuracy, returns
+  //      structured fields including category + date in one shot).
+  //   2. Fall back to ML Kit OCR + the regex receipt parser if Gemini
+  //      isn't configured or the network call fails.
+  // The fallback keeps the offline path working — class demo vs.
+  // realistic-conditions scenario without any UI choice for the user.
   const handleCapture = async () => {
     if (!cameraRef.current || scanning) return;
     setScanning(true);
     try {
+      // Quality 0.6 keeps the base64 payload under ~500KB while still
+      // giving Gemini enough resolution to read printed receipts. The
+      // base64 flag is critical — we send the bytes inline to the
+      // Worker rather than uploading the file URI.
       const photo = await cameraRef.current.takePictureAsync({
-        // Quality 0.6 is plenty for ML Kit OCR — higher just slows
-        // the upload + recognition without improving text accuracy
-        // on receipts (which are mostly high-contrast print).
         quality: 0.6,
+        base64: true,
         skipProcessing: false,
       });
       if (!photo?.uri) {
         throw new Error('No photo returned');
       }
-      // Run ML Kit text recognition. Dynamic import keeps this out
-      // of the web bundle.
+
+      // ---- Tier 1: Gemini multimodal vision ----
+      const geminiOk = await isGeminiConfigured();
+      if (geminiOk && photo.base64 && wid) {
+        try {
+          const ctx = await buildContextSnapshot(wid, lang, pinnedGoalId);
+          const { parsed } = await scanReceiptWithGemini(
+            photo.base64,
+            'image/jpeg',
+            ctx,
+          );
+          if (parsed.amountMinor != null || parsed.merchant) {
+            router.replace({
+              pathname: '/transaction/new',
+              params: pruneParams({
+                ocrAmount:
+                  parsed.amountMinor != null
+                    ? String(parsed.amountMinor)
+                    : undefined,
+                ocrMerchant: parsed.merchant ?? undefined,
+                ocrCategoryId: parsed.categoryId ?? undefined,
+                ocrDate: parsed.date ?? undefined,
+              }),
+            });
+            return;
+          }
+          // Gemini returned but couldn't parse anything useful — fall
+          // through to ML Kit so we get at least raw OCR text.
+        } catch (err) {
+          // Gemini call failed (offline, server error). Log and fall
+          // through to ML Kit; user gets a result either way.
+          console.warn('[scan-receipt] gemini failed, falling back to ML Kit', err);
+        }
+      }
+
+      // ---- Tier 2: ML Kit OCR fallback ----
+      // Dynamic import keeps the native module out of the web bundle.
       const TextRecognition = (await import('@react-native-ml-kit/text-recognition')).default;
       const result = await TextRecognition.recognize(photo.uri);
       const parsed = parseReceiptText(result.text);
 
       if (parsed.amountMinor === null && !parsed.merchant) {
-        // OCR didn't find anything usable. Tell the user.
         appAlert(
           t('transactions:entry.scanReceipt.noResultTitle'),
           t('transactions:entry.scanReceipt.noResultBody'),
@@ -152,14 +206,12 @@ export default function ScanReceiptScreen() {
         return;
       }
 
-      // Hand the parsed fields to /transaction/new. Strings only — Expo
-      // Router params are URL query strings under the hood.
       router.replace({
         pathname: '/transaction/new',
-        params: {
+        params: pruneParams({
           ocrAmount: parsed.amountMinor != null ? String(parsed.amountMinor) : undefined,
           ocrMerchant: parsed.merchant ?? undefined,
-        },
+        }),
       });
     } catch (err) {
       console.warn('[scan-receipt] capture/OCR failed', err);
@@ -171,6 +223,18 @@ export default function ScanReceiptScreen() {
       setScanning(false);
     }
   };
+
+  // Expo Router params are URL strings; `undefined` values produce
+  // 'undefined' as a literal in the URL. Strip them before passing.
+  function pruneParams(
+    raw: Record<string, string | undefined>,
+  ): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === 'string') out[k] = v;
+    }
+    return out;
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>

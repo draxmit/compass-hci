@@ -2,7 +2,9 @@ import Constants from 'expo-constants';
 
 import { auth } from '@/services/firebase';
 
-import type { ChatContext, ChatMessage, ChatResponse } from './types';
+import type {
+  ChatContext, ChatMessage, ChatResponse, ParseTextResponse, ScanReceiptResponse,
+} from './types';
 
 /**
  * Client for the Compass Gemini Worker. Reads the worker URL from
@@ -119,4 +121,49 @@ async function safeJson(res: Response): Promise<unknown> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Text-only NLP parsing via Gemini. Used after expo-speech-recognition
+ * gives us a voice transcript — Gemini extracts structured fields
+ * (amount, merchant, category, account) much more accurately than the
+ * regex-based `nlpParser`, especially for Indonesian colloquialisms.
+ */
+export async function parseTextWithGemini(
+  text: string,
+  context: ChatContext,
+): Promise<ParseTextResponse> {
+  const res = await authedFetch('/parse-text', {
+    method: 'POST',
+    body: JSON.stringify({ text, context }),
+  });
+  if (!res.ok) {
+    const payload = await safeJson(res);
+    throw new GeminiClientError(res.status, payload);
+  }
+  return (await res.json()) as ParseTextResponse;
+}
+
+/**
+ * Multimodal receipt vision via Gemini. Replaces the ML Kit OCR +
+ * regex parser pipeline with one round-trip that returns both the
+ * extracted text AND the parsed fields. Handles handwriting, blurry
+ * photos, multilingual receipts much better than ML Kit.
+ *
+ * Fall-back to ML Kit on error is the caller's responsibility.
+ */
+export async function scanReceiptWithGemini(
+  imageBase64: string,
+  mimeType: string,
+  context: ChatContext,
+): Promise<ScanReceiptResponse> {
+  const res = await authedFetch('/scan-receipt', {
+    method: 'POST',
+    body: JSON.stringify({ imageBase64, mimeType, context }),
+  });
+  if (!res.ok) {
+    const payload = await safeJson(res);
+    throw new GeminiClientError(res.status, payload);
+  }
+  return (await res.json()) as ScanReceiptResponse;
 }

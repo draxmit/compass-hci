@@ -1,10 +1,15 @@
 import { verifyFirebaseToken } from './auth';
 import { callGemini } from './gemini';
 import { appendHistory, clearHistory, getHistory } from './kv';
+import { parseText, scanReceipt } from './multimodal';
 import type {
   ChatMessage,
   ChatRequest,
   ChatResponse,
+  ParseTextRequest,
+  ParseTextResponse,
+  ScanReceiptRequest,
+  ScanReceiptResponse,
   SuggestedAction,
   WorkerEnv,
 } from './types';
@@ -87,6 +92,67 @@ export default {
     if (url.pathname === '/history' && req.method === 'DELETE') {
       await clearHistory(env, uid);
       return jsonResponse({ ok: true });
+    }
+
+    if (url.pathname === '/parse-text' && req.method === 'POST') {
+      let body: ParseTextRequest;
+      try {
+        body = (await req.json()) as ParseTextRequest;
+      } catch {
+        return jsonResponse({ error: 'invalid-json' }, { status: 400 });
+      }
+      if (!body?.text || !body?.context) {
+        return jsonResponse({ error: 'missing-fields' }, { status: 400 });
+      }
+      try {
+        const parsed = await parseText(env, body.text, body.context);
+        const response: ParseTextResponse = { parsed, echoText: body.text };
+        return jsonResponse(response);
+      } catch (err) {
+        return jsonResponse(
+          {
+            error: 'gemini-failed',
+            message: err instanceof Error ? err.message : 'unknown',
+          },
+          { status: 502 },
+        );
+      }
+    }
+
+    if (url.pathname === '/scan-receipt' && req.method === 'POST') {
+      let body: ScanReceiptRequest;
+      try {
+        body = (await req.json()) as ScanReceiptRequest;
+      } catch {
+        return jsonResponse({ error: 'invalid-json' }, { status: 400 });
+      }
+      if (!body?.imageBase64 || !body?.mimeType || !body?.context) {
+        return jsonResponse({ error: 'missing-fields' }, { status: 400 });
+      }
+      // Receipts are typically 100kb-2mb base64'd. Reject anything
+      // bigger so a malicious or buggy client can't send a 50mb file
+      // and burn our request CPU budget.
+      if (body.imageBase64.length > 8_000_000) {
+        return jsonResponse({ error: 'image-too-large' }, { status: 413 });
+      }
+      try {
+        const { parsed, rawText } = await scanReceipt(
+          env,
+          body.imageBase64,
+          body.mimeType,
+          body.context,
+        );
+        const response: ScanReceiptResponse = { parsed, rawText };
+        return jsonResponse(response);
+      } catch (err) {
+        return jsonResponse(
+          {
+            error: 'gemini-failed',
+            message: err instanceof Error ? err.message : 'unknown',
+          },
+          { status: 502 },
+        );
+      }
     }
 
     if (url.pathname === '/chat' && req.method === 'POST') {

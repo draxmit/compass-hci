@@ -119,6 +119,58 @@ export type ChatResponse = {
   history: ChatMessage[];
 };
 
+/**
+ * Parsed transaction fields. Matches the existing `nlpParser` return
+ * shape (modulo amountMinor naming) so the entry form can swap
+ * between native parsing and Gemini parsing without UI changes.
+ *
+ * Each field is optional + has a confidence score [0..1]. Low
+ * confidence (< 0.5) means the LLM was guessing; the form will
+ * pre-fill it but flag it visually for user review.
+ */
+export type ParsedTransactionFields = {
+  type?: 'expense' | 'income' | 'transfer';
+  amountMinor?: number;
+  merchant?: string;
+  description?: string;
+  date?: string; // 'YYYY-MM-DD'
+  categoryId?: string;
+  accountId?: string;
+  toAccountId?: string;
+  /** Overall match confidence [0..1] — averaged across the populated fields. */
+  confidence: number;
+};
+
+/** POST /parse-text — Gemini-powered NLP for transaction free-text. */
+export type ParseTextRequest = {
+  text: string;
+  context: ChatContext;
+};
+
+export type ParseTextResponse = {
+  parsed: ParsedTransactionFields;
+  /** The text we received back (for debugging — usually echoes input). */
+  echoText: string;
+};
+
+/** POST /scan-receipt — Gemini multimodal vision for receipt extraction. */
+export type ScanReceiptRequest = {
+  /** Base64-encoded image bytes (no data: prefix). */
+  imageBase64: string;
+  /** MIME type — typically 'image/jpeg' from expo-camera capture. */
+  mimeType: string;
+  context: ChatContext;
+};
+
+export type ScanReceiptResponse = {
+  parsed: ParsedTransactionFields;
+  /**
+   * Raw text Gemini extracted from the receipt — surfaced in dev/debug
+   * for sanity-checking and useful as a description fallback.
+   */
+  rawText: string;
+};
+
 export type WorkerEnv = {
   FIREBASE_PROJECT_ID: string;
   GEMINI_API_KEY: string;
