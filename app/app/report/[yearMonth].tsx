@@ -10,6 +10,12 @@ import { useTranslation } from 'react-i18next';
 import { BackHandler, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  generateReportDocxBlob, reportDocxFilename,
+} from '@/features/reports/generateReportDocx';
+import {
+  generateReportPdfBlob, reportPdfFilename,
+} from '@/features/reports/generateReportPdf';
 import { listAccounts } from '@/services/firestore/accountsService';
 import { listCategories } from '@/services/firestore/categoriesService';
 import { listMonthTotals } from '@/services/firestore/categoryMonthTotalsService';
@@ -239,18 +245,19 @@ export default function MonthlyReportScreen() {
         accountsById,
         t: tStr,
       };
+      // Static imports (resolved at module load above) — earlier
+      // dynamic imports were chunked oddly by Metro and one bundle
+      // hit "Requiring unknown module 2671" at runtime. Static
+      // imports get the modules into the main bundle reliably.
+      // Web/native split is now handled at the file level via
+      // `.native.ts` stubs that throw — caller's Platform.OS check
+      // prevents native execution.
       let blob: Blob;
       let filename: string;
       if (format === 'docx') {
-        const { generateReportDocxBlob, reportDocxFilename } = await import(
-          '@/features/reports/generateReportDocx'
-        );
         blob = await generateReportDocxBlob(sharedInput);
         filename = reportDocxFilename(yearMonth);
       } else {
-        const { generateReportPdfBlob, reportPdfFilename } = await import(
-          '@/features/reports/generateReportPdf'
-        );
         blob = await generateReportPdfBlob(sharedInput);
         filename = reportPdfFilename(yearMonth);
       }
