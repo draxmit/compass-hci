@@ -67,6 +67,15 @@ const docxBrowserPath = require.resolve('docx/dist/index.mjs', {
   paths: candidatePaths,
 });
 const previousResolveRequest = finalConfig.resolver.resolveRequest;
+// jspdf has internal AMD-style require() calls for optional features
+// we never use (HTML-to-PDF needs html2canvas, sanitization needs
+// dompurify, SVG rendering needs canvg). Metro's static analysis
+// picks these up and assigns module IDs that fail at runtime with
+// "Requiring unknown module N". Redirect each to the empty shim
+// universally — jspdf catches the missing module and degrades
+// gracefully when those features are invoked, which we don't.
+const JSPDF_OPTIONAL_DEPS = new Set(['html2canvas', 'dompurify', 'canvg']);
+
 finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === 'jspdf') {
     return {
@@ -75,6 +84,9 @@ finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
   if (moduleName === 'jspdf-autotable' && platform !== 'web') {
+    return { type: 'sourceFile', filePath: emptyShimPath };
+  }
+  if (JSPDF_OPTIONAL_DEPS.has(moduleName)) {
     return { type: 'sourceFile', filePath: emptyShimPath };
   }
   if (moduleName === 'docx') {
