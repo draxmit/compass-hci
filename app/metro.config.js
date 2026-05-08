@@ -77,6 +77,15 @@ const jspdfBrowserPath = findFirstExisting('jspdf/dist/jspdf.es.min.js');
 // 'Package subpath ... is not defined by exports'). Walking the
 // candidate node_modules dirs sidesteps the exports restriction.
 const docxBrowserPath = findFirstExisting('docx/dist/index.cjs');
+// jspdf-autotable's `main` is a webpack UMD bundle. Webpack's bundle
+// has internal `__webpack_require__(799)` calls — Metro's parser
+// mistakes these for real requires and assigns module IDs that
+// don't exist in the bundle, causing 'Requiring unknown module N'
+// at runtime. The `.mjs` variant is clean ESM with no internal
+// require gymnastics — point at it directly via fs walk.
+const jspdfAutotableBrowserPath = findFirstExisting(
+  'jspdf-autotable/dist/jspdf.plugin.autotable.mjs',
+);
 const previousResolveRequest = finalConfig.resolver.resolveRequest;
 // jspdf has internal AMD-style require() calls for optional features
 // we never use (HTML-to-PDF needs html2canvas, sanitization needs
@@ -94,8 +103,11 @@ finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
       filePath: platform === 'web' ? jspdfBrowserPath : emptyShimPath,
     };
   }
-  if (moduleName === 'jspdf-autotable' && platform !== 'web') {
-    return { type: 'sourceFile', filePath: emptyShimPath };
+  if (moduleName === 'jspdf-autotable') {
+    return {
+      type: 'sourceFile',
+      filePath: platform === 'web' ? jspdfAutotableBrowserPath : emptyShimPath,
+    };
   }
   if (JSPDF_OPTIONAL_DEPS.has(moduleName)) {
     return { type: 'sourceFile', filePath: emptyShimPath };
