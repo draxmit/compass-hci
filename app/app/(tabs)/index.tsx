@@ -326,9 +326,23 @@ export default function DashboardScreen() {
             even when the user has no accounts so they discover it. */}
         <View className="mb-8">
           <View className="flex-row items-center justify-between mb-2">
-            <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
-              {t('dashboard:cards.netWorth')}
-            </Text>
+            <View className="flex-row items-center" style={{ gap: 8 }}>
+              {/* Accent dot left of the label — visually elevates this
+                  as the hero label on the page (vs other section
+                  headers which are plain-muted). Same accent as the
+                  page tint so it feels native to the Dashboard. */}
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: tokens.accent.dashboard,
+                }}
+              />
+              <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+                {t('dashboard:cards.netWorth')}
+              </Text>
+            </View>
             {user ? (
               <Pressable
                 accessibilityRole="button"
