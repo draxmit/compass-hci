@@ -8,7 +8,9 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
-import Svg, { Circle, Line as SvgLine, Polyline } from 'react-native-svg';
+import Svg, {
+  Circle, Defs, LinearGradient, Path, Line as SvgLine, Polyline, Stop,
+} from 'react-native-svg';
 
 import { listCategories } from '@/services/firestore/categoriesService';
 import { listMonthTotals } from '@/services/firestore/categoryMonthTotalsService';
@@ -1018,6 +1020,29 @@ function TrendLineChart({
   });
   const polylineStr = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
+  // Stock-chart-style gradient area underneath the line — closes the
+  // polyline at the baseline so the SVG fills the area between line
+  // and X-axis with a vertical gradient (accent at top fading to
+  // transparent at bottom). Adds depth without the busy noise of a
+  // hard fill colour, matching the polished look of trading apps.
+  const baselineY = H - padBot;
+  const areaPath = points.length === 0
+    ? ''
+    : (() => {
+        const first = points[0]!;
+        const last = points[points.length - 1]!;
+        const top = points
+          .map((p) => `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+          .join(' ');
+        return [
+          `M ${first.x.toFixed(1)} ${baselineY.toFixed(1)}`,
+          top.replace(/^L /, 'L '),
+          `L ${last.x.toFixed(1)} ${baselineY.toFixed(1)}`,
+          'Z',
+        ].join(' ');
+      })();
+  const gradientId = 'trend-line-gradient';
+
   return (
     <View>
       {/* Hero line: selected month's full amount. Always shows
@@ -1058,11 +1083,40 @@ function TrendLineChart({
           height={H}
           viewBox={`0 0 ${W} ${H}`}
         >
+          <Defs>
+            {/* Vertical gradient: accent ~28% opaque at the line down
+                to fully transparent at the baseline. The 28% top stop
+                is a sweet spot — readable enough to anchor the eye,
+                soft enough to keep the polyline itself the hero. */}
+            <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={accent} stopOpacity="0.28" />
+              <Stop offset="60%" stopColor={accent} stopOpacity="0.08" />
+              <Stop offset="100%" stopColor={accent} stopOpacity="0" />
+            </LinearGradient>
+          </Defs>
           {/* Faint baseline. */}
           <SvgLine
-            x1={padX} y1={H - padBot}
-            x2={W - padX} y2={H - padBot}
+            x1={padX} y1={baselineY}
+            x2={W - padX} y2={baselineY}
             stroke={borderColor} strokeWidth="1"
+          />
+          {/* Gradient area beneath the line — drawn BEFORE the line so
+              it sits behind the stroke + dots. */}
+          {areaPath ? (
+            <Path d={areaPath} fill={`url(#${gradientId})`} />
+          ) : null}
+          {/* Soft glow under the main line — second polyline drawn
+              with a thicker stroke + low opacity that blurs the edge.
+              Subtle but adds the polished "depth" that distinguishes
+              trading-app charts from plain wireframes. */}
+          <Polyline
+            points={polylineStr}
+            fill="none"
+            stroke={accent}
+            strokeWidth="6"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            opacity={0.18}
           />
           {/* The line. */}
           <Polyline

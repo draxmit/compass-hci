@@ -8,7 +8,9 @@ import { ChevronDown, ChevronRight, ChevronUp, Eye, EyeOff, Pin, Plus, Sparkles,
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
-import Svg, { Circle, Polyline } from 'react-native-svg';
+import Svg, {
+  Circle, Defs, LinearGradient, Path, Polyline, Stop,
+} from 'react-native-svg';
 
 import { updateUserDoc } from '@/services/firebase';
 import { subscribeAccounts } from '@/services/firestore/accountsService';
@@ -962,6 +964,28 @@ function DailySparkline({
   });
   const polyStr = points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
+  // Gradient area under the sparkline — same stock-chart depth
+  // technique as the Insights TrendLineChart, scaled down for this
+  // smaller surface. Fades from 22% accent at the line to transparent
+  // at the baseline.
+  const baselineY = H - padBot;
+  const areaPath = points.length === 0
+    ? ''
+    : (() => {
+        const first = points[0]!;
+        const last = points[points.length - 1]!;
+        const top = points
+          .map((p) => `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+          .join(' ');
+        return [
+          `M ${first.x.toFixed(1)} ${baselineY.toFixed(1)}`,
+          top,
+          `L ${last.x.toFixed(1)} ${baselineY.toFixed(1)}`,
+          'Z',
+        ].join(' ');
+      })();
+  const gradientId = 'sparkline-gradient';
+
   return (
     <View
       style={{ marginTop: 12 }}
@@ -985,6 +1009,27 @@ function DailySparkline({
         </Text>
       </View>
       <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <Defs>
+          <LinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={accent} stopOpacity="0.22" />
+            <Stop offset="100%" stopColor={accent} stopOpacity="0" />
+          </LinearGradient>
+        </Defs>
+        {/* Gradient area beneath the line. */}
+        {areaPath ? (
+          <Path d={areaPath} fill={`url(#${gradientId})`} />
+        ) : null}
+        {/* Soft glow under the main line — wider stroke, low opacity,
+            mirrors the Insights chart treatment for visual consistency. */}
+        <Polyline
+          points={polyStr}
+          fill="none"
+          stroke={accent}
+          strokeWidth="4"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          opacity={0.16}
+        />
         <Polyline
           points={polyStr}
           fill="none"
@@ -992,7 +1037,7 @@ function DailySparkline({
           strokeWidth="1.5"
           strokeLinejoin="round"
           strokeLinecap="round"
-          opacity={0.8}
+          opacity={0.85}
         />
         {points.map((p, i) => {
           const isToday = i === points.length - 1;

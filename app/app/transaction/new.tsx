@@ -1084,12 +1084,15 @@ function CategoryPicker({ categories, selectedId, onSelect, isDark, lang, t, onR
                   )}
                 </Pressable>
                 {isExpanded ? (
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      flexWrap: 'wrap',
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={{
                       gap: 6,
                       padding: 10,
+                    }}
+                    style={{
                       borderTopWidth: 1,
                       borderTopColor: borderColor,
                     }}
@@ -1121,7 +1124,7 @@ function CategoryPicker({ categories, selectedId, onSelect, isDark, lang, t, onR
                         </Pressable>
                       );
                     })}
-                  </View>
+                  </ScrollView>
                 ) : null}
               </View>
             );

@@ -814,10 +814,16 @@ function CategoryPicker({
                   {isExpanded ? <ChevronDown size={16} color={mutedColor} /> : <ChevronRight size={16} color={mutedColor} />}
                 </Pressable>
                 {isExpanded ? (
-                  <View style={{
-                    flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 10,
-                    borderTopWidth: 1, borderTopColor: borderColor,
-                  }}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={{ gap: 6, padding: 10 }}
+                    style={{
+                      borderTopWidth: 1,
+                      borderTopColor: borderColor,
+                    }}
+                  >
                     {children.map((child) => {
                       const childTint = resolveCategoryColor(child.color, isDark ? 'dark' : 'light');
                       const selected = selectedId === child.id;
@@ -842,7 +848,7 @@ function CategoryPicker({
                         </Pressable>
                       );
                     })}
-                  </View>
+                  </ScrollView>
                 ) : null}
               </View>
             );
