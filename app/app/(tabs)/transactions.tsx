@@ -76,14 +76,24 @@ export default function TransactionsScreen() {
   const sheetTranslateY = useRef(new Animated.Value(0)).current;
   const sheetPanResponder = useMemo(
     () => PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, gesture) =>
-        gesture.dy > 4 && Math.abs(gesture.dx) < Math.abs(gesture.dy),
+      // Claim the responder eagerly on touch start so the gesture
+      // never has to wait for movement detection (which can race
+      // with parent components on web/RN). Combined with
+      // onPanResponderTerminationRequest=false this means once we
+      // have the gesture we keep it through the full drag.
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderMove: (_e, gesture) => {
         // Clamp upward drag to 0 — sheet shouldn't fly off the top.
         sheetTranslateY.setValue(Math.max(0, gesture.dy));
       },
       onPanResponderRelease: (_e, gesture) => {
-        const shouldClose = gesture.dy > 100 || gesture.vy > 0.5;
+        // Tap (no meaningful movement) → treat as dismiss too, so the
+        // handle bar acts as a close affordance for users who don't
+        // realise they can drag.
+        const isTap = Math.abs(gesture.dy) < 4 && Math.abs(gesture.vy) < 0.1;
+        const shouldClose = isTap || gesture.dy > 100 || gesture.vy > 0.5;
         if (shouldClose) {
           Animated.timing(sheetTranslateY, {
             toValue: 600,
@@ -91,7 +101,6 @@ export default function TransactionsScreen() {
             useNativeDriver: true,
           }).start(() => {
             setFiltersSheetOpen(false);
-            // Reset for the next open.
             sheetTranslateY.setValue(0);
           });
         } else {
@@ -962,18 +971,25 @@ export default function TransactionsScreen() {
         animationType="slide"
         onRequestClose={() => setFiltersSheetOpen(false)}
       >
-        <Pressable
+        {/* Layout: backdrop tap-zone fills the space ABOVE the sheet
+            (flex:1 + justifyContent:flex-end on the parent), sheet sits
+            at the bottom. This avoids the previous responder-conflict
+            where the inner sheet had to claim the touch responder
+            (which blocked the drag gesture from ever firing). */}
+        <View
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.55)',
             justifyContent: 'flex-end',
           }}
-          onPress={() => setFiltersSheetOpen(false)}
         >
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setFiltersSheetOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel={t('common:actions.close')}
+          />
           <Animated.View
-            // Stop propagation so taps inside the sheet don't dismiss.
-            onStartShouldSetResponder={() => true}
-            onResponderRelease={(e: GestureResponderEvent) => e.stopPropagation()}
             style={{
               backgroundColor: isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'],
               borderTopLeftRadius: 20,
@@ -984,17 +1000,15 @@ export default function TransactionsScreen() {
               transform: [{ translateY: sheetTranslateY }],
             }}
           >
-            {/* Drag-target zone — wraps the sheet handle in a tall
-                tappable region so the swipe gesture has a generous
-                hit area. PanResponder lives here, not on the whole
-                sheet, so the inner ScrollView keeps its own scroll
-                behaviour intact. Tapping the handle/zone also closes
-                the sheet (fallback for users who don't realise they
-                can drag). */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('common:actions.close')}
-              onPress={() => setFiltersSheetOpen(false)}
+            {/* Drag-target zone — the handle bar inside a tall
+                touchable region. PanResponder lives here so it has a
+                generous hit area without competing with the inner
+                ScrollView for vertical scrolls. View (not Pressable)
+                so the gesture system isn't fighting Pressable's own
+                touch handling — drag works cleanly. Tap on the handle
+                still dismisses via onTouchEnd fallback for users who
+                don't realise they can drag. */}
+            <View
               style={{ paddingVertical: 10, alignItems: 'center' }}
               {...sheetPanResponder.panHandlers}
             >
@@ -1006,7 +1020,7 @@ export default function TransactionsScreen() {
                   backgroundColor: borderColor,
                 }}
               />
-            </Pressable>
+            </View>
             {/* Sheet header */}
             <View className="flex-row items-center justify-between px-5 mb-3">
               <Text className="font-sans-bold text-lg" style={{ color: fgColor }}>
@@ -1141,7 +1155,7 @@ export default function TransactionsScreen() {
               </Pressable>
             </ScrollView>
           </Animated.View>
-        </Pressable>
+        </View>
       </Modal>
     </ScrollView>
   );
