@@ -10,10 +10,11 @@ const config: ExpoConfig = {
   scheme: 'compass',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
-  splash: {
-    backgroundColor: '#000000',
-    resizeMode: 'contain',
-  },
+  // The legacy top-level `splash` field is deprecated in SDK 54 and
+  // tries to wire `drawable/splashscreen_logo` even without an image
+  // present, which fails the Android build with
+  //   error: resource drawable/splashscreen_logo not found
+  // SDK-54 way is the `expo-splash-screen` plugin in `plugins` below.
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.compass.app',
@@ -33,6 +34,15 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-font',
     'expo-localization',
+    // SDK-54 splash screen replacement for the legacy `splash` field.
+    // No image — just a solid black background while the bundle loads.
+    [
+      'expo-splash-screen',
+      {
+        backgroundColor: '#000000',
+        resizeMode: 'contain',
+      },
+    ],
     // Camera — used by receipt OCR (snap a photo → ML Kit reads the
     // amount/merchant). Permission strings are shown in the OS prompt.
     [
