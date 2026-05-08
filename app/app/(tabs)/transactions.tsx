@@ -984,6 +984,10 @@ export default function TransactionsScreen() {
               contentContainerStyle={{ paddingBottom: 24 }}
               keyboardShouldPersistTaps="handled"
             >
+              {/* Sectionised panels — bordered={false} since each
+                  section already has an uppercase label + spacing
+                  giving visual separation; an extra inner border was
+                  redundant chrome. */}
               {/* Type */}
               <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-2" style={{ color: mutedColor }}>
                 {t('transactions:entry.fields.type')}
@@ -993,6 +997,7 @@ export default function TransactionsScreen() {
                 selectedKey={typeFilter}
                 onSelect={(key) => setTypeFilter(key)}
                 isDark={isDark}
+                bordered={false}
               />
               {/* Date */}
               <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
@@ -1009,6 +1014,7 @@ export default function TransactionsScreen() {
                 isDark={isDark}
                 lang={lang}
                 t={t}
+                bordered={false}
               />
               {/* Tags */}
               <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
@@ -1024,6 +1030,7 @@ export default function TransactionsScreen() {
                 }}
                 isDark={isDark}
                 t={t}
+                bordered={false}
               />
               {/* Category */}
               <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
@@ -1040,6 +1047,7 @@ export default function TransactionsScreen() {
                 isDark={isDark}
                 lang={lang}
                 t={t}
+                bordered={false}
               />
               {/* Account */}
               <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
@@ -1055,6 +1063,7 @@ export default function TransactionsScreen() {
                 }}
                 isDark={isDark}
                 t={t}
+                bordered={false}
               />
               {/* Done CTA */}
               <Pressable
@@ -1095,6 +1104,7 @@ type DateFilterSectionProps = {
   isDark: boolean;
   lang: Locale;
   t: TFunction;
+  bordered?: boolean;
 };
 
 /**
@@ -1110,7 +1120,7 @@ type DateFilterSectionProps = {
  */
 function DateFilterSection({
   dateChips, dateFilter, setDateFilter, customFrom, customTo,
-  setCustomFrom, setCustomTo, isDark, lang, t,
+  setCustomFrom, setCustomTo, isDark, lang, t, bordered = true,
 }: DateFilterSectionProps) {
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
 
@@ -1130,6 +1140,7 @@ function DateFilterSection({
           }
         }}
         isDark={isDark}
+        bordered={bordered}
       />
       {dateFilter === 'custom' ? (
         <View style={{ gap: 10, marginTop: 4, marginBottom: 12 }}>
@@ -1236,6 +1247,9 @@ type FilterOptionPanelProps<K extends string> = {
   selectedKey: K;
   onSelect: (key: K) => void;
   isDark: boolean;
+  /** Wrap chips in a bordered card (desktop default) vs no chrome
+   *  (mobile sheet — sectionised already has labels + spacing). */
+  bordered?: boolean;
 };
 
 function FilterOptionPanel<K extends string>({
@@ -1243,6 +1257,7 @@ function FilterOptionPanel<K extends string>({
   selectedKey,
   onSelect,
   isDark,
+  bordered = true,
 }: FilterOptionPanelProps<K>) {
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
@@ -1252,11 +1267,11 @@ function FilterOptionPanel<K extends string>({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 6,
-        padding: 8,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor,
-        marginBottom: 12,
+        padding: bordered ? 8 : 0,
+        borderRadius: bordered ? 12 : 0,
+        borderWidth: bordered ? 1 : 0,
+        borderColor: bordered ? borderColor : 'transparent',
+        marginBottom: bordered ? 12 : 0,
       }}
     >
       {options.map((opt) => {
@@ -1295,6 +1310,7 @@ type TagFilterPanelProps = {
   onToggle: (tag: string) => void;
   isDark: boolean;
   t: TFunction;
+  bordered?: boolean;
 };
 
 /**
@@ -1305,7 +1321,7 @@ type TagFilterPanelProps = {
  * yet — explicit hint that they need to add tags before this filter
  * does anything.
  */
-function TagFilterPanel({ tagFrequencies, selectedTags, onToggle, isDark, t }: TagFilterPanelProps) {
+function TagFilterPanel({ tagFrequencies, selectedTags, onToggle, isDark, t, bordered = true }: TagFilterPanelProps) {
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
@@ -1313,11 +1329,11 @@ function TagFilterPanel({ tagFrequencies, selectedTags, onToggle, isDark, t }: T
   return (
     <View
       style={{
-        padding: 8,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor,
-        marginBottom: 12,
+        padding: bordered ? 8 : 0,
+        borderRadius: bordered ? 12 : 0,
+        borderWidth: bordered ? 1 : 0,
+        borderColor: bordered ? borderColor : 'transparent',
+        marginBottom: bordered ? 12 : 0,
       }}
     >
       {tagList.length === 0 ? (
@@ -1373,6 +1389,7 @@ type CategoryFilterPanelProps = {
   isDark: boolean;
   lang: Locale;
   t: TFunction;
+  bordered?: boolean;
 };
 
 /**
@@ -1382,7 +1399,7 @@ type CategoryFilterPanelProps = {
  * category for groupable scanning; archived categories hidden.
  */
 function CategoryFilterPanel({
-  categories, selectedCategoryIds, onToggle, isDark, lang, t,
+  categories, selectedCategoryIds, onToggle, isDark, lang, t, bordered = true,
 }: CategoryFilterPanelProps) {
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -1392,11 +1409,11 @@ function CategoryFilterPanel({
   return (
     <View
       style={{
-        padding: 8,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor,
-        marginBottom: 12,
+        padding: bordered ? 8 : 0,
+        borderRadius: bordered ? 12 : 0,
+        borderWidth: bordered ? 1 : 0,
+        borderColor: bordered ? borderColor : 'transparent',
+        marginBottom: bordered ? 12 : 0,
       }}
     >
       {visible.length === 0 ? (
@@ -1448,6 +1465,7 @@ type AccountFilterPanelProps = {
   onToggle: (id: string) => void;
   isDark: boolean;
   t: TFunction;
+  bordered?: boolean;
 };
 
 /**
@@ -1457,7 +1475,7 @@ type AccountFilterPanelProps = {
  * so it reads identically to the row in /accounts.
  */
 function AccountFilterPanel({
-  accounts, selectedAccountIds, onToggle, isDark, t,
+  accounts, selectedAccountIds, onToggle, isDark, t, bordered = true,
 }: AccountFilterPanelProps) {
   const fgColor = isDark ? tokens.surface['dark-fg'] : tokens.surface['light-fg'];
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
@@ -1467,11 +1485,11 @@ function AccountFilterPanel({
   return (
     <View
       style={{
-        padding: 8,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor,
-        marginBottom: 12,
+        padding: bordered ? 8 : 0,
+        borderRadius: bordered ? 12 : 0,
+        borderWidth: bordered ? 1 : 0,
+        borderColor: bordered ? borderColor : 'transparent',
+        marginBottom: bordered ? 12 : 0,
       }}
     >
       {visible.length === 0 ? (
