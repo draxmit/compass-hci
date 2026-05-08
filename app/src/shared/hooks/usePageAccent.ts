@@ -30,6 +30,12 @@ export function usePageAccent(): { key: AccentKey; color: string } {
     // belongs to the Transactions section so the sidebar highlights
     // Transactions while the user is creating/editing one.
     'transaction': 'transactions',
+    // Monthly summary report at /report/[yearMonth] is the natural
+    // extension of the Budgets tab — Budgets footer is the only path
+    // that opens it, and the report is the read-side of the same
+    // monthly data the budgets manage. Highlight Budgets while
+    // viewing it (was previously falling through to Dashboard).
+    'report': 'budgets',
     // Profile-area config screens — none have a dedicated tab, they all
     // hang off Profile. Map to neutral so the sidebar doesn't ghost-
     // highlight any primary tab; the Profile footer entry lights up
