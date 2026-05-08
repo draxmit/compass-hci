@@ -317,6 +317,38 @@ export default function BudgetsScreen() {
           })}
         </View>
 
+        {/* Monthly report link — visible in ALL budget styles (was
+            previously buried at the bottom of the monthly_limit /
+            envelope flows; not shown at all on 50/30/20). Promotes
+            it to a prominent CTA right under the style selector so
+            users find the Word/PDF export buttons inside it. */}
+        {!totallyEmpty && allLoaded ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={t('budgets:actions.viewReport')}
+            onPress={() => router.push(`/report/${yearMonth}` as Href)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor,
+              marginBottom: 16,
+            }}
+          >
+            <View className="flex-row items-center" style={{ gap: 8 }}>
+              <FileText size={16} color={tokens.accent.budgets} />
+              <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
+                {t('budgets:actions.viewReport')}
+              </Text>
+            </View>
+            <ChevronRight size={16} color={mutedColor} />
+          </Pressable>
+        ) : null}
+
         {totallyEmpty ? (
           /* No categories at all — bounce user back to Profile to seed/add. */
           <Card padding="lg" className="items-center">
@@ -504,25 +536,9 @@ export default function BudgetsScreen() {
               </View>
             ) : null}
 
-            {/* Footer link to monthly summary report. */}
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel={t('budgets:actions.viewReport')}
-              onPress={() => router.push(`/report/${yearMonth}` as Href)}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                paddingVertical: 12,
-                marginTop: 8,
-              }}
-            >
-              <FileText size={14} color={tokens.accent.budgets} />
-              <Text className="font-sans-medium text-sm" style={{ color: tokens.accent.budgets }}>
-                {t('budgets:actions.viewReport')}
-              </Text>
-            </Pressable>
+            {/* Footer link to monthly summary report removed — now
+                lives as a prominent CTA right under the style
+                selector, visible across all budget styles. */}
           </>
         ) : null}
       </View>

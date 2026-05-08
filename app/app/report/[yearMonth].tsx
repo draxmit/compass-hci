@@ -107,8 +107,12 @@ export default function MonthlyReportScreen() {
         const [tt, lt, txs, ltxs, cats, accs] = await Promise.all([
           listMonthTotals(wid, yearMonth),
           listMonthTotals(wid, lastYearMonth),
-          listTransactions(wid, { yearMonth }),
-          listTransactions(wid, { yearMonth: lastYearMonth }),
+          // orderByDate:false skips the composite (yearMonth, date)
+          // index requirement. The report only filters by tx.type and
+          // sorts top-5 expenses by amount — never reads docs in date
+          // order — so no index dependency is needed.
+          listTransactions(wid, { yearMonth, orderByDate: false }),
+          listTransactions(wid, { yearMonth: lastYearMonth, orderByDate: false }),
           listCategories(wid),
           listAccounts(wid),
         ]);
