@@ -26,6 +26,7 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
+import { DateField } from '@/shared/ui/DateField';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatDate } from '@/shared/utils/formatDate';
@@ -33,7 +34,9 @@ import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
 import { collectTagFrequencies } from '@/shared/utils/tags';
 
 type TypeFilter = 'all' | TransactionType;
-type DateFilter = 'this_month' | 'last_month' | 'all_time';
+type DateFilter =
+  | 'this_month' | 'last_month' | 'last_3_months'
+  | 'this_year' | 'last_year' | 'all_time' | 'custom';
 
 /**
  * (tabs)/transactions.tsx — recent transactions list with chip filters
@@ -79,6 +82,10 @@ export default function TransactionsScreen() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('this_month');
+  // Custom date range — only used when dateFilter === 'custom'. Both
+  // are inclusive 'YYYY-MM-DD' strings. Null = picker not yet set.
+  const [customFrom, setCustomFrom] = useState<string | null>(null);
+  const [customTo, setCustomTo] = useState<string | null>(null);
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   // Active preset id when one was just applied — drives the filled
   // bookmark icon. Cleared on any filter change so the chip "deselects"
@@ -123,12 +130,29 @@ export default function TransactionsScreen() {
     const thisYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastYearMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+    const thisYear = now.getFullYear();
+    // 3-month cutoff: 1st day of the month 3 months back, inclusive.
+    // i.e. May 2026 → cutoff = '2026-03-01' (covers Mar/Apr/May).
+    const threeMonthsAgo = new Date(thisYear, now.getMonth() - 2, 1);
+    const threeMonthsAgoISO = `${threeMonthsAgo.getFullYear()}-${String(threeMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
+    const thisYearStartISO = `${thisYear}-01-01`;
+    const lastYearStartISO = `${thisYear - 1}-01-01`;
+    const lastYearEndISO = `${thisYear - 1}-12-31`;
     const lower = search.trim().toLowerCase();
 
     return txs.filter((tx) => {
       if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
+      // Date filter — each branch is independent so we can evaluate
+      // by the simplest predicate available.
       if (dateFilter === 'this_month' && tx.yearMonth !== thisYearMonth) return false;
       if (dateFilter === 'last_month' && tx.yearMonth !== lastYearMonth) return false;
+      if (dateFilter === 'last_3_months' && tx.date < threeMonthsAgoISO) return false;
+      if (dateFilter === 'this_year' && tx.date < thisYearStartISO) return false;
+      if (dateFilter === 'last_year' && (tx.date < lastYearStartISO || tx.date > lastYearEndISO)) return false;
+      if (dateFilter === 'custom') {
+        if (customFrom && tx.date < customFrom) return false;
+        if (customTo && tx.date > customTo) return false;
+      }
       if (lower && !tx.description.toLowerCase().includes(lower)) return false;
       if (tagFilter.length > 0) {
         const txTags = tx.tags ?? [];
@@ -154,7 +178,7 @@ export default function TransactionsScreen() {
       }
       return true;
     });
-  }, [txs, typeFilter, dateFilter, search, tagFilter, categoryFilter, accountFilter]);
+  }, [txs, typeFilter, dateFilter, customFrom, customTo, search, tagFilter, categoryFilter, accountFilter]);
 
   // Tag-suggestion list for the tag-filter picker — frequencies across
   // ALL loaded txs (the recent-50 slice), not just the currently
@@ -182,6 +206,8 @@ export default function TransactionsScreen() {
       preset.search === search
       && preset.typeFilter === typeFilter
       && preset.dateFilter === dateFilter
+      && (preset.customFrom ?? null) === customFrom
+      && (preset.customTo ?? null) === customTo
       && preset.tagFilter.length === tagFilter.length
       && preset.tagFilter.every((t) => tagFilter.includes(t))
       && presetCats.length === categoryFilter.length
@@ -191,13 +217,15 @@ export default function TransactionsScreen() {
     if (!matches) setActivePresetId(null);
   }, [
     activePresetId, savedFilters, search, typeFilter, dateFilter,
-    tagFilter, categoryFilter, accountFilter,
+    customFrom, customTo, tagFilter, categoryFilter, accountFilter,
   ]);
 
   const applyPreset = (preset: SavedFilter) => {
     setSearch(preset.search);
     setTypeFilter(preset.typeFilter);
     setDateFilter(preset.dateFilter);
+    setCustomFrom(preset.customFrom ?? null);
+    setCustomTo(preset.customTo ?? null);
     setTagFilter(preset.tagFilter);
     setCategoryFilter(preset.categoryFilter ?? []);
     setAccountFilter(preset.accountFilter ?? []);
@@ -215,6 +243,8 @@ export default function TransactionsScreen() {
         search,
         typeFilter,
         dateFilter,
+        customFrom,
+        customTo,
         tagFilter,
         categoryFilter,
         accountFilter,
@@ -274,6 +304,8 @@ export default function TransactionsScreen() {
     setSearch('');
     setTypeFilter('all');
     setDateFilter('this_month');
+    setCustomFrom(null);
+    setCustomTo(null);
     setTagFilter([]);
     setCategoryFilter([]);
     setAccountFilter([]);
@@ -290,7 +322,11 @@ export default function TransactionsScreen() {
   const dateChips: { key: DateFilter; label: string }[] = [
     { key: 'this_month', label: t('transactions:filters.thisMonth') },
     { key: 'last_month', label: t('transactions:filters.lastMonth') },
+    { key: 'last_3_months', label: t('transactions:filters.last3Months') },
+    { key: 'this_year', label: t('transactions:filters.thisYear') },
+    { key: 'last_year', label: t('transactions:filters.lastYear') },
     { key: 'all_time', label: t('transactions:filters.allTime') },
+    { key: 'custom', label: t('transactions:filters.custom') },
   ];
 
   return (
@@ -537,7 +573,11 @@ export default function TransactionsScreen() {
                 />
                 <FilterPill
                   label={t('transactions:entry.fields.date')}
-                  value={dateChips.find((c) => c.key === dateFilter)?.label ?? ''}
+                  value={
+                    dateFilter === 'custom' && (customFrom || customTo)
+                      ? `${customFrom ?? '…'} → ${customTo ?? '…'}`
+                      : dateChips.find((c) => c.key === dateFilter)?.label ?? ''
+                  }
                   isActive={dateFilter !== 'this_month'}
                   open={openFilter === 'date'}
                   onPress={() => setOpenFilter((cur) => (cur === 'date' ? null : 'date'))}
@@ -610,14 +650,22 @@ export default function TransactionsScreen() {
                 />
               ) : null}
               {openFilter === 'date' ? (
-                <FilterOptionPanel
-                  options={dateChips}
-                  selectedKey={dateFilter}
-                  onSelect={(key) => {
+                <DateFilterSection
+                  dateChips={dateChips}
+                  dateFilter={dateFilter}
+                  setDateFilter={(key) => {
                     setDateFilter(key);
-                    setOpenFilter(null);
+                    // Stay open if user picked 'custom' so the from/to
+                    // pickers are visible immediately. Otherwise close.
+                    if (key !== 'custom') setOpenFilter(null);
                   }}
+                  customFrom={customFrom}
+                  customTo={customTo}
+                  setCustomFrom={setCustomFrom}
+                  setCustomTo={setCustomTo}
                   isDark={isDark}
+                  lang={lang}
+                  t={t}
                 />
               ) : null}
               {openFilter === 'tags' ? (
@@ -950,11 +998,17 @@ export default function TransactionsScreen() {
               <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
                 {t('transactions:entry.fields.date')}
               </Text>
-              <FilterOptionPanel
-                options={dateChips}
-                selectedKey={dateFilter}
-                onSelect={(key) => setDateFilter(key)}
+              <DateFilterSection
+                dateChips={dateChips}
+                dateFilter={dateFilter}
+                setDateFilter={setDateFilter}
+                customFrom={customFrom}
+                customTo={customTo}
+                setCustomFrom={setCustomFrom}
+                setCustomTo={setCustomTo}
                 isDark={isDark}
+                lang={lang}
+                t={t}
               />
               {/* Tags */}
               <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2 mt-4" style={{ color: mutedColor }}>
@@ -1025,6 +1079,89 @@ export default function TransactionsScreen() {
         </Pressable>
       </Modal>
     </ScrollView>
+  );
+}
+
+// ---------- DateFilterSection ----------
+
+type DateFilterSectionProps = {
+  dateChips: { key: DateFilter; label: string }[];
+  dateFilter: DateFilter;
+  setDateFilter: (key: DateFilter) => void;
+  customFrom: string | null;
+  customTo: string | null;
+  setCustomFrom: (v: string | null) => void;
+  setCustomTo: (v: string | null) => void;
+  isDark: boolean;
+  lang: Locale;
+  t: TFunction;
+};
+
+/**
+ * Date filter chip grid + optional custom range pickers (v3 phase A —
+ * 7). Used by both the desktop expand-panel and the mobile bottom
+ * sheet. When dateFilter === 'custom', two DateField rows expand
+ * inline below the chips letting the user pick From + To.
+ *
+ * The 'custom' chip never auto-collapses the picker — once selected
+ * the user almost always wants to edit the range. Picking a different
+ * preset chip clears the custom values implicitly (irrelevant under
+ * the new preset).
+ */
+function DateFilterSection({
+  dateChips, dateFilter, setDateFilter, customFrom, customTo,
+  setCustomFrom, setCustomTo, isDark, lang, t,
+}: DateFilterSectionProps) {
+  const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
+
+  return (
+    <View>
+      <FilterOptionPanel
+        options={dateChips}
+        selectedKey={dateFilter}
+        onSelect={(key) => {
+          setDateFilter(key);
+          // Clear custom values when switching back to a preset, so a
+          // re-select of 'custom' starts fresh rather than retaining
+          // whatever stale range was set last time.
+          if (key !== 'custom') {
+            setCustomFrom(null);
+            setCustomTo(null);
+          }
+        }}
+        isDark={isDark}
+      />
+      {dateFilter === 'custom' ? (
+        <View style={{ gap: 10, marginTop: 4, marginBottom: 12 }}>
+          <View>
+            <Text className="font-sans-medium text-xs mb-1.5" style={{ color: mutedColor }}>
+              {t('transactions:filters.customFrom')}
+            </Text>
+            <DateField
+              value={customFrom ?? ''}
+              onChange={(v) => setCustomFrom(v || null)}
+              placeholder={t('transactions:filters.customFromPlaceholder')}
+              lang={lang}
+              accessibilityLabel={t('transactions:filters.customFrom')}
+              {...(customTo ? { maxDate: customTo } : {})}
+            />
+          </View>
+          <View>
+            <Text className="font-sans-medium text-xs mb-1.5" style={{ color: mutedColor }}>
+              {t('transactions:filters.customTo')}
+            </Text>
+            <DateField
+              value={customTo ?? ''}
+              onChange={(v) => setCustomTo(v || null)}
+              placeholder={t('transactions:filters.customToPlaceholder')}
+              lang={lang}
+              accessibilityLabel={t('transactions:filters.customTo')}
+              {...(customFrom ? { minDate: customFrom } : {})}
+            />
+          </View>
+        </View>
+      ) : null}
+    </View>
   );
 }
 

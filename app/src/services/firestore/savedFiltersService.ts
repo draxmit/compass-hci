@@ -17,7 +17,12 @@ export type CreateSavedFilterInput = {
   name: string;
   search: string;
   typeFilter: 'all' | TransactionType;
-  dateFilter: 'this_month' | 'last_month' | 'all_time';
+  /** v3 widened: 'this_month' | 'last_month' | 'last_3_months' |
+   *  'this_year' | 'last_year' | 'all_time' | 'custom'. */
+  dateFilter: SavedFilter['dateFilter'];
+  /** Required only when dateFilter === 'custom'. ISO 'YYYY-MM-DD'. */
+  customFrom?: string | null;
+  customTo?: string | null;
   tagFilter: string[];
   /** v3 phase A — 5. Empty array = no constraint. */
   categoryFilter: string[];
@@ -44,6 +49,8 @@ export function subscribeSavedFilters(
         ...raw,
         categoryFilter: raw.categoryFilter ?? [],
         accountFilter: raw.accountFilter ?? [],
+        customFrom: raw.customFrom ?? null,
+        customTo: raw.customTo ?? null,
         id: d.id,
       };
     });
@@ -73,6 +80,8 @@ export async function createSavedFilter(
     search: input.search,
     typeFilter: input.typeFilter,
     dateFilter: input.dateFilter,
+    customFrom: input.customFrom ?? null,
+    customTo: input.customTo ?? null,
     tagFilter: input.tagFilter,
     categoryFilter: input.categoryFilter,
     accountFilter: input.accountFilter,

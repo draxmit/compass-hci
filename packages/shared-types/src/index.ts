@@ -396,8 +396,19 @@ export type SavedFilter = {
   search: string;
   /** 'all' or one of the TransactionType values. */
   typeFilter: 'all' | TransactionType;
-  /** 'this_month' | 'last_month' | 'all_time'. */
-  dateFilter: 'this_month' | 'last_month' | 'all_time';
+  /**
+   * Date filter bucket. v3 widened to add 3 mid-range presets +
+   * 'custom' for arbitrary from-to via DateField pickers. Legacy v1/v2
+   * presets storing the original 3-value union still resolve fine —
+   * the new keys are additive.
+   */
+  dateFilter:
+    | 'this_month' | 'last_month' | 'last_3_months'
+    | 'this_year' | 'last_year' | 'all_time' | 'custom';
+  /** Custom range bounds (inclusive 'YYYY-MM-DD'). Set only when
+   *  `dateFilter === 'custom'`. */
+  customFrom?: string | null;
+  customTo?: string | null;
   /** Tags applied (ANY-match semantics, mirrors the live tag filter). */
   tagFilter: string[];
   /**
