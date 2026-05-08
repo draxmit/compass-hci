@@ -882,13 +882,19 @@ function AskCompassCta({
       accessibilityRole="button"
       accessibilityLabel={t('ask:entryCta')}
       onPress={onPress}
-      style={{
+      style={({ hovered, pressed }) => ({
         marginBottom: 24,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: tokens.accent.dashboard + '55',
+        // Border lifts saturation on hover/press so the card feels
+        // "live" under the cursor on web. Native sees only `pressed`.
+        borderColor:
+          (hovered as boolean | undefined) || pressed
+            ? tokens.accent.dashboard + '99'
+            : tokens.accent.dashboard + '55',
         overflow: 'hidden',
-      }}
+        transform: [{ scale: pressed ? 0.99 : 1 }],
+      })}
     >
       {/* Diagonal accent gradient — mirrors the "AI feature" treatment
           banks/fintech apps use for new ML-powered surfaces. Soft
