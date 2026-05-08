@@ -800,10 +800,13 @@ export default function DashboardScreen() {
               // break tab-bar focus; navigate cleanly switches tabs.
               onPress={() => router.navigate('/transactions')}
               hitSlop={6}
+              className="flex-row items-center"
+              style={{ gap: 2 }}
             >
               <Text className="font-sans-medium text-xs" style={{ color: tokens.accent.dashboard }}>
                 {t('dashboard:cards.seeAll')}
               </Text>
+              <ChevronRight size={12} color={tokens.accent.dashboard} />
             </Pressable>
           </View>
           {/* Recent strip — only the 5 newest. The subscription pulls
