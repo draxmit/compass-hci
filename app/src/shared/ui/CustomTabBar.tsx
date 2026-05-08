@@ -36,6 +36,21 @@ function TabCell({ iconColor, label, selected, onPress, renderIcon }: TabCellPro
       onPress={onPress}
       style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
     >
+      {/* Top accent pill for the active tab — narrow capsule pinned to
+          the cell's top edge in the page-accent color. Mirrors the
+          iOS-13+ tab-bar treatment and gives a clear "you are here"
+          signal without competing with the icon + label below. */}
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          width: 24,
+          height: 3,
+          borderBottomLeftRadius: 2,
+          borderBottomRightRadius: 2,
+          backgroundColor: selected ? iconColor : 'transparent',
+        }}
+      />
       {renderIcon?.({ focused: selected, color: iconColor, size: 18 })}
       <Text
         style={{
