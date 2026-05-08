@@ -5,9 +5,11 @@ import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { Bookmark, BookmarkPlus, ChevronDown, Plus, SlidersHorizontal, X } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import {
+  Animated, Modal, PanResponder, Pressable, ScrollView, TextInput, View,
+} from 'react-native';
 import type { GestureResponderEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -68,6 +70,46 @@ export default function TransactionsScreen() {
   // sheet rather than 5 inline pills. Desktop has horizontal real estate
   // for the pill row.
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
+  // Drag-to-close gesture for the sheet handle. The Animated.Value
+  // tracks the user's downward drag; on release we either spring back
+  // to 0 (dismiss) or close the modal (if dragged past threshold).
+  const sheetTranslateY = useRef(new Animated.Value(0)).current;
+  const sheetPanResponder = useMemo(
+    () => PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, gesture) =>
+        gesture.dy > 4 && Math.abs(gesture.dx) < Math.abs(gesture.dy),
+      onPanResponderMove: (_e, gesture) => {
+        // Clamp upward drag to 0 — sheet shouldn't fly off the top.
+        sheetTranslateY.setValue(Math.max(0, gesture.dy));
+      },
+      onPanResponderRelease: (_e, gesture) => {
+        const shouldClose = gesture.dy > 100 || gesture.vy > 0.5;
+        if (shouldClose) {
+          Animated.timing(sheetTranslateY, {
+            toValue: 600,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(() => {
+            setFiltersSheetOpen(false);
+            // Reset for the next open.
+            sheetTranslateY.setValue(0);
+          });
+        } else {
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 4,
+          }).start();
+        }
+      },
+    }),
+    [sheetTranslateY],
+  );
+  // Reset drag offset whenever the sheet opens — covers the case where
+  // a previous close animation left it at a non-zero value.
+  useEffect(() => {
+    if (filtersSheetOpen) sheetTranslateY.setValue(0);
+  }, [filtersSheetOpen, sheetTranslateY]);
 
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -928,29 +970,43 @@ export default function TransactionsScreen() {
           }}
           onPress={() => setFiltersSheetOpen(false)}
         >
-          <Pressable
+          <Animated.View
             // Stop propagation so taps inside the sheet don't dismiss.
-            onPress={(e: GestureResponderEvent) => e.stopPropagation()}
+            onStartShouldSetResponder={() => true}
+            onResponderRelease={(e: GestureResponderEvent) => e.stopPropagation()}
             style={{
               backgroundColor: isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'],
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              paddingTop: 12,
-              paddingBottom: 16 + insets.bottom,
+              paddingTop: 8,
+              paddingBottom: Math.max(8, insets.bottom),
               maxHeight: '85%',
+              transform: [{ translateY: sheetTranslateY }],
             }}
           >
-            {/* Sheet handle */}
-            <View
-              style={{
-                alignSelf: 'center',
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: borderColor,
-                marginBottom: 12,
-              }}
-            />
+            {/* Drag-target zone — wraps the sheet handle in a tall
+                tappable region so the swipe gesture has a generous
+                hit area. PanResponder lives here, not on the whole
+                sheet, so the inner ScrollView keeps its own scroll
+                behaviour intact. Tapping the handle/zone also closes
+                the sheet (fallback for users who don't realise they
+                can drag). */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('common:actions.close')}
+              onPress={() => setFiltersSheetOpen(false)}
+              style={{ paddingVertical: 10, alignItems: 'center' }}
+              {...sheetPanResponder.panHandlers}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: borderColor,
+                }}
+              />
+            </Pressable>
             {/* Sheet header */}
             <View className="flex-row items-center justify-between px-5 mb-3">
               <Text className="font-sans-bold text-lg" style={{ color: fgColor }}>
@@ -981,7 +1037,7 @@ export default function TransactionsScreen() {
             {/* Sheet body — stacked filter sections, all expanded. */}
             <ScrollView
               style={{ paddingHorizontal: 20 }}
-              contentContainerStyle={{ paddingBottom: 24 }}
+              contentContainerStyle={{ paddingBottom: 12 }}
               keyboardShouldPersistTaps="handled"
             >
               {/* Sectionised panels — bordered={false} since each
@@ -1071,8 +1127,8 @@ export default function TransactionsScreen() {
                 accessibilityLabel={t('common:actions.done')}
                 onPress={() => setFiltersSheetOpen(false)}
                 style={{
-                  marginTop: 20,
-                  paddingVertical: 12,
+                  marginTop: 16,
+                  paddingVertical: 11,
                   borderRadius: 10,
                   backgroundColor: tokens.accent.dashboard,
                   alignItems: 'center',
@@ -1084,7 +1140,7 @@ export default function TransactionsScreen() {
                 </Text>
               </Pressable>
             </ScrollView>
-          </Pressable>
+          </Animated.View>
         </Pressable>
       </Modal>
     </ScrollView>
