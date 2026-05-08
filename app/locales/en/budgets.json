@@ -48,7 +48,7 @@
     "delete": "Delete",
     "deleting": "Deleting…",
     "edit": "Edit",
-    "viewReport": "View this month's report →",
+    "viewReport": "View this month's report",
     "deleteConfirmTitle": "Delete budget?",
     "deleteConfirmBody": "Spending stays logged — only the limit is removed."
   },
