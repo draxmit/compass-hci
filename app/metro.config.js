@@ -1,5 +1,6 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const { withNativeWind } = require('nativewind/metro');
+const fs = require('fs');
 const path = require('path');
 
 const projectRoot = __dirname;
@@ -56,16 +57,26 @@ const candidatePaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),
 ];
-const jspdfBrowserPath = require.resolve('jspdf/dist/jspdf.es.min.js', {
-  paths: candidatePaths,
-});
+
+function findFirstExisting(relPath) {
+  for (const base of candidatePaths) {
+    const full = path.join(base, relPath);
+    if (fs.existsSync(full)) return full;
+  }
+  throw new Error(`metro.config.js: cannot find ${relPath} in any of: ${candidatePaths.join(', ')}`);
+}
+
+const jspdfBrowserPath = findFirstExisting('jspdf/dist/jspdf.es.min.js');
 // docx ships several dist variants. The default `main` (`index.umd.cjs`)
 // has internal patterns Metro can't statically resolve and crashes
-// at runtime with `Requiring unknown module N`. The `index.mjs` ESM
-// build is self-contained and bundles cleanly.
-const docxBrowserPath = require.resolve('docx/dist/index.mjs', {
-  paths: candidatePaths,
-});
+// at runtime with `Requiring unknown module N`.
+//
+// We point at `index.cjs` (plain CommonJS, single file). Resolved
+// via filesystem walk because docx's package.json `exports` field
+// blocks subpath access (`require.resolve('docx/dist/...')` throws
+// 'Package subpath ... is not defined by exports'). Walking the
+// candidate node_modules dirs sidesteps the exports restriction.
+const docxBrowserPath = findFirstExisting('docx/dist/index.cjs');
 const previousResolveRequest = finalConfig.resolver.resolveRequest;
 // jspdf has internal AMD-style require() calls for optional features
 // we never use (HTML-to-PDF needs html2canvas, sanitization needs
