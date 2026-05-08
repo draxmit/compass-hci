@@ -29,7 +29,31 @@ const config: ExpoConfig = {
     bundler: 'metro',
     output: 'static',
   },
-  plugins: ['expo-router', 'expo-font', 'expo-localization'],
+  plugins: [
+    'expo-router',
+    'expo-font',
+    'expo-localization',
+    // Camera — used by receipt OCR (snap a photo → ML Kit reads the
+    // amount/merchant). Permission strings are shown in the OS prompt.
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow Compass to use the camera to scan receipts.',
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
+    // Speech recognition — drives voice input on /transaction/new.
+    // Wraps SiriKit on iOS, Google Speech Service on Android.
+    [
+      'expo-speech-recognition',
+      {
+        microphonePermission: 'Allow Compass to use the microphone for voice input.',
+        speechRecognitionPermission: 'Allow Compass to recognize speech for voice input.',
+        androidSpeechServicePackages: ['com.google.android.googlequicksearchbox'],
+      },
+    ],
+  ],
   experiments: {
     typedRoutes: true,
   },
