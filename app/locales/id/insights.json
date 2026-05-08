@@ -6,7 +6,14 @@
     "trend": "Pengeluaran 6 bulan terakhir",
     "anomalies": "Yang berbeda bulan ini",
     "heatmap": "Kapan kamu paling banyak ngeluarin",
-    "weekday": "Pola pengeluaran mingguan"
+    "weekday": "Pola pengeluaran mingguan",
+    "budgetHealth": "Status budget"
+  },
+  "budgetHealth": {
+    "onTrack": "Aman",
+    "atRisk": "Hampir limit",
+    "over": "Lewat budget",
+    "cardLabel": "Status budget: {{onTrack}} aman, {{atRisk}} hampir limit, {{over}} lewat dari total {{total}}"
   },
   "trend": {
     "monthLabel": "{{month}}",

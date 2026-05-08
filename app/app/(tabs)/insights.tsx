@@ -1,4 +1,4 @@
-import type { Category, CategoryMonthTotal, Transaction } from '@compass/shared-types';
+import type { Budget, Category, CategoryMonthTotal, Transaction } from '@compass/shared-types';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
@@ -13,6 +13,7 @@ import Svg, {
   Circle, Defs, LinearGradient, Path, Line as SvgLine, Polyline, Stop,
 } from 'react-native-svg';
 
+import { listBudgets } from '@/services/firestore/budgetsService';
 import { listCategories } from '@/services/firestore/categoriesService';
 import { listMonthTotals } from '@/services/firestore/categoryMonthTotalsService';
 import { listTransactions } from '@/services/firestore/transactionsService';
@@ -84,6 +85,10 @@ export default function InsightsScreen() {
   const [trendCmts, setTrendCmts] = useState<CategoryMonthTotal[][]>([]);
   const [allTxsByMonth, setAllTxsByMonth] = useState<Map<string, Transaction[]>>(new Map());
   const [categories, setCategories] = useState<Category[]>([]);
+  // Budget Health pill (v3-polish): cross-references this-month
+  // budgets with this-month spend to render a 3-bucket summary
+  // (on-track / at-risk / over). Loaded alongside the rest.
+  const [thisMonthBudgets, setThisMonthBudgets] = useState<Budget[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   // Heatmap can navigate prev/next inside the trend window. Defaults to
@@ -125,10 +130,13 @@ export default function InsightsScreen() {
         const txsPromises = yearMonths.map((ym) =>
           listTransactions(wid, { yearMonth: ym, orderByDate: false }),
         );
-        const [cmts, txsList, cats] = await Promise.all([
+        const [cmts, txsList, cats, budgets] = await Promise.all([
           Promise.all(cmtPromises),
           Promise.all(txsPromises),
           listCategories(wid),
+          // This-month budgets — needed for the Budget Health pill.
+          // Single read; cheap (<10 docs typical).
+          listBudgets(wid, yearMonths[0]!),
         ]);
         if (cancelled) return;
         const trendData = yearMonths.map((ym, i) => ({
@@ -143,6 +151,7 @@ export default function InsightsScreen() {
         setThisMonthTxs(txsList[0] ?? []);
         setAllTxsByMonth(txsByMonth);
         setCategories(cats);
+        setThisMonthBudgets(budgets);
         setLoaded(true);
       } catch (err) {
         if (cancelled) return;
@@ -553,6 +562,21 @@ export default function InsightsScreen() {
           onPress={() => router.push('/ask')}
         />
 
+        {/* ===== BUDGET HEALTH (v3 polish) ===== */}
+        {loaded && thisMonthBudgets.length > 0 ? (
+          <BudgetHealthSummary
+            budgets={thisMonthBudgets}
+            thisMonthTotals={thisMonthTotals}
+            isDark={isDark}
+            fgColor={fgColor}
+            mutedColor={mutedColor}
+            borderColor={borderColor}
+            sectionLabelClass={sectionLabelClass}
+            t={t}
+            onPress={() => router.push('/budgets' as Href)}
+          />
+        ) : null}
+
         {/* ===== TREND ===== */}
         {loaded ? (
           <View className="mb-8">
@@ -916,6 +940,181 @@ function AskCompassCta({
         <ChevronRight size={18} color={mutedColor} />
       </RNLinearGradient>
     </Pressable>
+  );
+}
+
+/**
+ * Budget Health summary pill — at-a-glance view of how the user's
+ * monthly budgets are tracking. Three buckets:
+ *
+ *   - On track  → spent < 80% of limit (positive green)
+ *   - At risk   → spent 80–99% of limit (warning amber)
+ *   - Over      → spent ≥ 100% of limit (danger red)
+ *
+ * Renders a compact card with a stacked-bar visualisation up top
+ * (proportions of each bucket) + 3 numbered stat blocks underneath.
+ * Tappable → routes to /budgets so users can drill into specifics.
+ */
+function BudgetHealthSummary({
+  budgets,
+  thisMonthTotals,
+  isDark,
+  fgColor,
+  mutedColor,
+  borderColor,
+  sectionLabelClass,
+  t,
+  onPress,
+}: {
+  budgets: Budget[];
+  thisMonthTotals: CategoryMonthTotal[];
+  isDark: boolean;
+  fgColor: string;
+  mutedColor: string;
+  borderColor: string;
+  sectionLabelClass: string;
+  t: TFunction;
+  onPress: () => void;
+}) {
+  void isDark;
+  const spentByCategory = new Map<string, number>();
+  for (const m of thisMonthTotals) {
+    spentByCategory.set(m.categoryId, m.totalIDR);
+  }
+  let onTrack = 0;
+  let atRisk = 0;
+  let over = 0;
+  for (const b of budgets) {
+    if (b.limitMinor <= 0) continue;
+    const spent = spentByCategory.get(b.categoryId) ?? 0;
+    const ratio = spent / b.limitMinor;
+    if (ratio >= 1) over++;
+    else if (ratio >= 0.8) atRisk++;
+    else onTrack++;
+  }
+  const total = onTrack + atRisk + over;
+  if (total === 0) return null;
+
+  const onTrackPct = (onTrack / total) * 100;
+  const atRiskPct = (atRisk / total) * 100;
+  const overPct = (over / total) * 100;
+
+  const positiveColor = tokens.semantic.positive;
+  const warningColor = tokens.semantic.warning;
+  const dangerColor = tokens.semantic.danger;
+
+  return (
+    <View className="mb-8">
+      <Text className={sectionLabelClass} style={{ color: mutedColor }}>
+        {t('insights:sections.budgetHealth')}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('insights:budgetHealth.cardLabel', {
+          total,
+          onTrack,
+          atRisk,
+          over,
+        })}
+        onPress={onPress}
+        style={{
+          padding: 14,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor,
+        }}
+      >
+        {/* Stacked horizontal bar showing the proportions of each bucket. */}
+        <View
+          style={{
+            flexDirection: 'row',
+            height: 8,
+            borderRadius: 4,
+            overflow: 'hidden',
+            backgroundColor: borderColor,
+          }}
+        >
+          {onTrack > 0 ? (
+            <View style={{ flexBasis: `${onTrackPct}%`, backgroundColor: positiveColor }} />
+          ) : null}
+          {atRisk > 0 ? (
+            <View style={{ flexBasis: `${atRiskPct}%`, backgroundColor: warningColor }} />
+          ) : null}
+          {over > 0 ? (
+            <View style={{ flexBasis: `${overPct}%`, backgroundColor: dangerColor }} />
+          ) : null}
+        </View>
+        {/* Three counts below the bar. Mono font for column-aligned numerals. */}
+        <View
+          className="flex-row mt-3"
+          style={{ gap: 12, alignItems: 'flex-start' }}
+        >
+          <BudgetHealthStat
+            color={positiveColor}
+            count={onTrack}
+            label={t('insights:budgetHealth.onTrack')}
+            fgColor={fgColor}
+            mutedColor={mutedColor}
+          />
+          <BudgetHealthStat
+            color={warningColor}
+            count={atRisk}
+            label={t('insights:budgetHealth.atRisk')}
+            fgColor={fgColor}
+            mutedColor={mutedColor}
+          />
+          <BudgetHealthStat
+            color={dangerColor}
+            count={over}
+            label={t('insights:budgetHealth.over')}
+            fgColor={fgColor}
+            mutedColor={mutedColor}
+          />
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
+function BudgetHealthStat({
+  color,
+  count,
+  label,
+  fgColor,
+  mutedColor,
+}: {
+  color: string;
+  count: number;
+  label: string;
+  fgColor: string;
+  mutedColor: string;
+}) {
+  return (
+    <View style={{ flex: 1 }}>
+      <View className="flex-row items-center" style={{ gap: 6 }}>
+        <View
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: color,
+          }}
+        />
+        <Text
+          className="font-mono tabular-nums text-base"
+          style={{ color: fgColor, fontWeight: '600' }}
+        >
+          {count}
+        </Text>
+      </View>
+      <Text
+        className="font-sans text-xs mt-0.5"
+        style={{ color: mutedColor }}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </View>
   );
 }
 

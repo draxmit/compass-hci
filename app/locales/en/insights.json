@@ -6,7 +6,14 @@
     "trend": "Spending — last 6 months",
     "anomalies": "What's notable this month",
     "heatmap": "When you spend most",
-    "weekday": "Your weekly pattern"
+    "weekday": "Your weekly pattern",
+    "budgetHealth": "Budget health"
+  },
+  "budgetHealth": {
+    "onTrack": "On track",
+    "atRisk": "At risk",
+    "over": "Over",
+    "cardLabel": "Budget health: {{onTrack}} on track, {{atRisk}} at risk, {{over}} over of {{total}} total"
   },
   "trend": {
     "monthLabel": "{{month}}",
