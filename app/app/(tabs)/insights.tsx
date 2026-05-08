@@ -915,10 +915,14 @@ function TrendLineChart({
   const displayIdx = selectedIdx ?? ordered.length - 1;
   const displayPoint = ordered[displayIdx];
 
-  // Internal viewBox dimensions. preserveAspectRatio="none" lets the
-  // SVG stretch horizontally to fill the container while keeping the
-  // height fixed — standard responsive line-chart behaviour.
-  const W = 320;
+  // Measured chart width — set via onLayout. Earlier impl used a fixed
+  // 320 viewBox + preserveAspectRatio='none' which stretched the SVG
+  // horizontally and turned dots into ovals on wide screens (very
+  // visible in desktop web). Now we measure the actual rendered width
+  // and use it 1:1 as the viewBox so coordinates are pixel-correct
+  // and circles render as actual circles regardless of screen size.
+  const [chartW, setChartW] = useState(320);
+  const W = chartW;
   const H = 110;
   const padX = 14;
   const padTop = 12;
@@ -962,12 +966,17 @@ function TrendLineChart({
           vertical strips so any tap inside a column selects that
           month. Cleaner than wiring onPress on tiny SVG circles
           (which are far smaller than a fingertip target). */}
-      <View style={{ position: 'relative' }}>
+      <View
+        style={{ position: 'relative', height: H }}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          if (w > 0 && w !== chartW) setChartW(w);
+        }}
+      >
         <Svg
-          width="100%"
+          width={W}
           height={H}
           viewBox={`0 0 ${W} ${H}`}
-          preserveAspectRatio="none"
         >
           {/* Faint baseline. */}
           <SvgLine

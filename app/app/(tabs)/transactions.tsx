@@ -37,13 +37,16 @@ type DateFilter = 'this_month' | 'last_month' | 'all_time';
 
 /**
  * (tabs)/transactions.tsx — recent transactions list with chip filters
- * + tap-to-edit. Subscribes to the most recent 50 transactions across all
- * months; filters run client-side.
+ * + tap-to-edit. Subscribes to the most recent 500 transactions across
+ * all months; filters run client-side.
  *
- * v1 simplification: the 50-tx subscription cap means "All time" filter
- * actually shows the last 50 (ADR-08 §3). When a real user has hundreds
- * of transactions a future polish pass should switch to a yearMonth-driven
- * subscription with paged "load older" affordance.
+ * v3 polish (was 50 in v1): the recent-50 cap meant 'All time' filter
+ * actually returned 'last 50' which surprised users when older data
+ * existed (the year heatmap could see it but the Transactions tab
+ * couldn't). Bumped to 500 — typical user has well under that, and
+ * 500 docs of ~500 bytes is ~250KB on cold-load which is fine on
+ * Spark (50k reads/day budget). When a power user crosses that we
+ * can swap in a paged 'load older' affordance.
  */
 export default function TransactionsScreen() {
   const { t, i18n } = useTranslation(['transactions', 'accounts', 'common']);
@@ -102,7 +105,7 @@ export default function TransactionsScreen() {
 
   useEffect(() => {
     if (!wid) return;
-    const unsubT = subscribeRecent(wid, 50, (data) => {
+    const unsubT = subscribeRecent(wid, 500, (data) => {
       setTxs(data);
       setTxsLoaded(true);
     });
