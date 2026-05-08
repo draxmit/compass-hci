@@ -117,8 +117,28 @@ export function Sidebar() {
               accessibilityState={{ selected: isActive }}
               onPress={() => router.navigate(item.href as never)}
               className={`flex-row items-center rounded-xl ${collapsed ? 'justify-center p-3' : 'gap-3 px-3 py-2.5'}`}
-              style={{ backgroundColor: isActive ? accent + '1f' : 'transparent' }}
+              style={{
+                backgroundColor: isActive ? accent + '1f' : 'transparent',
+                position: 'relative',
+              }}
             >
+              {/* Left-edge accent stripe — visible only when this nav
+                  item is active. Mirrors the iOS-Mail / VSCode side-
+                  bar treatment so the eye instantly locates the
+                  current screen even with multiple tinted accents. */}
+              {isActive && !collapsed ? (
+                <View
+                  style={{
+                    position: 'absolute',
+                    left: 4,
+                    top: 8,
+                    bottom: 8,
+                    width: 3,
+                    borderRadius: 1.5,
+                    backgroundColor: accent,
+                  }}
+                />
+              ) : null}
               <item.icon size={18} color={iconColor} />
               {!collapsed && (
                 <Text
