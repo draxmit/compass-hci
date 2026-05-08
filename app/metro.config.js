@@ -48,15 +48,23 @@ const finalConfig = withNativeWind(config, { input: './global.css' });
 // `jspdf-autotable` has only one `main` entry and is fine to bundle
 // directly on web; on native it's redirected to the same empty shim.
 const emptyShimPath = path.resolve(projectRoot, 'src/shared/utils/empty-module.js');
-// pnpm hoists jspdf to the workspace root (not app/node_modules), so
+// pnpm hoists these to the workspace root (not app/node_modules), so
 // resolve from workspaceRoot. Existence is checked with `require.resolve`
 // at module-load time so a missing file fails loud instead of producing
 // an opaque 'Failed to get SHA-1' Metro error at bundle time.
+const candidatePaths = [
+  path.resolve(projectRoot, 'node_modules'),
+  path.resolve(workspaceRoot, 'node_modules'),
+];
 const jspdfBrowserPath = require.resolve('jspdf/dist/jspdf.es.min.js', {
-  paths: [
-    path.resolve(projectRoot, 'node_modules'),
-    path.resolve(workspaceRoot, 'node_modules'),
-  ],
+  paths: candidatePaths,
+});
+// docx ships several dist variants. The default `main` (`index.umd.cjs`)
+// has internal patterns Metro can't statically resolve and crashes
+// at runtime with `Requiring unknown module N`. The `index.mjs` ESM
+// build is self-contained and bundles cleanly.
+const docxBrowserPath = require.resolve('docx/dist/index.mjs', {
+  paths: candidatePaths,
 });
 const previousResolveRequest = finalConfig.resolver.resolveRequest;
 finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
@@ -68,6 +76,12 @@ finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
   }
   if (moduleName === 'jspdf-autotable' && platform !== 'web') {
     return { type: 'sourceFile', filePath: emptyShimPath };
+  }
+  if (moduleName === 'docx') {
+    return {
+      type: 'sourceFile',
+      filePath: platform === 'web' ? docxBrowserPath : emptyShimPath,
+    };
   }
   if (typeof previousResolveRequest === 'function') {
     return previousResolveRequest(context, moduleName, platform);
