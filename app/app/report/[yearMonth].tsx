@@ -271,9 +271,15 @@ export default function MonthlyReportScreen() {
       );
     } catch (err) {
       console.warn('[report] export failed', err);
+      // Surface the actual error message so users (and us) can
+      // diagnose. Falls back to the friendly 'try again' copy when
+      // the throwable isn't an Error instance.
+      const detail = err instanceof Error
+        ? `${err.message}`
+        : t('report:export.errorBody');
       appAlert(
         t('report:export.errorTitle'),
-        t('report:export.errorBody'),
+        detail,
       );
     } finally {
       setExporting(false);

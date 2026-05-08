@@ -270,6 +270,38 @@ export default function BudgetsScreen() {
           {t('budgets:subtitleMonth', { month: monthLabel })}
         </Text>
 
+        {/* Monthly report link — sits ABOVE the style selector since
+            the report is style-independent (same numbers regardless
+            of monthly-limit / envelope / 50-30-20). Doubles as the
+            entry point to the Word + PDF export buttons inside it. */}
+        {!totallyEmpty && allLoaded ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={t('budgets:actions.viewReport')}
+            onPress={() => router.push(`/report/${yearMonth}` as Href)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor,
+              marginTop: 12,
+              marginBottom: 8,
+            }}
+          >
+            <View className="flex-row items-center" style={{ gap: 8 }}>
+              <FileText size={16} color={tokens.accent.budgets} />
+              <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
+                {t('budgets:actions.viewReport')}
+              </Text>
+            </View>
+            <ChevronRight size={16} color={mutedColor} />
+          </Pressable>
+        ) : null}
+
         {/* Style selector strip — segmented buttons. Only monthly_limit is
             tappable in v1; the other two show a 'Coming in v2' alert. */}
         <View
@@ -316,38 +348,6 @@ export default function BudgetsScreen() {
             );
           })}
         </View>
-
-        {/* Monthly report link — visible in ALL budget styles (was
-            previously buried at the bottom of the monthly_limit /
-            envelope flows; not shown at all on 50/30/20). Promotes
-            it to a prominent CTA right under the style selector so
-            users find the Word/PDF export buttons inside it. */}
-        {!totallyEmpty && allLoaded ? (
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={t('budgets:actions.viewReport')}
-            onPress={() => router.push(`/report/${yearMonth}` as Href)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: 14,
-              paddingVertical: 12,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor,
-              marginBottom: 16,
-            }}
-          >
-            <View className="flex-row items-center" style={{ gap: 8 }}>
-              <FileText size={16} color={tokens.accent.budgets} />
-              <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
-                {t('budgets:actions.viewReport')}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={mutedColor} />
-          </Pressable>
-        ) : null}
 
         {totallyEmpty ? (
           /* No categories at all — bounce user back to Profile to seed/add. */
