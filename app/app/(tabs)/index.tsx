@@ -359,7 +359,35 @@ export default function DashboardScreen() {
               </Pressable>
             ) : null}
           </View>
-          {!allLoaded ? null : includedAccounts.length === 0 ? (
+          {!allLoaded ? (
+            // Skeleton placeholder during initial load — gives the
+            // page visible structure within the first frame instead
+            // of a blank gap. Two muted bars sized to the eventual
+            // hero number + subtitle so layout doesn't shift on
+            // resolve. Border color is the muted theme border so it
+            // reads as a placeholder, not real content.
+            <View>
+              <View
+                style={{
+                  width: '60%',
+                  height: 36,
+                  borderRadius: 8,
+                  backgroundColor: borderColor,
+                  opacity: 0.5,
+                }}
+              />
+              <View
+                style={{
+                  width: '32%',
+                  height: 12,
+                  borderRadius: 6,
+                  marginTop: 10,
+                  backgroundColor: borderColor,
+                  opacity: 0.4,
+                }}
+              />
+            </View>
+          ) : includedAccounts.length === 0 ? (
             <View>
               <Text className="font-sans text-sm mb-3" style={{ color: mutedColor }}>
                 {t('dashboard:empty.netWorth')}
