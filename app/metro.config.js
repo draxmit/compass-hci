@@ -32,22 +32,34 @@ config.resolver.unstable_enablePackageExports = false;
 // override was clobbered.)
 const finalConfig = withNativeWind(config, { input: './global.css' });
 
-// 6. Redirect web-only packages to an empty shim on native bundles.
-// jspdf + jspdf-autotable are browser-targeted (jspdf's `main` resolves
-// to `dist/jspdf.node.min.js` which has internal `require([...])` calls
-// Metro can't handle). The PDF export code path is gated by
-// `Platform.OS === 'web'` at runtime, so a no-op shim on native is
-// sufficient — and required, since Metro's static graph walk would
-// otherwise try to bundle jspdf for native and fail.
+// 6. Redirect jspdf / jspdf-autotable cleanly per platform.
 //
-// Also alias via `resolver.extraNodeModules` as a belt-and-braces
-// fallback in case `resolveRequest` doesn't fire for transitive
-// imports inside Metro's caching layer.
-const WEB_ONLY_PACKAGES = new Set(['jspdf', 'jspdf-autotable']);
+// jspdf has three dist variants: `dist/jspdf.es.min.js` (browser ESM),
+// `dist/jspdf.node.min.js` (Node, with AMD-style `require([...])` calls
+// Metro can't handle), and the UMD bundle. With
+// `unstable_enablePackageExports = false` (set above for Zustand)
+// Metro's main-field resolution lands on the Node variant — even on
+// web — and the bundle fails with:
+//   Invalid call at line 303: require(["html2canvas"], t)
+//
+// Fix: explicitly resolve `jspdf` to the browser ESM file on web,
+// and to the empty shim on native (the runtime Platform.OS guard
+// keeps the code path off native, so the shim never executes).
+// `jspdf-autotable` has only one `main` entry and is fine to bundle
+// directly on web; on native it's redirected to the same empty shim.
 const emptyShimPath = path.resolve(projectRoot, 'src/shared/utils/empty-module.js');
+const jspdfBrowserPath = path.resolve(
+  projectRoot, 'node_modules/jspdf/dist/jspdf.es.min.js',
+);
 const previousResolveRequest = finalConfig.resolver.resolveRequest;
 finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (platform !== 'web' && WEB_ONLY_PACKAGES.has(moduleName)) {
+  if (moduleName === 'jspdf') {
+    return {
+      type: 'sourceFile',
+      filePath: platform === 'web' ? jspdfBrowserPath : emptyShimPath,
+    };
+  }
+  if (moduleName === 'jspdf-autotable' && platform !== 'web') {
     return { type: 'sourceFile', filePath: emptyShimPath };
   }
   if (typeof previousResolveRequest === 'function') {
