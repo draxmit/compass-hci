@@ -26,24 +26,34 @@ config.resolver.disableHierarchicalLookup = true;
 // Falling back to CJS resolution avoids this without per-package shims.
 config.resolver.unstable_enablePackageExports = false;
 
-// 5. Redirect web-only packages to an empty shim on native bundles.
+// 5. Apply NativeWind FIRST so its own resolver wrapping is in place,
+// then layer our redirect on top so we have the outermost word on
+// `resolveRequest`. (Earlier draft wrapped before NativeWind and the
+// override was clobbered.)
+const finalConfig = withNativeWind(config, { input: './global.css' });
+
+// 6. Redirect web-only packages to an empty shim on native bundles.
 // jspdf + jspdf-autotable are browser-targeted (jspdf's `main` resolves
 // to `dist/jspdf.node.min.js` which has internal `require([...])` calls
 // Metro can't handle). The PDF export code path is gated by
 // `Platform.OS === 'web'` at runtime, so a no-op shim on native is
 // sufficient — and required, since Metro's static graph walk would
 // otherwise try to bundle jspdf for native and fail.
+//
+// Also alias via `resolver.extraNodeModules` as a belt-and-braces
+// fallback in case `resolveRequest` doesn't fire for transitive
+// imports inside Metro's caching layer.
 const WEB_ONLY_PACKAGES = new Set(['jspdf', 'jspdf-autotable']);
 const emptyShimPath = path.resolve(projectRoot, 'src/shared/utils/empty-module.js');
-const baseResolveRequest = config.resolver.resolveRequest;
-config.resolver.resolveRequest = (context, moduleName, platform) => {
+const previousResolveRequest = finalConfig.resolver.resolveRequest;
+finalConfig.resolver.resolveRequest = (context, moduleName, platform) => {
   if (platform !== 'web' && WEB_ONLY_PACKAGES.has(moduleName)) {
     return { type: 'sourceFile', filePath: emptyShimPath };
   }
-  if (typeof baseResolveRequest === 'function') {
-    return baseResolveRequest(context, moduleName, platform);
+  if (typeof previousResolveRequest === 'function') {
+    return previousResolveRequest(context, moduleName, platform);
   }
   return context.resolveRequest(context, moduleName, platform);
 };
 
-module.exports = withNativeWind(config, { input: './global.css' });
+module.exports = finalConfig;
