@@ -52,6 +52,8 @@
     "voice": {
       "start": "Mulai dikte",
       "stop": "Berhenti dikte",
+      "buttonIdle": "Suara",
+      "buttonActive": "Stop",
       "listening": "Mendengarkan… ngomong aja, Compass akan ketik buat kamu.",
       "unavailableTitle": "Suara belum bisa di sini",
       "unavailableNative": "Input suara untuk sementara hanya di versi web. Versi mobile hadir di v2.5.",
@@ -60,6 +62,7 @@
     "scanReceipt": {
       "title": "Pindai struk",
       "hint": "Arahkan ke total — Compass baca jumlah & nama tokonya.",
+      "buttonLabel": "Pindai",
       "captureCta": "Ambil foto",
       "scanning": "Membaca struk…",
       "permissionTitle": "Izin kamera dibutuhkan",

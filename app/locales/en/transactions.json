@@ -52,6 +52,8 @@
     "voice": {
       "start": "Start dictation",
       "stop": "Stop dictation",
+      "buttonIdle": "Voice",
+      "buttonActive": "Stop",
       "listening": "Listening… speak naturally, Compass will type for you.",
       "unavailableTitle": "Voice not available here",
       "unavailableNative": "Voice input is web-only for now. Mobile support arrives in v2.5.",
@@ -60,6 +62,7 @@
     "scanReceipt": {
       "title": "Scan receipt",
       "hint": "Frame the total — Compass reads the amount and merchant.",
+      "buttonLabel": "Scan",
       "captureCta": "Capture",
       "scanning": "Reading receipt…",
       "permissionTitle": "Camera access needed",

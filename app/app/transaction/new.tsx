@@ -421,17 +421,20 @@ export default function NewTransactionScreen() {
                 </Text>
               ) : null}
             </View>
-            <View className="flex-row items-stretch" style={{ gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <TextField
-                  label=""
-                  value={nlpInput}
-                  onChangeText={setNlpInput}
-                  placeholder={t('transactions:entry.nlpPlaceholder')}
-                  autoCapitalize="none"
-                  returnKeyType="done"
-                />
-              </View>
+            <TextField
+              label=""
+              value={nlpInput}
+              onChangeText={setNlpInput}
+              placeholder={t('transactions:entry.nlpPlaceholder')}
+              autoCapitalize="none"
+              returnKeyType="done"
+            />
+            {/* Voice + scan buttons in a 1×2 grid below the input. The
+                previous side-by-side layout cluttered the row on
+                mobile (3 controls in a single line); stacking them
+                gives the input full width and the action buttons a
+                more discoverable, tappable footprint. */}
+            <View className="flex-row" style={{ gap: 8, marginTop: 8 }}>
               {/* Voice button — works on web (browser SpeechRecognition
                   API) and native (expo-speech-recognition wrapping
                   SiriKit / Google Speech). The voiceInput hook splits
@@ -457,20 +460,34 @@ export default function NewTransactionScreen() {
                   else voice.start();
                 }}
                 style={{
-                  width: 48,
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
                   borderRadius: 10,
                   borderWidth: 1,
                   borderColor: voice.isListening ? tokens.accent.transactions : borderColor,
                   backgroundColor: voice.isListening ? tokens.accent.transactions + '22' : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  minHeight: 40,
                 }}
               >
                 {voice.isListening ? (
-                  <MicOff size={18} color={tokens.accent.transactions} />
+                  <MicOff size={16} color={tokens.accent.transactions} />
                 ) : (
-                  <Mic size={18} color={mutedColor} />
+                  <Mic size={16} color={mutedColor} />
                 )}
+                <Text
+                  className="font-sans-medium text-xs"
+                  style={{
+                    color: voice.isListening ? tokens.accent.transactions : mutedColor,
+                  }}
+                >
+                  {voice.isListening
+                    ? t('transactions:entry.voice.buttonActive')
+                    : t('transactions:entry.voice.buttonIdle')}
+                </Text>
               </Pressable>
               {/* Scan-receipt button — opens the full-screen camera
                   scanner. Native only; on web we surface the same
@@ -479,7 +496,7 @@ export default function NewTransactionScreen() {
                   round-trip. */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t('transactions:entry.scanReceipt.captureCta')}
+                accessibilityLabel={t('transactions:entry.scanReceipt.title')}
                 onPress={() => {
                   if (Platform.OS === 'web') {
                     appAlert(
@@ -491,16 +508,23 @@ export default function NewTransactionScreen() {
                   router.push('/transaction/scan-receipt');
                 }}
                 style={{
-                  width: 48,
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
                   borderRadius: 10,
                   borderWidth: 1,
                   borderColor,
                   backgroundColor: 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  minHeight: 40,
                 }}
               >
-                <CameraIcon size={18} color={mutedColor} />
+                <CameraIcon size={16} color={mutedColor} />
+                <Text className="font-sans-medium text-xs" style={{ color: mutedColor }}>
+                  {t('transactions:entry.scanReceipt.buttonLabel')}
+                </Text>
               </Pressable>
             </View>
             <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>

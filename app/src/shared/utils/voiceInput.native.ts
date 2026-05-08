@@ -77,8 +77,9 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         setError('not-allowed');
         return;
       }
+      const recogLang = locale === 'id' ? 'id-ID' : 'en-US';
       ExpoSpeechRecognitionModule.start({
-        lang: locale === 'id' ? 'id-ID' : 'en-US',
+        lang: recogLang,
         // We only consume the FINAL transcript — interim updates
         // would force consumers to debounce, which the parent /transaction/new
         // form isn't built for.
@@ -87,10 +88,42 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         // pauses for a moment.
         continuous: false,
         // Android: prefer on-device recognition when available;
-        // falls back to network if not.
+        // falls back to network if not. Network mode is critical for
+        // Indonesian — many devices don't have the offline pack
+        // installed, so cloud fallback ensures id-ID actually works.
         requiresOnDeviceRecognition: false,
         // Don't keep the mic alive after stop() — saves battery.
         maxAlternatives: 1,
+        // Bias the recogniser toward Indonesian banking + merchant
+        // vocabulary so amounts and merchants get transcribed
+        // correctly. Without these hints, recognition often falls back
+        // to phonetic English (e.g. 'rb' → 'are be' instead of 'ribu').
+        // Empty list on en-US — English defaults are fine.
+        contextualStrings:
+          locale === 'id'
+            ? [
+                // Top Indonesian banks
+                'BCA', 'Mandiri', 'BRI', 'BNI', 'CIMB', 'Permata',
+                'Jago', 'Jenius', 'BSI', 'Danamon',
+                // E-wallets
+                'GoPay', 'OVO', 'Dana', 'ShopeePay', 'LinkAja',
+                // Common merchants
+                'Indomaret', 'Alfamart', 'Gojek', 'Grab', 'Tokopedia',
+                'Shopee', 'Tokpedia', 'Blibli', 'Lazada', 'Traveloka',
+                // Amount slang
+                'ribu', 'juta', 'rupiah', 'rb', 'jt',
+                // Common spend categories
+                'warteg', 'kopi', 'bensin', 'pulsa', 'parkir',
+                'ojek', 'taksi', 'belanja', 'makan', 'jajan',
+              ]
+            : [],
+        // Prefer free-form dictation over short web-search queries —
+        // banking sentences are longer than typical voice queries.
+        // The top-level `lang` field already maps to EXTRA_LANGUAGE
+        // internally, so we don't duplicate it here.
+        androidIntentOptions: {
+          EXTRA_LANGUAGE_MODEL: 'free_form',
+        },
       });
       setIsListening(true);
     } catch (err) {
