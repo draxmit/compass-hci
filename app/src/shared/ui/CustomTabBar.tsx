@@ -137,19 +137,22 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                     params: { from: fromPath },
                   })
                 }
-                style={{
+                style={({ hovered, pressed }) => ({
                   width: 52,
                   height: 52,
                   borderRadius: 26,
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: activeAccent,
+                  // Native shadow* props for iOS/Android (RN Web warns
+                  // these are deprecated but RN still uses them).
                   shadowColor: activeAccent,
                   shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 12,
-                  elevation: 8,
-                }}
+                  shadowOpacity: pressed ? 0.45 : 0.3,
+                  shadowRadius: pressed ? 16 : 12,
+                  elevation: pressed ? 12 : 8,
+                  transform: [{ scale: pressed ? 0.96 : (hovered ? 1.04 : 1) }],
+                })}
               >
                 <Plus size={24} color={tokens.surface['dark-fg']} strokeWidth={2.5} />
               </Pressable>
