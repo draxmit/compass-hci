@@ -2,6 +2,8 @@ import type {
   Account, Category, TransactionType,
 } from '@compass/shared-types';
 
+import { parseLooseAmount } from '@/shared/utils/amountInput';
+
 /**
  * Parsed transaction from a free-text input. All fields can be null/empty
  * if the parser couldn't infer them — the UI shows the form pre-populated
@@ -150,7 +152,17 @@ const ACCOUNT_KEYWORDS: Record<string, string[]> = {
 const INCOME_KEYWORDS = ['gaji', 'salary', 'bonus', 'freelance', 'thr', 'hadiah', 'angpao', 'angpau', 'masuk', 'terima', 'topup', 'top up'];
 const TRANSFER_KEYWORDS = ['transfer', 'pindah', 'kirim', 'tarik tunai', 'tarik', 'setor'];
 
-const AMOUNT_RE = /(\d+(?:[.,]\d+)?)\s*(rb|ribu|k|jt|juta|m)?\b/i;
+// Match numeric amounts with arbitrary separator counts so Indonesian
+// thousand-formatted output ('50.000', '1.500.000') isn't truncated to
+// the first separator group. The greedy `\d+(?:[.,]\d{3})*(?:[.,]\d{1,2})?`
+// pattern picks up:
+//   - '50'         (bare integer)
+//   - '50.000'     (one thousands separator)
+//   - '1.500.000'  (multiple thousands separators)
+//   - '50,5' / '50.5' (decimal — \d{1,2} after sep)
+//   - '25.000,50'  (Indonesian thousands + decimal)
+// Followed by an optional Indonesian / English magnitude suffix.
+const AMOUNT_RE = /(\d+(?:[.,]\d{3})*(?:[.,]\d{1,2})?)\s*(rb|ribu|k|jt|juta|m)?\b/i;
 
 export function parseTransaction(raw: string, ctx: ParseContext): NlpResult {
   const lower = raw.toLowerCase();
@@ -163,7 +175,13 @@ export function parseTransaction(raw: string, ctx: ParseContext): NlpResult {
   if (amountMatch) {
     const numText = amountMatch[1] ?? '';
     const suffix = (amountMatch[2] ?? '').toLowerCase();
-    const n = parseFloat(numText.replace(',', '.'));
+    // parseLooseAmount disambiguates Indonesian (1.500.000,00) vs
+    // English (1,500,000.00) vs unseparated (1500000) by looking at
+    // the LAST separator's right-hand side: 3 digits → thousands;
+    // 1-2 digits → decimal. Voice transcripts on id-ID overwhelmingly
+    // emit the Indonesian form (50.000 = 50,000), which the previous
+    // parseFloat-with-replace logic was reading as 50.0.
+    const n = parseLooseAmount(numText);
     if (Number.isFinite(n)) {
       let multiplier: number;
       if (suffix === 'rb' || suffix === 'ribu' || suffix === 'k') multiplier = 1000;

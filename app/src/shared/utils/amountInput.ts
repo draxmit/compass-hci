@@ -48,6 +48,41 @@ export function parseAmountInput(formatted: string, locale: Locale): number {
   return Math.round(value * 100);
 }
 
+/**
+ * Parse a number that may use Indonesian (1.500.000,00) or English
+ * (1,500,000.00) conventions, OR be unseparated (1500000), without
+ * knowing the locale up-front. Used by free-text parsers (NLP voice
+ * transcripts, receipt OCR) where the input source decides the
+ * convention, not the user's UI locale.
+ *
+ * Heuristic: look at the LAST separator's right-hand side.
+ *   '50.000'    → last sep '.' followed by 3 digits → thousands → 50000
+ *   '50.5'      → last sep '.' followed by 1 digit → decimal → 50.5
+ *   '1.500.000' → last sep '.' followed by 3 digits → thousands → 1500000
+ *   '25.000,50' → last sep ',' followed by 2 digits → decimal → 25000.50
+ *   '5000'      → no separator → 5000
+ *
+ * Returns the MAJOR value as a float (NOT minor units). Multiply by
+ * 100 + Math.round() at the call site if you need minor units.
+ *
+ * Returns NaN if the input contains non-digit/separator characters.
+ */
+export function parseLooseAmount(raw: string): number {
+  if (!/^\d+(?:[.,]\d+)*$/.test(raw)) return NaN;
+  const lastDot = raw.lastIndexOf('.');
+  const lastComma = raw.lastIndexOf(',');
+  const lastSepIdx = Math.max(lastDot, lastComma);
+  if (lastSepIdx === -1) return Number(raw);
+  const after = raw.slice(lastSepIdx + 1);
+  if (after.length === 1 || after.length === 2) {
+    // Last sep is decimal; everything else is thousands.
+    const intPart = raw.slice(0, lastSepIdx).replace(/[.,]/g, '');
+    return Number(`${intPart}.${after}`);
+  }
+  // All separators are thousands.
+  return Number(raw.replace(/[.,]/g, ''));
+}
+
 export function minorToInputText(minorUnits: number, locale: Locale): string {
   if (!minorUnits) return '';
   const major = minorUnits / 100;

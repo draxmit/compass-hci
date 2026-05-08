@@ -15,6 +15,8 @@
  * leaves those fields blank instead of inventing values.
  */
 
+import { parseLooseAmount } from '@/shared/utils/amountInput';
+
 export type ParsedReceipt = {
   /** Amount in minor units (×100), or null if no amount found. */
   amountMinor: number | null;
@@ -59,14 +61,10 @@ function extractAmount(lines: string[], rawText: string): number | null {
   while ((m = regex.exec(rawText)) !== null) {
     const raw = m[1];
     if (!raw) continue;
-    // Indonesian numbers use `.` as thousands and `,` as decimal:
-    //   2.500.000,00 → 2500000.00
-    // English variants reverse it:
-    //   2,500,000.00 → 2500000.00
-    // Heuristic: if the LAST separator has 1-2 digits after it, it's
-    // a decimal; else it's the thousands separator. Strip thousands
-    // separators, replace decimal-comma with decimal-point.
-    const major = parseIndonesianNumber(raw);
+    // parseLooseAmount handles both Indonesian (2.500.000,00) and
+    // English (2,500,000.00) conventions: the last separator's right-
+    // hand side decides — 1-2 digits = decimal, 3 digits = thousands.
+    const major = parseLooseAmount(raw);
     if (Number.isNaN(major)) continue;
     if (major < 100 || major > 1_000_000_000) continue;
     candidates.push(major);
@@ -76,30 +74,6 @@ function extractAmount(lines: string[], rawText: string): number | null {
   // Prefer the largest — totals are larger than any single line item.
   const max = Math.max(...candidates);
   return Math.round(max * 100); // → minor units
-}
-
-function parseIndonesianNumber(raw: string): number {
-  // Determine decimal separator. Look at the last separator's right-
-  // hand side:
-  //   '2.500.000,00' → last sep is ',' followed by 2 digits → decimal=','
-  //   '2,500,000.00' → last sep is '.' followed by 2 digits → decimal='.'
-  //   '2.500.000'    → last sep is '.' followed by 3 digits → no decimal
-  //   '25000'        → no separator → no decimal
-  const lastDot = raw.lastIndexOf('.');
-  const lastComma = raw.lastIndexOf(',');
-  const lastSepIdx = Math.max(lastDot, lastComma);
-
-  if (lastSepIdx === -1) return Number(raw);
-
-  const after = raw.slice(lastSepIdx + 1);
-
-  if (after.length === 1 || after.length === 2) {
-    // Treat last sep as decimal
-    const intPart = raw.slice(0, lastSepIdx).replace(/[.,]/g, '');
-    return Number(`${intPart}.${after}`);
-  }
-  // No decimal — all separators are thousands
-  return Number(raw.replace(/[.,]/g, ''));
 }
 
 /**
