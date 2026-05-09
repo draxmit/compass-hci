@@ -12,11 +12,21 @@ import { Platform } from 'react-native';
  * Web is a no-op — Push API + service worker setup is out of scope
  * for v3 launch. The service exposes a `supported` flag so callers
  * can hide the Settings UI on platforms that can't honour it.
+ *
+ * Native crash defence: every native call is wrapped in try/catch
+ * because dev-client APKs built BEFORE `expo-notifications` was
+ * added to the app are missing the native module entirely. Calling
+ * into the missing module throws "cannot find native module
+ * ExpoPushTokenManager" which cascades into a render error. The
+ * defensive wrappers degrade to a silent no-op — same behaviour as
+ * web — until the user rebuilds the dev client.
  */
 
 /**
- * `true` when local notifications work on the current platform. Web
- * returns `false`; iOS / Android both return `true`.
+ * `true` when local notifications might work on the current platform.
+ * Web returns `false`; iOS / Android both return `true` even though
+ * the dev client APK might still be missing the native module — the
+ * try/catch in each function handles that gracefully.
  */
 export const notificationsSupported = Platform.OS !== 'web';
 
@@ -27,16 +37,22 @@ export const notificationsSupported = Platform.OS !== 'web';
  * pull down the tray (confusing during demo scenarios).
  *
  * Set once at module load. Safe to call on web — the package no-ops.
+ * Wrapped in try/catch so a missing native module on a stale dev
+ * client doesn't crash the app at boot.
  */
 if (notificationsSupported) {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch (err) {
+    console.warn('[notifications] setNotificationHandler failed (rebuild dev client?):', err);
+  }
 }
 
 /**
@@ -50,11 +66,16 @@ if (notificationsSupported) {
  */
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!notificationsSupported) return false;
-  const existing = await Notifications.getPermissionsAsync();
-  if (existing.granted) return true;
-  if (!existing.canAskAgain) return false;
-  const requested = await Notifications.requestPermissionsAsync();
-  return requested.granted;
+  try {
+    const existing = await Notifications.getPermissionsAsync();
+    if (existing.granted) return true;
+    if (!existing.canAskAgain) return false;
+    const requested = await Notifications.requestPermissionsAsync();
+    return requested.granted;
+  } catch (err) {
+    console.warn('[notifications] permission check failed:', err);
+    return false;
+  }
 }
 
 /**
@@ -65,7 +86,11 @@ export async function requestNotificationPermission(): Promise<boolean> {
  */
 export async function cancelAllScheduled(): Promise<void> {
   if (!notificationsSupported) return;
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch (err) {
+    console.warn('[notifications] cancelAllScheduled failed:', err);
+  }
 }
 
 /**
@@ -75,11 +100,19 @@ export async function cancelAllScheduled(): Promise<void> {
  */
 export async function cancelByPrefix(prefix: string): Promise<void> {
   if (!notificationsSupported) return;
-  const all = await Notifications.getAllScheduledNotificationsAsync();
-  for (const n of all) {
-    if (n.identifier.startsWith(prefix)) {
-      await Notifications.cancelScheduledNotificationAsync(n.identifier);
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    for (const n of all) {
+      if (n.identifier.startsWith(prefix)) {
+        try {
+          await Notifications.cancelScheduledNotificationAsync(n.identifier);
+        } catch {
+          /* per-id failure is non-fatal */
+        }
+      }
     }
+  } catch (err) {
+    console.warn('[notifications] cancelByPrefix failed:', err);
   }
 }
 
@@ -96,23 +129,27 @@ export async function scheduleDaily(
   body: string,
 ): Promise<void> {
   if (!notificationsSupported) return;
-  // Cancel any existing daily reminder with this id before scheduling
-  // a fresh one — `expo-notifications` allows duplicate ids and would
-  // silently double-fire otherwise.
   try {
-    await Notifications.cancelScheduledNotificationAsync(identifier);
-  } catch {
-    /* not previously scheduled — fine */
+    // Cancel any existing daily reminder with this id before scheduling
+    // a fresh one — `expo-notifications` allows duplicate ids and would
+    // silently double-fire otherwise.
+    try {
+      await Notifications.cancelScheduledNotificationAsync(identifier);
+    } catch {
+      /* not previously scheduled — fine */
+    }
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: { title, body, sound: 'default' },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: hh,
+        minute: mm,
+      },
+    });
+  } catch (err) {
+    console.warn('[notifications] scheduleDaily failed:', err);
   }
-  await Notifications.scheduleNotificationAsync({
-    identifier,
-    content: { title, body, sound: 'default' },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: hh,
-      minute: mm,
-    },
-  });
 }
 
 /**
@@ -128,18 +165,22 @@ export async function scheduleAtDate(
   if (!notificationsSupported) return;
   if (date.getTime() < Date.now()) return; // past — skip
   try {
-    await Notifications.cancelScheduledNotificationAsync(identifier);
-  } catch {
-    /* fine */
+    try {
+      await Notifications.cancelScheduledNotificationAsync(identifier);
+    } catch {
+      /* fine */
+    }
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: { title, body, sound: 'default' },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date,
+      },
+    });
+  } catch (err) {
+    console.warn('[notifications] scheduleAtDate failed:', err);
   }
-  await Notifications.scheduleNotificationAsync({
-    identifier,
-    content: { title, body, sound: 'default' },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date,
-    },
-  });
 }
 
 /**
@@ -152,9 +193,13 @@ export async function fireImmediate(
   body: string,
 ): Promise<void> {
   if (!notificationsSupported) return;
-  await Notifications.scheduleNotificationAsync({
-    identifier,
-    content: { title, body, sound: 'default' },
-    trigger: null, // immediate
-  });
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: { title, body, sound: 'default' },
+      trigger: null, // immediate
+    });
+  } catch (err) {
+    console.warn('[notifications] fireImmediate failed:', err);
+  }
 }
