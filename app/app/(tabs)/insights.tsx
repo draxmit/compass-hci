@@ -932,69 +932,77 @@ function AskCompassCta({
   const sparkleSize = isMobile ? 15 : 18;
   const arrowSize = isMobile ? 15 : 18;
   const gapPx = isMobile ? 8 : 10;
-  // Emerald-tinted fill (10% accent) plus a SOLID-emerald border — the
-  // earlier rgba(255,255,255,0.04) bg + 67% emerald border combo was
-  // invisible on the dark page bg (bg blended into #0a0a0a, border
-  // got eaten by AA at 1.5px). Tinting the fill itself with the brand
-  // emerald gives the container a recognisable silhouette even when
-  // the user only glances at the screen, and the 2px solid border
-  // anchors the edge unambiguously.
+  // Emerald-tinted fill (12%/8% accent) plus a SOLID-emerald border —
+  // the earlier rgba(255,255,255,0.04) bg + 67% emerald border combo
+  // was invisible on the dark page bg (bg blended into #0a0a0a,
+  // border got eaten by AA at 1.5px). Tinting the fill itself with
+  // the brand emerald gives the container a recognisable silhouette
+  // even when the user only glances at the screen, and the 2px solid
+  // border anchors the edge unambiguously.
   const fillBg = isDark ? 'rgba(5,150,105,0.12)' : 'rgba(5,150,105,0.08)';
+  // Layout split: ALL geometry/visual styling lives on the inner
+  // <View> (static style object that React Native can't fail to
+  // apply). Pressable now only carries press-feedback state — the
+  // earlier function-style on Pressable seemed to drop the row
+  // layout on some Android dev-client builds, leaving the children
+  // stacking vertically with no visible container. Static inner
+  // styles eliminate that failure mode entirely.
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t('ask:entryCta')}
       onPress={onPress}
-      style={({ hovered, pressed }) => ({
+      style={({ pressed }) => ({
         marginBottom: 24,
         borderRadius: 999,
-        borderWidth: 2,
-        borderColor: tokens.accent.dashboard,  // solid emerald, no alpha
-        backgroundColor:
-          (hovered as boolean | undefined) || pressed
-            ? 'rgba(5,150,105,0.20)'           // brighter on press/hover
-            : fillBg,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: gapPx,
-        paddingVertical: padVert,
-        paddingLeft: padLeft,
-        paddingRight: padRight,
-        // Subtle elevation on web (boxShadow is the modern API; native
-        // ignores it harmlessly). Gives the input a soft lift so it
-        // reads as a contained surface, not floating elements.
-        shadowColor: tokens.accent.dashboard,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 3,
+        opacity: pressed ? 0.88 : 1,
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}
     >
-      {/* Sparkles glyph hints "this is the AI surface". */}
-      <Sparkles size={sparkleSize} color={tokens.accent.dashboard} />
-      {/* Placeholder text — reads like a textfield's placeholder copy. */}
-      <Text
-        className={isMobile ? 'font-sans text-xs' : 'font-sans text-sm'}
-        style={{ color: mutedColor, flex: 1 }}
-        numberOfLines={1}
-      >
-        {t('ask:composerPlaceholder')}
-      </Text>
-      {/* Send-arrow circle — the affordance side of the input,
-          mirroring iMessage / ChatGPT's submit button at right of
-          textfield. */}
       <View
         style={{
-          width: sendSize,
-          height: sendSize,
-          borderRadius: sendSize / 2,
-          backgroundColor: tokens.accent.dashboard,
+          borderRadius: 999,
+          borderWidth: 2,
+          borderColor: tokens.accent.dashboard,
+          backgroundColor: fillBg,
+          flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'center',
+          gap: gapPx,
+          paddingVertical: padVert,
+          paddingLeft: padLeft,
+          paddingRight: padRight,
+          shadowColor: tokens.accent.dashboard,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          elevation: 3,
         }}
       >
-        <ChevronRight size={arrowSize} color="#fff" />
+        {/* Sparkles glyph hints "this is the AI surface". */}
+        <Sparkles size={sparkleSize} color={tokens.accent.dashboard} />
+        {/* Placeholder text — reads like a textfield's placeholder copy. */}
+        <Text
+          className={isMobile ? 'font-sans text-xs' : 'font-sans text-sm'}
+          style={{ color: mutedColor, flex: 1 }}
+          numberOfLines={1}
+        >
+          {t('ask:composerPlaceholder')}
+        </Text>
+        {/* Send-arrow circle — the affordance side of the input,
+            mirroring iMessage / ChatGPT's submit button at right of
+            textfield. */}
+        <View
+          style={{
+            width: sendSize,
+            height: sendSize,
+            borderRadius: sendSize / 2,
+            backgroundColor: tokens.accent.dashboard,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ChevronRight size={arrowSize} color="#fff" />
+        </View>
       </View>
     </Pressable>
   );
