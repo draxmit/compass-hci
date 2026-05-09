@@ -64,6 +64,25 @@ function resolveFrom(raw: unknown): ValidFrom {
     : '/transactions';
 }
 
+/**
+ * 'YYYY-MM-DD' for today in LOCAL time. Mirrors the preset menu and
+ * DateField's formatIso convention. We can't use
+ * `new Date().toISOString().slice(0, 10)` because that returns UTC —
+ * users in UTC+7 (Jakarta) typing during early-morning hours would
+ * end up with yesterday's date silently stamped on the tx, which
+ * pushes the row down the recent list and was the apparent cause of
+ * "I added a tx but it doesn't show up" reports. Local time matches
+ * what the user sees on their device clock and what the preset menu
+ * uses for instant-create.
+ */
+function todayLocalIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export default function NewTransactionScreen() {
   const { t, i18n } = useTranslation(['transactions', 'accounts', 'categories', 'common']);
   const router = useRouter();
@@ -138,7 +157,7 @@ export default function NewTransactionScreen() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));  // 'YYYY-MM-DD' — editable via DateField
+  const [date, setDate] = useState(todayLocalIso);  // 'YYYY-MM-DD' local — editable via DateField
   const [nlpInput, setNlpInput] = useState('');
   const [confidence, setConfidence] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -235,9 +254,11 @@ export default function NewTransactionScreen() {
       setCategoryId(ocrCategoryId);
     }
     // Receipt date — apply if it's a valid YYYY-MM-DD AND it's not in
-    // the future (defends against OCR misreading a year).
+    // the future (defends against OCR misreading a year). Local time
+    // matches the user's device clock — UTC would mark a tx scanned
+    // late evening Jakarta as "tomorrow" and reject it.
     if (ocrDate && /^\d{4}-\d{2}-\d{2}$/.test(ocrDate)) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayLocalIso();
       if (ocrDate <= today) {
         setDate(ocrDate);
       }
@@ -890,7 +911,7 @@ export default function NewTransactionScreen() {
                   // Empty = revert to today rather than leaving blank.
                   // Tx must always have a date.
                   if (!next) {
-                    setDate(new Date().toISOString().slice(0, 10));
+                    setDate(todayLocalIso());
                     return;
                   }
                   setDate(next);

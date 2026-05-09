@@ -488,8 +488,14 @@ export default function EditTransactionScreen() {
                 onChange={(next) => {
                   // Empty = revert to loaded.date so the tx always has
                   // a date. Editing the date triggers delete + recreate
-                  // because yearMonth changes.
-                  setDate(next || (loaded?.date ?? new Date().toISOString().slice(0, 10)));
+                  // because yearMonth changes. Fallback uses LOCAL time
+                  // (matches /transaction/new + the preset menu) so we
+                  // don't silently shift early-morning-Jakarta dates by
+                  // a day via a UTC ISO string.
+                  setDate(next || (loaded?.date ?? (() => {
+                    const d = new Date();
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  })()));
                 }}
                 lang={lang}
                 accessibilityLabel={t('transactions:entry.fields.date')}

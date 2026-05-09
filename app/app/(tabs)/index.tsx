@@ -1,7 +1,7 @@
 import type {
   Account, Category, CategoryMonthTotal, Goal, Transaction,
 } from '@compass/shared-types';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { ChevronDown, ChevronRight, ChevronUp, Eye, EyeOff, Pin, Plus, Sparkles, Target } from 'lucide-react-native';
@@ -141,13 +141,13 @@ export default function DashboardScreen() {
   const [monthTotals, setMonthTotals] = useState<CategoryMonthTotal[]>([]);
   const [lastMonthTotals, setLastMonthTotals] = useState<CategoryMonthTotal[]>([]);
   const [recentTxs, setRecentTxs] = useState<Transaction[]>([]);
-  // Income transactions for this month + last month — needed for the
-  // Cash Flow card (income vs expense) and the Savings Rate pill.
+  // Last-month income — kept as one-shot because last month's data
+  // doesn't churn (historical) and refetches on Dashboard focus via
+  // useFocusEffect below. THIS-MONTH income is derived from `recentTxs`
+  // (realtime, see useMemo below) so a freshly-saved income tx
+  // updates the Cash Flow card immediately without pull-to-refresh.
   // category_month_totals only stores expense totals (denormalised in
-  // T6/T7); income lives only on the transaction docs themselves. So
-  // we one-shot listTransactions for both months. Cheap on Spark (one
-  // user typically has <50 income tx in any given month).
-  const [thisMonthIncomeTxs, setThisMonthIncomeTxs] = useState<Transaction[]>([]);
+  // T6/T7); income lives only on the transaction docs themselves.
   const [lastMonthIncomeTxs, setLastMonthIncomeTxs] = useState<Transaction[]>([]);
 
   // Per-subscription "first emission landed" flags. Without these the
@@ -177,11 +177,12 @@ export default function DashboardScreen() {
       setMonthTotals(data);
       setMonthTotalsLoaded(true);
     });
-    // Subscribe to 50 most recent — feeds BOTH the 'Recent' strip
-    // (slices first 5) AND the 7-day sparkline below the This Month
-    // card (filters by date >= 7 days ago). One subscription, two
-    // derived views.
-    const unsubR = subscribeRecent(wid, 50, (data) => {
+    // Subscribe to 100 most recent — feeds the 'Recent' strip (slices
+    // first 5), the 7-day sparkline (filters by date), AND the
+    // realtime this-month income derivation (filters by yearMonth +
+    // type === 'income'). 100 gives headroom for users with many
+    // expenses in a month so older income txs aren't pushed off.
+    const unsubR = subscribeRecent(wid, 100, (data) => {
       setRecentTxs(data);
       setRecentLoaded(true);
     });
@@ -194,29 +195,42 @@ export default function DashboardScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wid, thisYearMonth, lastYearMonth]);
 
-  // Pull-to-refresh: realtime subs (accounts/categories/recent/this-
-  // month-totals) auto-update so we just re-fetch the one-shots that
-  // power the Cash Flow card + delta + projection.
+  // Pull-to-refresh / focus: realtime subs (accounts/categories/recent/
+  // this-month-totals) auto-update so we just re-fetch the one-shots
+  // that power the historical-comparison parts of the Cash Flow card
+  // + delta. This-month income is now derived from recentTxs (see
+  // useMemo below), so it's already realtime — no fetch needed for
+  // that.
   const [refreshing, setRefreshing] = useState(false);
   const refetchOneShots = useCallback(async () => {
     if (!wid) return;
     try {
-      const [lastMonth, thisIncome, lastIncome] = await Promise.all([
+      const [lastMonth, lastIncome] = await Promise.all([
         listMonthTotals(wid, lastYearMonth),
-        listTransactions(wid, { yearMonth: thisYearMonth }),
         listTransactions(wid, { yearMonth: lastYearMonth }),
       ]);
       setLastMonthTotals(lastMonth);
-      setThisMonthIncomeTxs(thisIncome.filter((t) => t.type === 'income'));
       setLastMonthIncomeTxs(lastIncome.filter((t) => t.type === 'income'));
     } catch (err) {
       console.warn('[dashboard] refetch one-shots failed', err);
     }
-  }, [wid, thisYearMonth, lastYearMonth]);
+  }, [wid, lastYearMonth]);
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try { await refetchOneShots(); } finally { setRefreshing(false); }
   }, [refetchOneShots]);
+  // Refresh historical one-shots whenever the Dashboard regains focus.
+  // Closes the gap where a user added a tx in /transaction/new and
+  // returned via router.back() — Dashboard never unmounted so the
+  // mount-time useEffect doesn't re-fire. useFocusEffect bridges that
+  // gap. This-month data (income, expense, accounts) is already
+  // realtime via the subscribers above, so this is mostly a safety net
+  // for last-month aggregations.
+  useFocusEffect(
+    useCallback(() => {
+      void refetchOneShots();
+    }, [refetchOneShots]),
+  );
 
   // Pinned-goal subscription is keyed on the id so it tears down +
   // re-subscribes when the user pins a different goal. Defensively
@@ -286,6 +300,18 @@ export default function DashboardScreen() {
     [lastMonthTotals],
   );
 
+  // This-month income — derived from the realtime `recentTxs`
+  // subscription so a freshly-saved income tx updates immediately
+  // without pull-to-refresh. Filter by `yearMonth` (not `date`) so
+  // an income tx dated 1st-of-month still counts even when the user
+  // adds it later in the month. recentTxs caps at 100 — enough to
+  // cover all this-month income for typical usage. v3 polish: if a
+  // power user has 100+ expense txs that push older income out of
+  // recentTxs, swap this for a dedicated income subscription.
+  const thisMonthIncomeTxs = useMemo(
+    () => recentTxs.filter((tx) => tx.type === 'income' && tx.yearMonth === thisYearMonth),
+    [recentTxs, thisYearMonth],
+  );
   // Income totals — sum the FX-snapshotted `amountIDR` field already
   // computed at write-time (ADR-16). No need to re-convert here; that
   // would double-apply FX if rates have changed since the tx was
