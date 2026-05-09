@@ -2317,39 +2317,50 @@ function Heatmap({
   for (let i = 0; i < firstDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, total: dayTotals[d] ?? 0 });
 
+  // Measure container width to compute exact pixel cell sizes. Two
+  // earlier attempts (flex:1 + aspectRatio:1, then width:'13%' +
+  // aspectRatio:1) both broke on Android RN — the renderer was
+  // producing inconsistent cell widths/heights, leaving some cells
+  // inline-text-sized and others huge. Pixel-exact sizes via
+  // onLayout sidestep the entire flex/aspect-ratio interaction.
+  const GAP_PX = 4;
+  const [containerW, setContainerW] = useState(320);
+  const cellSize = Math.floor((containerW - GAP_PX * 6) / 7);
+
   return (
-    <View>
-      {/* Weekday header — width:'13%' matches the day-cell columns
-          below so labels stay vertically aligned with their column. */}
-      <View className="flex-row" style={{ gap: 4, marginBottom: 4 }}>
+    <View
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0 && Math.abs(w - containerW) > 1) setContainerW(w);
+      }}
+    >
+      {/* Weekday header — same fixed cell width keeps the labels
+          aligned with the day columns below. */}
+      <View className="flex-row" style={{ gap: GAP_PX, marginBottom: 4 }}>
         {weekdayShortNames.map((n, i) => (
-          <Text
-            key={i}
-            className="font-sans-medium text-[10px]"
-            style={{ color: mutedColor, width: '13%', textAlign: 'center' }}
-          >
-            {n}
-          </Text>
+          <View key={i} style={{ width: cellSize, alignItems: 'center' }}>
+            <Text
+              className="font-sans-medium text-[10px]"
+              style={{ color: mutedColor }}
+            >
+              {n}
+            </Text>
+          </View>
         ))}
       </View>
-      {/* Day cells in rows of 7. Width-based layout (13% per cell)
-          instead of flex:1 — RN-Native's flex pass was choking on
-          aspectRatio inside flex-row siblings of mixed types,
-          producing "some cells huge, others inline" on Android. With
-          explicit width %, every cell sizes itself independently of
-          its siblings. 13% × 7 = 91%; the remaining 9% absorbs the
-          6 gaps × 4px and any rounding slop. */}
-      <View style={{ gap: 4 }}>
+      {/* Day cells in rows of 7 with measured pixel sizes. */}
+      <View style={{ gap: GAP_PX }}>
         {chunk(cells, 7).map((row, rowIdx) => (
-          <View key={rowIdx} className="flex-row" style={{ gap: 4 }}>
+          <View key={rowIdx} className="flex-row" style={{ gap: GAP_PX }}>
             {row.map((cell, i) => {
-              const cellLayoutStyle = { width: '13%' as const, aspectRatio: 1 };
+              const cellLayoutStyle = { width: cellSize, height: cellSize };
               if (!cell) return <View key={i} style={cellLayoutStyle} />;
               const intensity = max === 0 ? 0 : cell.total / max;
               const fillAlpha = intensity === 0 ? 0 : Math.max(0.15, intensity);
               const cellPressable = !!onDayPress && cell.total > 0;
               const visualStyle = {
-                flex: 1,
+                width: cellSize,
+                height: cellSize,
                 borderRadius: 6,
                 borderWidth: 1,
                 borderColor,
@@ -2376,24 +2387,22 @@ function Heatmap({
                     accessibilityLabel={`Day ${cell.day}, spent ${formatIDR(cell.total)}. Tap to see transactions.`}
                     onPress={() => onDayPress!(cell.day)}
                     style={({ pressed }) => ({
-                      ...cellLayoutStyle,
+                      ...visualStyle,
                       opacity: pressed ? 0.7 : 1,
                     })}
                   >
-                    <View style={visualStyle}>{dayText}</View>
+                    {dayText}
                   </Pressable>
                 );
               }
               return (
-                <View key={i} style={cellLayoutStyle}>
-                  <View style={visualStyle}>{dayText}</View>
-                </View>
+                <View key={i} style={visualStyle}>{dayText}</View>
               );
             })}
-            {/* Pad short final row to keep cells the same width */}
+            {/* Pad short final row to keep visual rhythm */}
             {row.length < 7
               ? Array.from({ length: 7 - row.length }).map((_, i) => (
-                  <View key={`pad-${i}`} style={{ width: '13%' as const, aspectRatio: 1 }} />
+                  <View key={`pad-${i}`} style={{ width: cellSize, height: cellSize }} />
                 ))
               : null}
           </View>
@@ -2431,19 +2440,28 @@ type YearMonthBoxesProps = {
 function YearMonthBoxes({
   boxes, max, accent, borderColor, mutedColor, fgColor, lang,
 }: YearMonthBoxesProps) {
-  // Single-source spacing: `gap: 8` provides the between-cell space.
-  // The earlier impl mixed `gap` with `marginHorizontal: ±4` (negative
-  // margin trick), which double-counted spacing and forced the row
-  // into 3 columns instead of 4 (the 23% × 4 + gaps + margins added
-  // up to >100%).
+  // Pixel-exact box sizing — same fix as Heatmap above. Earlier
+  // attempts using `width: '22%' + aspectRatio: 1` rendered with
+  // unequal box sizes on Android (flex-wrap + percentage + aspect
+  // ratio interaction). Measure the container, compute (W − 3*gap) / 4,
+  // set width AND height directly.
+  const GAP_PX = 8;
+  const [containerW, setContainerW] = useState(320);
+  const boxSize = Math.floor((containerW - GAP_PX * 3) / 4);
+
   return (
-    <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+    <View
+      className="flex-row flex-wrap"
+      style={{ gap: GAP_PX }}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0 && Math.abs(w - containerW) > 1) setContainerW(w);
+      }}
+    >
       {boxes.map((b) => {
         const monthDate = new Date(`${b.yearMonth}-01T00:00:00`);
         // 3-char abbreviation so labels fit in the ~80px-wide
-        // mobile boxes without truncation. Locale-aware: "Jan" /
-        // "Feb" / "Mei" / "Jul" — both EN and ID first-3-chars
-        // produce universally recognisable month tokens.
+        // mobile boxes without truncation.
         const monthShort = formatDate(monthDate, 'long-month', lang)
           .split(' ')[0]!
           .slice(0, 3);
@@ -2453,14 +2471,8 @@ function YearMonthBoxes({
           <View
             key={b.yearMonth}
             style={{
-              // 4 columns with gap:8 between → each cell: (100% − 3×8px) / 4.
-              // Using `flexBasis` with the `calc`-equivalent computed
-              // arithmetic isn't available, so 22% is the safe approximation
-              // (4 × 22% = 88%; + 3 gaps × 8px = 24px ≈ 7-8% of typical
-              // width = 95-96% used). Leaves a small right margin which
-              // is fine and avoids the wrap-to-3 issue.
-              width: '22%',
-              aspectRatio: 1,
+              width: boxSize,
+              height: boxSize,
               borderRadius: 12,
               borderWidth: 1,
               borderColor,
