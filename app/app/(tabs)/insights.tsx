@@ -2401,6 +2401,14 @@ function Heatmap({
               {cell.day}
             </Text>
           );
+          // Both branches must wrap visualStyle in a STATIC inner View.
+          // Function-style on Pressable doesn't apply layout styles
+          // reliably on Android RN — same root-cause bug that hit
+          // Ask Compass / preset rows / View Report button. The
+          // Pressable's style function only carries press feedback;
+          // all geometry lives on the inner View. Both branches use
+          // the SAME static-View pattern so the rendered tree is
+          // homogeneous (no Yoga sibling-type confusion).
           if (cellPressable) {
             return (
               <Pressable
@@ -2408,12 +2416,9 @@ function Heatmap({
                 accessibilityRole="button"
                 accessibilityLabel={`Day ${cell.day}, spent ${formatIDR(cell.total)}. Tap to see transactions.`}
                 onPress={() => onDayPress!(cell.day)}
-                style={({ pressed }) => ({
-                  ...visualStyle,
-                  opacity: pressed ? 0.7 : 1,
-                })}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
               >
-                {dayText}
+                <View style={visualStyle}>{dayText}</View>
               </Pressable>
             );
           }
