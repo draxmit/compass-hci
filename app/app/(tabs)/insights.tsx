@@ -793,6 +793,29 @@ export default function InsightsScreen() {
           </View>
         ) : null}
 
+        {/* ===== CATEGORY DONUT (#6) =====
+            Where your money went this month, at a glance. SVG donut
+            with center hero showing total + 1 month of spending,
+            sliced by category. Top 6 categories shown directly; rest
+            roll up into "Other". Hidden when no data. */}
+        {loaded && thisMonthTotals.length > 0 ? (
+          <View className="mb-8">
+            <Text className={sectionLabelClass} style={{ color: mutedColor }}>
+              {t('insights:sections.categoryBreakdown')}
+            </Text>
+            <CategoryDonut
+              monthTotals={thisMonthTotals}
+              categoriesById={categoriesById}
+              isDark={isDark}
+              fgColor={fgColor}
+              mutedColor={mutedColor}
+              borderColor={borderColor}
+              lang={lang}
+              t={t}
+            />
+          </View>
+        ) : null}
+
         {/* ===== ANOMALIES ===== */}
         {loaded && anomalies.length > 0 ? (
           <View className="mb-8">
@@ -2001,6 +2024,220 @@ function compactIDR(minor: number, lang: Locale): string {
   if (idr >= 1_000_000) return fmt(idr / 1_000_000, lang === 'id' ? 'jt' : 'M');
   if (idr >= 1_000) return fmt(idr / 1_000, lang === 'id' ? 'rb' : 'k');
   return Math.round(idr).toString();
+}
+
+// ---------- CategoryDonut ----------
+
+type CategoryDonutProps = {
+  monthTotals: CategoryMonthTotal[];
+  categoriesById: Map<string, Category>;
+  isDark: boolean;
+  fgColor: string;
+  mutedColor: string;
+  borderColor: string;
+  lang: Locale;
+  t: TFunction;
+};
+
+const DONUT_TOP_N = 6;
+
+/**
+ * SVG donut chart of this-month spending by category. Top 6 categories
+ * shown as colored arcs; remaining categories roll up into a single
+ * "Other" arc so the visual stays readable on small screens.
+ *
+ * Uses react-native-svg's Path + arc geometry rather than pulling
+ * in a charting library — keeps bundle size flat and matches the
+ * existing trend chart's hand-rolled-SVG style.
+ */
+function CategoryDonut({
+  monthTotals, categoriesById, isDark, fgColor, mutedColor, borderColor, lang, t,
+}: CategoryDonutProps) {
+  void isDark;
+  void borderColor;
+  // Sort by spend desc, take top N, roll the rest into Other.
+  const sorted = useMemo(
+    () => [...monthTotals].sort((a, b) => b.totalIDR - a.totalIDR),
+    [monthTotals],
+  );
+  const total = useMemo(
+    () => sorted.reduce((s, m) => s + m.totalIDR, 0),
+    [sorted],
+  );
+  const slices = useMemo(() => {
+    if (total === 0) return [];
+    const top = sorted.slice(0, DONUT_TOP_N);
+    const rest = sorted.slice(DONUT_TOP_N);
+    const restTotal = rest.reduce((s, m) => s + m.totalIDR, 0);
+    type Slice = {
+      key: string; label: string; amount: number; tint: string; categoryId: string | null;
+    };
+    const out: Slice[] = top.map((m) => {
+      const cat = categoriesById.get(m.categoryId);
+      const tint = cat
+        ? resolveCategoryColor(cat.color, isDark ? 'dark' : 'light')
+        : mutedColor;
+      return {
+        key: m.categoryId,
+        label: cat ? cat.name[lang] : t('insights:donut.uncategorised'),
+        amount: m.totalIDR,
+        tint,
+        categoryId: m.categoryId,
+      };
+    });
+    if (restTotal > 0) {
+      out.push({
+        key: '__other__',
+        label: t('insights:donut.other', { count: rest.length }),
+        amount: restTotal,
+        tint: mutedColor,
+        categoryId: null,
+      });
+    }
+    return out;
+  }, [sorted, total, categoriesById, isDark, mutedColor, lang, t]);
+
+  if (total === 0 || slices.length === 0) return null;
+
+  // Donut geometry. SVG viewBox is fixed at 200×200; the parent
+  // <View> caps width on desktop. We measure-by-aspect-ratio so the
+  // ring stays circular at every breakpoint.
+  const SIZE = 200;
+  const STROKE = 28;
+  const CX = SIZE / 2;
+  const CY = SIZE / 2;
+  const R = (SIZE - STROKE) / 2;
+  const CIRCUMFERENCE = 2 * Math.PI * R;
+
+  // Walk the slices accumulating offset around the ring. Each arc
+  // is a stroke-dash-array trick: visible length = slice's % of
+  // circumference, gap fills the rest of the circle, and the
+  // stroke-dashoffset rotates the dash to its starting position.
+  let acc = 0;
+  const arcs = slices.map((s) => {
+    const fraction = s.amount / total;
+    const length = fraction * CIRCUMFERENCE;
+    // Tiny gap between slices (~1.5px) so arcs are visually distinct.
+    // Last slice gets no gap to close the ring cleanly.
+    const arc = {
+      slice: s,
+      length,
+      offset: -acc,
+    };
+    acc += length;
+    return arc;
+  });
+
+  return (
+    <View>
+      {/* SVG donut */}
+      <View style={{ width: '100%', maxWidth: 280, alignSelf: 'center' }}>
+        <View style={{ aspectRatio: 1 }}>
+          <Svg viewBox={`0 0 ${SIZE} ${SIZE}`} width="100%" height="100%">
+            {/* Background ring (very faint) so the chart silhouette
+                is visible even when there's only one slice. */}
+            <Circle
+              cx={CX}
+              cy={CY}
+              r={R}
+              stroke={mutedColor + '22'}
+              strokeWidth={STROKE}
+              fill="transparent"
+            />
+            {arcs.map((arc, i) => (
+              <Circle
+                key={arc.slice.key}
+                cx={CX}
+                cy={CY}
+                r={R}
+                stroke={arc.slice.tint}
+                strokeWidth={STROKE}
+                fill="transparent"
+                strokeDasharray={`${arc.length} ${CIRCUMFERENCE - arc.length}`}
+                strokeDashoffset={arc.offset}
+                // Rotate -90° so 0% starts at the top of the ring,
+                // matching the convention of every clock + pie chart
+                // ever built.
+                transform={`rotate(-90 ${CX} ${CY})`}
+                strokeLinecap={i === arcs.length - 1 ? 'butt' : 'butt'}
+              />
+            ))}
+          </Svg>
+        </View>
+        {/* Center hero (overlaid). 'positioned absolute' inside the
+            same parent so it rides the donut's center pixel. */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text
+            className="font-sans-medium text-[10px] uppercase tracking-wider"
+            style={{ color: mutedColor, marginBottom: 2 }}
+          >
+            {t('insights:donut.totalLabel')}
+          </Text>
+          <Text
+            className="font-mono tabular-nums"
+            style={{ color: fgColor, fontSize: 20, fontWeight: '700' }}
+            numberOfLines={1}
+          >
+            {formatIDR(total, lang)}
+          </Text>
+        </View>
+      </View>
+      {/* Legend rows */}
+      <View style={{ marginTop: 16, gap: 8 }}>
+        {slices.map((s) => {
+          const pct = ((s.amount / total) * 100).toFixed(0);
+          return (
+            <View
+              key={s.key}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <View
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 2,
+                  backgroundColor: s.tint,
+                }}
+              />
+              <Text
+                className="font-sans-medium text-sm"
+                style={{ color: fgColor, flex: 1 }}
+                numberOfLines={1}
+              >
+                {s.label}
+              </Text>
+              <Text
+                className="font-mono tabular-nums text-xs"
+                style={{ color: mutedColor }}
+              >
+                {pct}%
+              </Text>
+              <Text
+                className="font-mono tabular-nums text-sm"
+                style={{ color: fgColor, minWidth: 90, textAlign: 'right' }}
+              >
+                {formatIDR(s.amount, lang)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 // ---------- Heatmap ----------

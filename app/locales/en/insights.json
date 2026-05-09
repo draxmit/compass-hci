@@ -8,7 +8,14 @@
     "heatmap": "When you spend most",
     "weekday": "Your weekly pattern",
     "budgetHealth": "Budget health",
-    "recurring": "Recurring expenses"
+    "recurring": "Recurring expenses",
+    "categoryBreakdown": "Where it went this month"
+  },
+  "donut": {
+    "totalLabel": "Total",
+    "other_one": "Other ({{count}} more)",
+    "other_other": "Other ({{count}} more)",
+    "uncategorised": "Uncategorised"
   },
   "recurring": {
     "summary_one": "{{count}} recurring · {{monthly}}/mo · est. {{annual}}/year",

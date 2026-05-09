@@ -8,7 +8,14 @@
     "heatmap": "Kapan kamu paling banyak ngeluarin",
     "weekday": "Pola pengeluaran mingguan",
     "budgetHealth": "Status budget",
-    "recurring": "Pengeluaran berulang"
+    "recurring": "Pengeluaran berulang",
+    "categoryBreakdown": "Ke mana uangmu pergi bulan ini"
+  },
+  "donut": {
+    "totalLabel": "Total",
+    "other_one": "Lainnya ({{count}} kategori)",
+    "other_other": "Lainnya ({{count}} kategori)",
+    "uncategorised": "Tanpa kategori"
   },
   "recurring": {
     "summary_one": "{{count}} berulang · {{monthly}}/bln · ~{{annual}}/tahun",
