@@ -213,46 +213,79 @@ export default function QuickPresetsScreen() {
           </Card>
         ) : (
           <View>
-            {presets.map((p) => {
-              const cat = p.categoryId ? categories.find((c) => c.id === p.categoryId) : null;
-              const tint = cat
-                ? resolveCategoryColor(cat.color, isDark ? 'dark' : 'light')
-                : accent;
-              const acc = accounts.find((a) => a.id === p.accountId);
-              return (
-                <Pressable
-                  key={p.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Edit ${p.label}`}
-                  onPress={() => setEditTarget({ mode: 'edit', preset: p })}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1, marginBottom: 10 })}
-                >
-                  <Card padding="md">
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {/* Single Card containing all preset rows separated by
+                hairline dividers — same pattern Profile uses for
+                its link cluster. Was per-row Cards with marginBottom
+                10px which felt chunky on mobile (each Card's padding
+                doubled up with the gap). */}
+            <Card padding="none">
+              {presets.map((p, idx) => {
+                const cat = p.categoryId ? categories.find((c) => c.id === p.categoryId) : null;
+                const tint = cat
+                  ? resolveCategoryColor(cat.color, isDark ? 'dark' : 'light')
+                  : accent;
+                const acc = accounts.find((a) => a.id === p.accountId);
+                const isLast = idx === presets.length - 1;
+                // Build the meta line. Skip empty/zero values so the
+                // string doesn't show "Rp 0 · · · " for fully-blank
+                // presets — instead we show a placeholder hint that
+                // the preset will prompt at use-time.
+                const metaParts: string[] = [];
+                if (p.amountMinor > 0) metaParts.push(formatIDR(p.amountMinor, lang));
+                if (acc) metaParts.push(acc.name);
+                if (cat) metaParts.push(cat.name[lang]);
+                const meta = metaParts.length > 0
+                  ? metaParts.join(' · ')
+                  : t('common:quickPresets.needsDetails');
+                return (
+                  <Pressable
+                    key={p.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Edit ${p.label}`}
+                    onPress={() => setEditTarget({ mode: 'edit', preset: p })}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        paddingHorizontal: 16,
+                        paddingVertical: 14,
+                        borderBottomWidth: isLast ? 0 : 1,
+                        borderBottomColor: borderColor,
+                      }}
+                    >
                       <View
                         style={{
-                          width: 40, height: 40, borderRadius: 10,
+                          width: 36, height: 36, borderRadius: 10,
                           backgroundColor: tint + '22',
                           alignItems: 'center', justifyContent: 'center',
                         }}
                       >
-                        <Zap size={18} color={tint} />
+                        <Zap size={16} color={tint} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text className="font-sans-medium text-base" style={{ color: fgColor }}>
+                        <Text
+                          className="font-sans-medium text-base"
+                          style={{ color: fgColor }}
+                          numberOfLines={1}
+                        >
                           {p.label}
                         </Text>
-                        <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-                          {formatIDR(p.amountMinor, lang)}
-                          {acc ? ` · ${acc.name}` : ''}
-                          {cat ? ` · ${cat.name[lang]}` : ''}
+                        <Text
+                          className="font-sans text-xs"
+                          style={{ color: mutedColor }}
+                          numberOfLines={1}
+                        >
+                          {meta}
                         </Text>
                       </View>
                     </View>
-                  </Card>
-                </Pressable>
-              );
-            })}
+                  </Pressable>
+                );
+              })}
+            </Card>
             {presets.length < MAX_PRESETS ? (
               <Pressable
                 accessibilityRole="button"
@@ -260,7 +293,7 @@ export default function QuickPresetsScreen() {
                 onPress={() => setEditTarget({ mode: 'create' })}
                 style={{
                   flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'center', gap: 6,
-                  paddingHorizontal: 14, paddingVertical: 10, marginTop: 8,
+                  paddingHorizontal: 14, paddingVertical: 10, marginTop: 12,
                   borderRadius: 10, borderWidth: 1, borderColor,
                   minHeight: 40,
                 }}
@@ -271,7 +304,7 @@ export default function QuickPresetsScreen() {
                 </Text>
               </Pressable>
             ) : (
-              <Text className="font-sans text-xs mt-2" style={{ color: mutedColor }}>
+              <Text className="font-sans text-xs mt-3" style={{ color: mutedColor }}>
                 {t('common:quickPresets.maxReached', { max: MAX_PRESETS })}
               </Text>
             )}
