@@ -320,8 +320,12 @@ export default function AskScreen() {
             onChangeText={setInput}
             placeholder={t('inputPlaceholder')}
             autoCapitalize="sentences"
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
+            // Multiline composer — Enter adds a newline, Send button
+            // (below) is the only submit affordance. Long prompts /
+            // pasted multi-paragraph context now compose comfortably
+            // without auto-submitting on first newline.
+            multiline
+            numberOfLines={2}
           />
           <View className="flex-row" style={{ gap: 8, marginTop: 8 }}>
             <Pressable

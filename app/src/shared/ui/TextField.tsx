@@ -20,6 +20,15 @@ export type TextFieldProps = {
   textContentType?: TextInputProps['textContentType'];
   returnKeyType?: TextInputProps['returnKeyType'];
   onSubmitEditing?: TextInputProps['onSubmitEditing'];
+  /**
+   * Allow newlines via the Enter key. Renders as a textarea on web and
+   * a multiline TextInput on native. Used by long-form inputs like the
+   * chat composer on /ask, where Enter should ADD a line break rather
+   * than submit. The Send button is the explicit submit affordance.
+   */
+  multiline?: boolean;
+  /** Initial visible row count when `multiline` is true. Auto-grows. */
+  numberOfLines?: number;
 };
 
 /**
@@ -41,6 +50,8 @@ export function TextField({
   textContentType,
   returnKeyType,
   onSubmitEditing,
+  multiline,
+  numberOfLines,
 }: TextFieldProps) {
   const { resolvedScheme } = useTheme();
   const isDark = resolvedScheme === 'dark';
@@ -94,6 +105,12 @@ export function TextField({
           textContentType={textContentType}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          // Multiline + blurOnSubmit:false = Enter inserts a newline
+          // instead of submitting. The Send button is the explicit
+          // submit. Single-line behaviour is unchanged.
+          blurOnSubmit={multiline ? false : undefined}
           // Suppress Android's native TextInput underline — it ships a
           // material-style underline by default that we don't want.
           underlineColorAndroid="transparent"
@@ -104,6 +121,15 @@ export function TextField({
             paddingHorizontal: 16,
             paddingVertical: 12,
             minHeight: 44,
+            // Multi-line caps growth around 8 lines so the composer
+            // doesn't take over the screen on long prompts. User can
+            // still scroll within the box past that point.
+            ...(multiline
+              ? {
+                  textAlignVertical: 'top' as const,
+                  maxHeight: 200,
+                }
+              : {}),
             // RN <TextInput> on web exposes a default outline on focus; we
             // suppress it since the wrapper border-colour swap is enough.
             outlineWidth: 0,
