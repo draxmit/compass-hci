@@ -104,13 +104,11 @@ export default function InsightsScreen() {
   // 12 month columns × 31 day rows. Year view triggers a separate
   // fetch since the trend window is only 6 months.
   const [heatmapView, setHeatmapView] = useState<'month' | 'year'>('month');
-  const [yearTxsByMonth, setYearTxsByMonth] = useState<Map<string, Transaction[]> | null>(null);
-  const [yearTxsLoading, setYearTxsLoading] = useState(false);
-  // Tracks which months' parallel fetches have RESOLVED (regardless
-  // of whether they returned any transactions). Used to drive the
-  // per-month skeleton — `txs.length > 0` would incorrectly leave
-  // empty-spending months stuck in skeleton state forever.
-  const [yearResolvedMonths, setYearResolvedMonths] = useState<Set<string>>(new Set());
+  // Year view data: ONE total per month, NOT daily transactions.
+  // We fetch 12 monthly summary docs (tiny — sum-of-spending per
+  // category per month). `null` = not yet fetched.
+  const [yearMonthTotals, setYearMonthTotals] = useState<Map<string, number> | null>(null);
+  const [yearTotalsLoading, setYearTotalsLoading] = useState(false);
 
   // Compute the 6 yearMonths backwards from current. Memoised so the
   // useEffect deps are stable.
@@ -302,74 +300,65 @@ export default function InsightsScreen() {
     return out;   // oldest → newest
   }, []);
 
+  // Year view: fetch ONE total per month. CategoryMonthTotal docs are
+  // tiny (~10 per month, summary-only — no per-day breakdown). 12
+  // parallel fetches of 10 small docs each = ~5kb total. Should
+  // resolve in <1s on any reasonable connection.
+  //
+  // Hot start: the trend-chart fetch (in the main mount effect above)
+  // already loaded month-totals for the 6 trend months as `trendCmts`.
+  // Pre-fill those into the year totals map so they render instantly;
+  // only the OLDER 6 months hit the network.
   useEffect(() => {
     if (heatmapView !== 'year') return;
-    if (yearTxsByMonth || yearTxsLoading) return;
+    if (yearMonthTotals || yearTotalsLoading) return;
     if (!wid) return;
-    setYearTxsLoading(true);
+    setYearTotalsLoading(true);
     let cancelled = false;
 
-    // (Seed map handled by the hot-start logic below — months
-    // already in `allTxsByMonth` from the trend-chart fetch
-    // populate instantly; only the older 6 months hit the network.)
-    // ⚡ Hot start: months we ALREADY have from the trend-chart fetch
-    // (`allTxsByMonth` covers the 6-month trend window) populate
-    // instantly without a Firestore round trip. Only the OLDER 6
-    // months hit the network. Cuts year-view perceived load time
-    // roughly in half.
-    const seedFromCache = new Map<string, Transaction[]>();
+    const seed = new Map<string, number>();
     const cacheHitMonths = new Set<string>();
-    for (const ym of yearMonthsList) {
-      const cached = allTxsByMonth.get(ym);
-      if (cached) {
-        seedFromCache.set(ym, cached);
+    yearMonths.forEach((ym, i) => {
+      const monthCmts = trendCmts[i];
+      if (monthCmts) {
+        const total = monthCmts.reduce((s, m) => s + m.totalIDR, 0);
+        seed.set(ym, total);
         cacheHitMonths.add(ym);
-      } else {
-        seedFromCache.set(ym, []);
       }
-    }
-    setYearTxsByMonth(seedFromCache);
-    setYearResolvedMonths(cacheHitMonths);
+    });
+    setYearMonthTotals(seed);
 
-    // Fire network fetches ONLY for the months the cache didn't cover.
-    const monthsToFetch = yearMonthsList.filter((ym) => !cacheHitMonths.has(ym));
+    const monthsToFetch = yearMonthsList.filter(
+      (ym) => !cacheHitMonths.has(ym),
+    );
     if (monthsToFetch.length === 0) {
-      // Everything served from cache — no network needed.
-      setYearTxsLoading(false);
+      setYearTotalsLoading(false);
       return;
     }
+
     let resolvedCount = 0;
     monthsToFetch.forEach((ym) => {
       const start = Date.now();
-      void listTransactions(wid, { yearMonth: ym, orderByDate: false })
-        .then((txs) => {
+      void listMonthTotals(wid, ym)
+        .then((cmts) => {
           if (cancelled) return;
+          const total = cmts.reduce((s, m) => s + m.totalIDR, 0);
           console.log(
-            `[insights] year fetch ${ym}: ${txs.length} txs in ${Date.now() - start}ms`,
+            `[insights] year totals ${ym}: ${cmts.length} cats / ${total} IDR in ${Date.now() - start}ms`,
           );
-          setYearTxsByMonth((prev) => {
+          setYearMonthTotals((prev) => {
             const next = new Map(prev ?? []);
-            next.set(ym, txs);
-            return next;
-          });
-          // Mark THIS month as resolved — regardless of whether it
-          // had transactions. Prevents empty-spending months getting
-          // stuck in skeleton state.
-          setYearResolvedMonths((prev) => {
-            const next = new Set(prev);
-            next.add(ym);
+            next.set(ym, total);
             return next;
           });
         })
         .catch((err: unknown) => {
-          console.warn(`[insights] year fetch ${ym} failed`, err);
-          // Treat failure as resolved too — we don't want a single
-          // failed month to leave the user staring at an indefinite
-          // skeleton. They'll see the "no spending" state instead.
+          console.warn(`[insights] year totals ${ym} failed`, err);
+          // Mark as 0 so the box renders empty rather than stuck.
           if (!cancelled) {
-            setYearResolvedMonths((prev) => {
-              const next = new Set(prev);
-              next.add(ym);
+            setYearMonthTotals((prev) => {
+              const next = new Map(prev ?? []);
+              next.set(ym, 0);
               return next;
             });
           }
@@ -377,59 +366,37 @@ export default function InsightsScreen() {
         .finally(() => {
           if (cancelled) return;
           resolvedCount++;
-          if (resolvedCount === yearMonthsList.length) {
-            setYearTxsLoading(false);
+          if (resolvedCount === monthsToFetch.length) {
+            setYearTotalsLoading(false);
           }
         });
     });
 
     return () => { cancelled = true; };
-  }, [heatmapView, yearTxsByMonth, yearTxsLoading, wid, yearMonthsList, allTxsByMonth]);
+  }, [heatmapView, yearMonthTotals, yearTotalsLoading, wid, yearMonths, yearMonthsList, trendCmts]);
 
   // Per-month heatmap data for the stacked-grid year view. Each entry
   // is a single month's daily totals + how to lay it out (firstDow,
   // daysInMonth). The `max` is shared across all months so cell color
   // intensity is comparable month-to-month — without it, a quiet month
   // would look just as "hot" as a heavy one.
-  const yearMonthGrids = useMemo(() => {
-    if (heatmapView !== 'year' || !yearTxsByMonth) return null;
-    const months: {
-      yearMonth: string;
-      daysInMonth: number;
-      firstDow: number;
-      dayTotals: number[];
-      hasData: boolean; // whether the parallel fetch resolved this month
-    }[] = [];
+  // 12-box year overview. ONE box per month, intensity = total
+  // spending / max(across-12-months). No daily breakdown — way faster
+  // to compute, way faster to render, way easier to scan.
+  const yearMonthBoxes = useMemo(() => {
+    if (heatmapView !== 'year' || !yearMonthTotals) return null;
     let max = 0;
-    for (const ym of yearMonthsList) {
-      const [yStr, mStr] = ym.split('-');
-      const year = Number(yStr);
-      const month = Number(mStr) - 1;
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const firstDow = new Date(year, month, 1).getDay(); // 0=Sun..6=Sat
-      const txs = yearTxsByMonth.get(ym) ?? [];
-      const dayTotals = new Array<number>(daysInMonth + 1).fill(0); // 1-indexed
-      for (const tx of txs) {
-        if (tx.type !== 'expense') continue;
-        const day = Number(tx.date.slice(8, 10));
-        if (day >= 1 && day <= daysInMonth) {
-          dayTotals[day] = (dayTotals[day] ?? 0) + tx.amount;
-          if (dayTotals[day]! > max) max = dayTotals[day]!;
-        }
-      }
-      months.push({
+    const boxes = yearMonthsList.map((ym) => {
+      const total = yearMonthTotals.get(ym);
+      if (total !== undefined && total > max) max = total;
+      return {
         yearMonth: ym,
-        daysInMonth,
-        firstDow,
-        dayTotals,
-        // RESOLVED, not "has spending". A month with zero txs is
-        // still a fully-loaded month — should render as the empty
-        // calendar grid, not the loading skeleton.
-        hasData: yearResolvedMonths.has(ym),
-      });
-    }
-    return { months, max };
-  }, [heatmapView, yearTxsByMonth, yearMonthsList, yearResolvedMonths]);
+        total: total ?? null,         // null = still loading this month
+        loaded: total !== undefined,  // resolved (even if 0)
+      };
+    });
+    return { boxes, max };
+  }, [heatmapView, yearMonthTotals, yearMonthsList]);
 
   // ----- Day-of-week aggregation -----
   // Average per dow across all transactions in the trend window.
@@ -830,34 +797,20 @@ export default function InsightsScreen() {
                 </>
               )
             ) : (
-              // Year view — 12 mini calendar grids stacked. Each
-              // renders as soon as ITS month's parallel fetch
-              // resolves (no waiting for siblings), so the user
-              // sees data progressively. Months still loading show
-              // a muted skeleton grid in the same shape.
-              !yearMonthGrids ? null : (
-                <View style={{ gap: 24 }}>
-                  {yearMonthGrids.months.map((m) => (
-                    <YearMonthGrid
-                      key={m.yearMonth}
-                      yearMonth={m.yearMonth}
-                      daysInMonth={m.daysInMonth}
-                      firstDow={m.firstDow}
-                      dayTotals={m.dayTotals}
-                      max={yearMonthGrids.max}
-                      hasData={m.hasData}
-                      stillLoading={yearTxsLoading}
-                      accent={accent}
-                      borderColor={borderColor}
-                      mutedColor={mutedColor}
-                      fgColor={fgColor}
-                      weekdayShortNames={
-                        (t('insights:weekday.shortNames', { returnObjects: true }) as string[]) ?? []
-                      }
-                      lang={lang}
-                    />
-                  ))}
-                </View>
+              // Year view — 12 boxes, ONE per month. Each box's color
+              // intensity scales with total spending vs the year max.
+              // Tiny payload (12 small summary fetches), instant render
+              // for any month already in the trend cache.
+              !yearMonthBoxes ? null : (
+                <YearMonthBoxes
+                  boxes={yearMonthBoxes.boxes}
+                  max={yearMonthBoxes.max}
+                  accent={accent}
+                  borderColor={borderColor}
+                  mutedColor={mutedColor}
+                  fgColor={fgColor}
+                  lang={lang}
+                />
               )
             )}
           </View>
@@ -1650,123 +1603,96 @@ function Heatmap({
   );
 }
 
-// ---------- YearMonthGrid ----------
+// ---------- YearMonthBoxes ----------
 
-type YearMonthGridProps = {
-  yearMonth: string;
-  daysInMonth: number;
-  firstDow: number;
-  dayTotals: number[];
+type YearMonthBoxesProps = {
+  boxes: { yearMonth: string; total: number | null; loaded: boolean }[];
   max: number;
-  hasData: boolean;
-  stillLoading: boolean;
   accent: string;
   borderColor: string;
   mutedColor: string;
   fgColor: string;
-  weekdayShortNames: string[];
   lang: Locale;
 };
 
 /**
- * One month's calendar grid in the year heatmap. Visually the same as
- * the existing month-Heatmap component, plus a month label above. When
- * `stillLoading` is true and this month's data hasn't arrived yet
- * (`hasData=false`), cells render as muted placeholders so the user
- * sees the eventual layout immediately while parallel queries resolve
- * one by one.
+ * 12-month overview as a 4×3 grid of colored boxes. ONE box per month.
+ * Cell intensity = total spending / year max. Inside each box: month
+ * abbreviation (3-letter, locale-aware) on top + compact amount
+ * below.
+ *
+ * Renders months still loading as muted skeleton boxes in the same
+ * footprint, so the page doesn't shift as data arrives.
+ *
+ * 4-column layout works on every viewport: 4 cells fit in mobile-min
+ * (~280px → ~64px each), and on desktop the constrained max-width
+ * keeps boxes proportionate. No horizontal scroll needed.
  */
-function YearMonthGrid({
-  yearMonth, daysInMonth, firstDow, dayTotals, max,
-  hasData, stillLoading, accent, borderColor, mutedColor, fgColor,
-  weekdayShortNames, lang,
-}: YearMonthGridProps) {
-  const monthDate = new Date(`${yearMonth}-01T00:00:00`);
-  const monthLabel = formatDate(monthDate, 'long-month', lang);
-  const isPlaceholder = stillLoading && !hasData;
-
-  // Pad cells before day 1 so the first day lines up with the right
-  // weekday column. Same logic as the month Heatmap component.
-  const cells: ({ day: number; total: number } | null)[] = [];
-  for (let i = 0; i < firstDow; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, total: dayTotals[d] ?? 0 });
-
+function YearMonthBoxes({
+  boxes, max, accent, borderColor, mutedColor, fgColor, lang,
+}: YearMonthBoxesProps) {
   return (
-    <View>
-      <Text
-        className="font-sans-medium text-xs uppercase tracking-wider mb-2"
-        style={{ color: mutedColor }}
-      >
-        {monthLabel}
-      </Text>
-      {/* Weekday header */}
-      <View className="flex-row" style={{ gap: 4, marginBottom: 4 }}>
-        {weekdayShortNames.map((n, i) => (
-          <Text
-            key={i}
-            className="font-sans-medium text-[10px]"
-            style={{ color: mutedColor, flex: 1, textAlign: 'center' }}
+    <View
+      className="flex-row flex-wrap"
+      style={{ gap: 8, marginHorizontal: -4 }}
+    >
+      {boxes.map((b) => {
+        const monthDate = new Date(`${b.yearMonth}-01T00:00:00`);
+        const monthShort = formatDate(monthDate, 'long-month', lang).split(' ')[0];
+        const intensity = b.total === null || max === 0 ? 0 : b.total / max;
+        const fillAlpha = intensity === 0 ? 0 : Math.max(0.18, intensity);
+        return (
+          <View
+            key={b.yearMonth}
+            style={{
+              width: '23%',                  // 4 cols (with the gap)
+              aspectRatio: 1,
+              marginHorizontal: 4,
+              marginVertical: 4,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor,
+              backgroundColor: !b.loaded
+                ? borderColor + '66'         // skeleton — muted bg
+                : intensity === 0
+                  ? 'transparent'
+                  : accent + alphaHex(fillAlpha),
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 6,
+              opacity: !b.loaded ? 0.6 : 1,
+            }}
           >
-            {n}
-          </Text>
-        ))}
-      </View>
-      {/* Day cells in rows of 7 */}
-      <View style={{ gap: 4 }}>
-        {chunk(cells, 7).map((row, rowIdx) => (
-          <View key={rowIdx} className="flex-row" style={{ gap: 4 }}>
-            {row.map((cell, i) => {
-              if (!cell) return <View key={i} style={{ flex: 1, aspectRatio: 1 }} />;
-              if (isPlaceholder) {
-                return (
-                  <View
-                    key={i}
-                    style={{
-                      flex: 1,
-                      aspectRatio: 1,
-                      borderRadius: 4,
-                      backgroundColor: borderColor,
-                      opacity: 0.4,
-                    }}
-                  />
-                );
-              }
-              const intensity = max === 0 ? 0 : cell.total / max;
-              const fillAlpha = intensity === 0 ? 0 : Math.max(0.15, intensity);
-              return (
-                <View
-                  key={i}
-                  style={{
-                    flex: 1,
-                    aspectRatio: 1,
-                    borderRadius: 6,
-                    borderWidth: 1,
-                    borderColor,
-                    backgroundColor:
-                      intensity === 0 ? 'transparent' : accent + alphaHex(fillAlpha),
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text
-                    className="font-sans text-[10px]"
-                    style={{
-                      color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
-                    }}
-                  >
-                    {cell.day}
-                  </Text>
-                </View>
-              );
-            })}
-            {row.length < 7
-              ? Array.from({ length: 7 - row.length }).map((_, i) => (
-                  <View key={`pad-${i}`} style={{ flex: 1, aspectRatio: 1 }} />
-                ))
-              : null}
+            <Text
+              className="font-sans-medium text-xs uppercase"
+              style={{
+                color:
+                  !b.loaded
+                    ? mutedColor
+                    : intensity > 0.5
+                      ? '#fff'
+                      : fgColor,
+                letterSpacing: 0.5,
+              }}
+              numberOfLines={1}
+            >
+              {monthShort}
+            </Text>
+            {b.loaded && b.total !== null ? (
+              <Text
+                className="font-mono tabular-nums mt-1"
+                style={{
+                  color: intensity > 0.5 ? '#fff' : mutedColor,
+                  fontSize: 10,
+                }}
+                numberOfLines={1}
+              >
+                {compactIDR(b.total, lang)}
+              </Text>
+            ) : null}
           </View>
-        ))}
-      </View>
+        );
+      })}
     </View>
   );
 }
