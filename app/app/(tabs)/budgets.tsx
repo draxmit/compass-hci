@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Check, ChevronRight, FileText, Pencil, Plus, Trash2, X } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, FileText, Pencil, Plus, Trash2, X } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -63,15 +63,45 @@ export default function BudgetsScreen() {
   const mutedColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
   const borderColor = isDark ? tokens.surface['dark-border'] : tokens.surface['light-border'];
 
-  const yearMonth = useMemo(() => {
+  // Current real-world month — derived from now() each render. Used as
+  // both the default for `yearMonth` AND the upper-bound clamp on the
+  // forward-navigation chevron (we don't let users navigate to future
+  // months — there's nothing to budget against).
+  const currentYearMonth = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }, []);
+
+  // The currently-VIEWED month. Defaults to current. Prev/next chevrons
+  // shift it by 1 month; the "Today" button (visible only when off the
+  // current month) snaps back. Every Firestore subscription downstream
+  // already depends on `yearMonth`, so changing it re-fires the queries
+  // and the page re-renders with the new month's data.
+  const [yearMonth, setYearMonth] = useState(currentYearMonth);
 
   const monthLabel = useMemo(() => {
     const d = new Date(`${yearMonth}-01T00:00:00`);
     return formatDate(d, 'long-month', lang);
   }, [yearMonth, lang]);
+
+  const isCurrentMonth = yearMonth === currentYearMonth;
+  const handlePrevMonth = () => {
+    const d = new Date(`${yearMonth}-01T00:00:00`);
+    d.setMonth(d.getMonth() - 1);
+    setYearMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    setExpandedCategoryId(null);
+  };
+  const handleNextMonth = () => {
+    if (isCurrentMonth) return;  // never navigate into the future
+    const d = new Date(`${yearMonth}-01T00:00:00`);
+    d.setMonth(d.getMonth() + 1);
+    setYearMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    setExpandedCategoryId(null);
+  };
+  const handleJumpToToday = () => {
+    setYearMonth(currentYearMonth);
+    setExpandedCategoryId(null);
+  };
 
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [monthTotals, setMonthTotals] = useState<CategoryMonthTotal[]>([]);
@@ -267,72 +297,93 @@ export default function BudgetsScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md lg:max-w-3xl">
-        {/* Month subtitle with accent dot — promotes the active month
-            to a hero label, matches the Dashboard TOTAL BALANCE treatment. */}
-        <View className="flex-row items-center mb-1" style={{ gap: 8 }}>
-          <View
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: tokens.accent.budgets,
-            }}
-          />
-          <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
-            {t('budgets:subtitleMonth', { month: monthLabel })}
-          </Text>
-        </View>
-
-        {/* Monthly report link — sits ABOVE the style selector since
-            the report is style-independent (same numbers regardless
-            of monthly-limit / envelope / 50-30-20). Doubles as the
-            entry point to the Word + PDF export buttons inside it. */}
-        {!totallyEmpty && allLoaded ? (
+        {/* Month navigator — left/right chevrons step through months,
+            center shows the active month's name in hero typography,
+            "Today" button appears only when off the current month
+            (snaps the user back). Forward chevron disabled when
+            already on current month. Stepping the month re-runs every
+            downstream Firestore subscription. */}
+        <View
+          className="flex-row items-center justify-between mb-3"
+          style={{ minHeight: 44 }}
+        >
           <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={t('budgets:actions.viewReport')}
-            onPress={() => router.push(`/report/${yearMonth}` as Href)}
+            accessibilityRole="button"
+            accessibilityLabel={t('budgets:nav.prevMonth')}
+            onPress={handlePrevMonth}
+            hitSlop={8}
             style={({ hovered, pressed }) => ({
-              flexDirection: 'row',
+              width: 36,
+              height: 36,
+              borderRadius: 18,
               alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: 14,
-              paddingVertical: 12,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor:
-                (hovered as boolean | undefined) || pressed
-                  ? tokens.accent.budgets + '88'
-                  : borderColor,
+              justifyContent: 'center',
               backgroundColor:
                 (hovered as boolean | undefined) || pressed
-                  ? tokens.accent.budgets + '0d'
+                  ? tokens.accent.budgets + '14'
                   : 'transparent',
-              marginTop: 12,
-              marginBottom: 8,
-              transform: [{ scale: pressed ? 0.99 : 1 }],
             })}
           >
-            <View className="flex-row items-center" style={{ gap: 10 }}>
+            <ChevronLeft size={20} color={fgColor} />
+          </Pressable>
+          <View className="items-center" style={{ flex: 1 }}>
+            <View className="flex-row items-center" style={{ gap: 6 }}>
               <View
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 7,
-                  backgroundColor: tokens.accent.budgets + '22',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: tokens.accent.budgets,
                 }}
+              />
+              <Text
+                className="font-sans-bold text-base"
+                style={{ color: fgColor }}
+                numberOfLines={1}
               >
-                <FileText size={14} color={tokens.accent.budgets} />
-              </View>
-              <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
-                {t('budgets:actions.viewReport')}
+                {monthLabel}
               </Text>
             </View>
-            <ChevronRight size={16} color={mutedColor} />
+            {!isCurrentMonth ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('budgets:nav.jumpToToday')}
+                onPress={handleJumpToToday}
+                hitSlop={6}
+                style={{ paddingTop: 2 }}
+              >
+                <Text
+                  className="font-sans-medium text-[11px]"
+                  style={{ color: tokens.accent.budgets }}
+                >
+                  {t('budgets:nav.jumpToToday')}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('budgets:nav.nextMonth')}
+            accessibilityState={{ disabled: isCurrentMonth }}
+            onPress={handleNextMonth}
+            hitSlop={8}
+            disabled={isCurrentMonth}
+            style={({ hovered, pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isCurrentMonth ? 0.3 : 1,
+              backgroundColor:
+                !isCurrentMonth && ((hovered as boolean | undefined) || pressed)
+                  ? tokens.accent.budgets + '14'
+                  : 'transparent',
+            })}
+          >
+            <ChevronRight size={20} color={fgColor} />
           </Pressable>
-        ) : null}
+        </View>
 
         {/* Style selector strip — segmented buttons. Active style uses
             a horizontal accent gradient (matches the rest of the app's
@@ -637,9 +688,42 @@ export default function BudgetsScreen() {
               </View>
             ) : null}
 
-            {/* Footer link to monthly summary report removed — now
-                lives as a prominent CTA right under the style
-                selector, visible across all budget styles. */}
+            {/* Footer link to monthly summary report. Reports are a
+                destination AFTER reviewing budgets, not before — so
+                this lives at the bottom as a tertiary outlined link
+                with no icon avatar. Was previously promoted to the
+                top of the page; demoted back per design critique. */}
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={t('budgets:actions.viewReport')}
+              onPress={() => router.push(`/report/${yearMonth}` as Href)}
+              style={({ hovered, pressed }) => ({
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: 12,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor:
+                  (hovered as boolean | undefined) || pressed
+                    ? tokens.accent.budgets + '66'
+                    : borderColor,
+                backgroundColor:
+                  (hovered as boolean | undefined) || pressed
+                    ? tokens.accent.budgets + '0d'
+                    : 'transparent',
+                marginTop: 8,
+                marginBottom: 24,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              })}
+            >
+              <FileText size={14} color={mutedColor} />
+              <Text className="font-sans-medium text-sm" style={{ color: mutedColor }}>
+                {t('budgets:actions.viewReport')}
+              </Text>
+              <ChevronRight size={14} color={mutedColor} />
+            </Pressable>
           </>
         ) : null}
       </View>
@@ -771,6 +855,18 @@ function BudgetRow({
         >
           {formatPercent(ratio, lang)}
         </Text>
+        {/* Tap-affordance chevron — the row is a Pressable for
+            inline-edit but the previous design had no visual cue
+            (only UnbudgetedRow did). Mirrors UnbudgetedRow's
+            chevron + rotates when expanded so the affordance reads
+            clearly. */}
+        <View style={{ marginLeft: 8 }}>
+          {expanded ? (
+            <ChevronDown size={16} color={mutedColor} />
+          ) : (
+            <ChevronRight size={16} color={mutedColor} />
+          )}
+        </View>
       </Pressable>
 
       {/* Progress bar — fills to the limit, with an overflow sliver in

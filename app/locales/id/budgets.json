@@ -1,6 +1,11 @@
 {
   "title": "Budget",
   "subtitleMonth": "{{month}}",
+  "nav": {
+    "prevMonth": "Bulan sebelumnya",
+    "nextMonth": "Bulan berikutnya",
+    "jumpToToday": "Ke bulan ini"
+  },
   "styles": {
     "label": "Gaya budget",
     "monthlyLimit": "Batas bulanan",

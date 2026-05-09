@@ -1,6 +1,11 @@
 {
   "title": "Budgets",
   "subtitleMonth": "{{month}}",
+  "nav": {
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "jumpToToday": "Jump to today"
+  },
   "styles": {
     "label": "Budget style",
     "monthlyLimit": "Monthly limit",

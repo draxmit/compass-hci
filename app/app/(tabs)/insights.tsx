@@ -562,22 +562,11 @@ export default function InsightsScreen() {
           onPress={() => router.push('/ask')}
         />
 
-        {/* ===== BUDGET HEALTH (v3 polish) ===== */}
-        {loaded && thisMonthBudgets.length > 0 ? (
-          <BudgetHealthSummary
-            budgets={thisMonthBudgets}
-            thisMonthTotals={thisMonthTotals}
-            isDark={isDark}
-            fgColor={fgColor}
-            mutedColor={mutedColor}
-            borderColor={borderColor}
-            sectionLabelClass={sectionLabelClass}
-            t={t}
-            onPress={() => router.push('/budgets' as Href)}
-          />
-        ) : null}
-
-        {/* ===== TREND ===== */}
+        {/* ===== TREND =====
+            Trend / Anomalies first — they're the strongest "this is
+            your spending behavior" signals and earn the second-screen
+            position. BUDGET HEALTH (which is really a budgets-tab
+            summary) moved further down per design critique. */}
         {loaded ? (
           <View className="mb-8">
             <Text className={sectionLabelClass} style={{ color: mutedColor }}>
@@ -621,6 +610,24 @@ export default function InsightsScreen() {
               ))}
             </View>
           </View>
+        ) : null}
+
+        {/* ===== BUDGET HEALTH (v3 polish) =====
+            Lives between Anomalies and Heatmap — it's a summary of
+            the Budgets tab, not a behavior insight, so it doesn't
+            earn the top-of-page position. Hidden when no budgets. */}
+        {loaded && thisMonthBudgets.length > 0 ? (
+          <BudgetHealthSummary
+            budgets={thisMonthBudgets}
+            thisMonthTotals={thisMonthTotals}
+            isDark={isDark}
+            fgColor={fgColor}
+            mutedColor={mutedColor}
+            borderColor={borderColor}
+            sectionLabelClass={sectionLabelClass}
+            t={t}
+            onPress={() => router.push('/budgets' as Href)}
+          />
         ) : null}
 
         {/* ===== HEATMAP ===== */}
@@ -883,66 +890,69 @@ function AskCompassCta({
   t: TFunction;
   onPress: () => void;
 }) {
-  void isDark;
+  // Conversational composer — DOESN'T look like a button. Looks
+  // like the input the user is about to type into, mimicking
+  // ChatGPT mobile's home screen / Cursor's chat trigger. Same
+  // target as before (router.push('/ask')) but reads as the
+  // beginning of a conversation, not a CTA. The "boxy" feedback
+  // the user kept giving was rejection of the entire button
+  // paradigm — once we frame it as an input, the rectangular
+  // textfield silhouette IS the right shape (textareas are
+  // rectangular by definition, that's their language).
   return (
-    <View style={{ marginTop: 4, marginBottom: 32 }}>
-      {/* Compact button-pill that ACTUALLY reads as a button — short
-          height + radius = full-rounded vertical edges + alignSelf
-          flex-start so it doesn't stretch full-width into rectangle
-          territory. Subtitle moved below as a separate caption row. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('ask:entryCta')}
-        onPress={onPress}
-        style={({ hovered, pressed }) => ({
-          alignSelf: 'flex-start',
-          // 999 always wins as a half-pill regardless of height
-          borderRadius: 999,
-          borderWidth: 1,
-          borderColor:
-            (hovered as boolean | undefined) || pressed
-              ? tokens.accent.dashboard + '99'
-              : tokens.accent.dashboard + '55',
-          overflow: 'hidden',
-          transform: [{ scale: pressed ? 0.97 : 1 }],
-        })}
-      >
-        <RNLinearGradient
-          colors={[
-            tokens.accent.dashboard + '24',
-            tokens.accent.dashboard + '14',
-          ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-            paddingVertical: 10,
-            paddingHorizontal: 16,
-          }}
-        >
-          <Sparkles size={16} color={tokens.accent.dashboard} />
-          <Text
-            className="font-sans-bold text-sm"
-            style={{ color: tokens.accent.dashboard }}
-          >
-            {t('ask:entryCta')}
-          </Text>
-          <ChevronRight size={14} color={tokens.accent.dashboard} />
-        </RNLinearGradient>
-      </Pressable>
-      {/* Caption underneath — kept as separate text, not bundled into
-          the button. Lets the button itself stay tight + obviously
-          tappable; caption explains what it does without making the
-          button feel like a full-bleed banner card. */}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t('ask:entryCta')}
+      onPress={onPress}
+      style={({ hovered, pressed }) => ({
+        marginBottom: 24,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor:
+          (hovered as boolean | undefined) || pressed
+            ? tokens.accent.dashboard + '99'
+            : tokens.accent.dashboard + '40',
+        backgroundColor: isDark
+          ? tokens.surface['dark-input']
+          : tokens.surface['light-input'],
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 14,
+        paddingLeft: 18,
+        paddingRight: 6,
+        transform: [{ scale: pressed ? 0.98 : 1 }],
+      })}
+    >
+      {/* Sparkles glyph hints "this is the AI surface" without making
+          the whole row a chip. */}
+      <Sparkles size={18} color={tokens.accent.dashboard} />
+      {/* Placeholder text — reads exactly like a textfield's
+          placeholder copy. The user sees "this is where my question
+          goes" rather than "this is a button labeled Ask Compass". */}
       <Text
-        className="font-sans text-xs mt-2"
-        style={{ color: mutedColor }}
+        className="font-sans text-sm"
+        style={{ color: mutedColor, flex: 1 }}
+        numberOfLines={1}
       >
-        {t('ask:entrySubtitle')}
+        {t('ask:composerPlaceholder')}
       </Text>
-    </View>
+      {/* Send-arrow circle — the affordance side of the input,
+          mirroring iMessage / WhatsApp / ChatGPT's "submit" button
+          tucked at the right of a textfield. */}
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          backgroundColor: tokens.accent.dashboard,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ChevronRight size={16} color="#fff" />
+      </View>
+    </Pressable>
   );
 }
 
