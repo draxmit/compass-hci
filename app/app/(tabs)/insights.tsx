@@ -759,9 +759,16 @@ export default function InsightsScreen() {
             ) : (
               // Year view (v3 phase A — 6).
               yearTxsLoading ? (
-                <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-                  {t('insights:heatmap.yearLoading')}
-                </Text>
+                // Skeleton placeholder — render the year heatmap grid
+                // with all-muted cells so the user sees structure
+                // immediately instead of a "Loading…" text spinner.
+                // Real data fades in once Firestore returns (typically
+                // ~2-5s on 4G for a 12-month tx range).
+                <YearHeatmapSkeleton
+                  borderColor={borderColor}
+                  mutedColor={mutedColor}
+                  loadingLabel={t('insights:heatmap.yearLoading')}
+                />
               ) : !yearHeatmap || yearHeatmap.max === 0 ? (
                 <Text className="font-sans text-sm" style={{ color: mutedColor }}>
                   {t('insights:heatmap.yearNoData')}
@@ -1595,6 +1602,76 @@ type YearHeatmapProps = {
  * 12×31 shape is mobile-friendlier (no horizontal scroll) and aligns
  * with users' month/day mental model better than week-of-year.
  */
+/**
+ * Skeleton placeholder for the year heatmap. Renders the 12×31 grid
+ * shape with all cells in the muted border color so the user sees
+ * the eventual layout immediately instead of a "Loading…" spinner.
+ * Adds a subtle "Loading…" label below the grid so screen readers
+ * (and impatient users) know data is still on its way.
+ *
+ * No actual data — purely visual scaffold. Fades to the real
+ * `<YearHeatmap />` once `yearTxsByMonth` resolves.
+ */
+function YearHeatmapSkeleton({
+  borderColor,
+  mutedColor,
+  loadingLabel,
+}: {
+  borderColor: string;
+  mutedColor: string;
+  loadingLabel: string;
+}) {
+  return (
+    <View style={{ width: '100%', alignSelf: 'center' }}>
+      {/* 12 column header placeholders (no labels yet — those need
+          locale-aware month names which we'll show once data lands). */}
+      <View className="flex-row" style={{ gap: 2, marginBottom: 4 }}>
+        <View style={{ width: 18 }} />
+        {Array.from({ length: 12 }).map((_, i) => (
+          <View
+            key={i}
+            style={{
+              flex: 1,
+              height: 8,
+              backgroundColor: borderColor,
+              opacity: 0.4,
+              borderRadius: 2,
+            }}
+          />
+        ))}
+      </View>
+      {/* 31 day rows × 12 cells. All cells are flat muted bg — no
+          intensity yet. */}
+      {Array.from({ length: 31 }).map((_, dayIdx) => (
+        <View key={dayIdx} className="flex-row" style={{ gap: 2, marginBottom: 2 }}>
+          <View style={{ width: 18 }} />
+          {Array.from({ length: 12 }).map((__, colIdx) => (
+            <View
+              key={colIdx}
+              style={{
+                flex: 1,
+                aspectRatio: 1,
+                borderRadius: 2,
+                backgroundColor: borderColor,
+                opacity: 0.4,
+              }}
+            />
+          ))}
+        </View>
+      ))}
+      {/* Loading label — small + muted so it doesn't fight for
+          attention with the grid. Replaces the prior text-only
+          "Loading year..." which left the page looking blank. */}
+      <Text
+        className="font-sans text-xs mt-3"
+        style={{ color: mutedColor, textAlign: 'center' }}
+      >
+        {loadingLabel}
+      </Text>
+    </View>
+  );
+}
+
 function YearHeatmap({
   grid, months, max, accent, borderColor, mutedColor, fgColor, lang,
 }: YearHeatmapProps) {
