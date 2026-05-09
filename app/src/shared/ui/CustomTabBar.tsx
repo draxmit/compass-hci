@@ -137,22 +137,30 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                     params: { from: fromPath },
                   })
                 }
-                style={({ hovered, pressed }) => ({
+                // Static style — function-style Pressable destructure of
+                // `hovered` (which is RN-Web only) was reportedly making
+                // the green circle invisible on Android dev clients
+                // (FAB rendered as just the white "+" icon with no bg).
+                // Reverted to plain object; press feedback handled via
+                // Pressable's built-in `android_ripple` + opacity.
+                android_ripple={{
+                  color: 'rgba(255,255,255,0.2)',
+                  borderless: true,
+                  radius: 26,
+                }}
+                style={{
                   width: 52,
                   height: 52,
                   borderRadius: 26,
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: activeAccent,
-                  // Native shadow* props for iOS/Android (RN Web warns
-                  // these are deprecated but RN still uses them).
                   shadowColor: activeAccent,
                   shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: pressed ? 0.45 : 0.3,
-                  shadowRadius: pressed ? 16 : 12,
-                  elevation: pressed ? 12 : 8,
-                  transform: [{ scale: pressed ? 0.96 : (hovered ? 1.04 : 1) }],
-                })}
+                  shadowOpacity: 0.3,
+                  shadowRadius: 12,
+                  elevation: 8,
+                }}
               >
                 <Plus size={24} color={tokens.surface['dark-fg']} strokeWidth={2.5} />
               </Pressable>

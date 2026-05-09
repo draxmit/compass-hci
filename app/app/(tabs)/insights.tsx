@@ -883,8 +883,9 @@ function AskCompassCta({
       accessibilityLabel={t('ask:entryCta')}
       onPress={onPress}
       style={({ hovered, pressed }) => ({
-        marginBottom: 24,
-        borderRadius: 14,
+        marginTop: 4,        // breathing room from the page-top edge
+        marginBottom: 32,    // generous gap to the BUDGET HEALTH section below
+        borderRadius: 18,    // softer corners than the prior 14 — feels less boxy
         borderWidth: 1,
         // Border lifts saturation on hover/press so the card feels
         // "live" under the cursor on web. Native sees only `pressed`.
@@ -911,21 +912,22 @@ function AskCompassCta({
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          gap: 14,
-          padding: 16,
+          gap: 16,
+          paddingVertical: 18,
+          paddingHorizontal: 18,
         }}
       >
         <View
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
+            width: 48,
+            height: 48,
+            borderRadius: 14,
             backgroundColor: tokens.accent.dashboard + '22',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Sparkles size={22} color={tokens.accent.dashboard} />
+          <Sparkles size={24} color={tokens.accent.dashboard} />
         </View>
         <View style={{ flex: 1 }}>
           <Text
