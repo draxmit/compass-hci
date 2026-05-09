@@ -47,7 +47,7 @@ export function GoalMilestoneModal({ pending, onDismiss, lang }: Props) {
       <Pressable
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.6)',
+          backgroundColor: 'rgba(0,0,0,0.75)',
           alignItems: 'center',
           justifyContent: 'center',
           padding: 24,
@@ -66,7 +66,12 @@ export function GoalMilestoneModal({ pending, onDismiss, lang }: Props) {
             width: '100%',
             maxWidth: 360,
             borderRadius: 20,
-            backgroundColor: isDark ? tokens.surface['dark-card'] : tokens.surface['light-bg'],
+            // SOLID surface — `dark-card` is rgba(255,255,255,0.04)
+            // which becomes nearly transparent over the 60% black
+            // backdrop, letting Dashboard content bleed through. Use
+            // the page background instead so the card reads as a
+            // proper opaque dialog.
+            backgroundColor: isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'],
             borderWidth: 1,
             borderColor: accent + '55',
             padding: 24,
