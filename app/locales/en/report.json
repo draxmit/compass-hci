@@ -33,6 +33,7 @@
     "nativeUnsupportedTitle": "Available on web",
     "nativeUnsupportedBody": "Word export currently runs on the web app. Open Compass in your browser and try again from the Reports screen.",
     "sharingUnavailable": "Sharing isn't available on this device. Try saving the file from the share sheet or use the web app.",
+    "devClientStale": "Your dev-client app is missing {{module}}. Rebuild the APK with `eas build --profile development --platform android` and reinstall, or use the web app to export.",
     "totalLabel": "Total",
     "noDescription": "(no description)",
     "unknownCategory": "(uncategorised)",

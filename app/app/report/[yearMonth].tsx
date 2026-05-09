@@ -271,22 +271,47 @@ export default function MonthlyReportScreen() {
       }
 
       // ===== NATIVE =====
-      // Dynamic imports keep these packages out of the web bundle.
-      // expo-file-system v19 split its API: the new File/Directory
-      // class API is at the package root, the legacy
-      // writeAsStringAsync/cacheDirectory live at /legacy. We use
-      // legacy for simplicity — base64 → file in a single call.
-      // The package ships its src/ as the main entry, which leaks
-      // an internal `exactOptionalPropertyTypes` violation through
-      // the TS resolver — type-asserting the import keeps our
-      // strict tsconfig clean while leaving runtime behaviour intact.
+      // Each native module loaded with literal specifiers (Metro
+      // requires statically-analysable dynamic imports) wrapped in
+      // its own try/catch. We map the "Cannot find native module
+      // 'ExpoPrint'" / "ExpoSharing" errors that fire when the
+      // dev-client APK was built BEFORE these packages were added
+      // to package.json into a friendly "rebuild dev client" alert.
       type FsLegacyShape = {
         cacheDirectory: string | null;
         writeAsStringAsync: (uri: string, contents: string, options?: { encoding?: string }) => Promise<void>;
         EncodingType: { Base64: string; UTF8: string };
       };
-      const FsLegacy = (await import('expo-file-system/legacy')) as unknown as FsLegacyShape;
-      const Sharing = await import('expo-sharing');
+      type SharingShape = {
+        isAvailableAsync: () => Promise<boolean>;
+        shareAsync: (uri: string, options?: { mimeType?: string; dialogTitle?: string; UTI?: string }) => Promise<void>;
+      };
+      type PrintShape = {
+        printToFileAsync: (opts: { html: string; base64?: boolean }) => Promise<{ uri: string }>;
+      };
+      // Surface a clear "rebuild dev client" message when a native
+      // module isn't found instead of the raw exception.
+      const wrapNativeError = (e: unknown, name: string): Error => {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('native module') || msg.includes('ExpoModulesCore')) {
+          return new Error(t('report:export.devClientStale', { module: name }));
+        }
+        return e instanceof Error ? e : new Error(msg);
+      };
+
+      let FsLegacy: FsLegacyShape;
+      let Sharing: SharingShape;
+      try {
+        FsLegacy = (await import('expo-file-system/legacy')) as unknown as FsLegacyShape;
+      } catch (e) {
+        throw wrapNativeError(e, 'expo-file-system');
+      }
+      try {
+        Sharing = (await import('expo-sharing')) as unknown as SharingShape;
+      } catch (e) {
+        throw wrapNativeError(e, 'expo-sharing');
+      }
+
       let fileUri: string;
       let filename: string;
       let mimeType: string;
@@ -299,7 +324,12 @@ export default function MonthlyReportScreen() {
           encoding: FsLegacy.EncodingType.Base64,
         });
       } else {
-        const Print = await import('expo-print');
+        let Print: PrintShape;
+        try {
+          Print = (await import('expo-print')) as unknown as PrintShape;
+        } catch (e) {
+          throw wrapNativeError(e, 'expo-print');
+        }
         const html = generateReportHtml(sharedInput);
         const result = await Print.printToFileAsync({ html, base64: false });
         fileUri = result.uri;

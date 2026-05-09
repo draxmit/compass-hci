@@ -65,10 +65,17 @@ function deltaText(delta: number, lang: Locale, t: GenerateReportHtmlInput['t'])
   }
   const isUp = delta > 0;
   const formatted = formatIDR(Math.abs(delta), lang);
-  const text = isUp
+  // Pull localised wording from i18n then strip the up/down arrow
+  // glyph (↑/↓) at the front. expo-print's PDF renderer uses the
+  // system font cache which often lacks Unicode arrow coverage —
+  // they render as `!'` placeholders. Use ASCII +/- prefixes
+  // instead, with the colour already conveying direction.
+  const raw = isUp
     ? t('report:delta.up', { amount: formatted })
     : t('report:delta.down', { amount: formatted });
-  return { text, color: PALETTE.muted };
+  const cleaned = raw.replace(/[↑↓]\s*/u, '');
+  const sign = isUp ? '+' : '-';
+  return { text: `${sign}${cleaned}`, color: PALETTE.muted };
 }
 
 function summaryCell(
@@ -91,13 +98,13 @@ function summaryCell(
   const d = deltaText(delta, lang, t);
   return `
     <td style="width:50%;padding:14px 16px;vertical-align:top;border:1px solid ${PALETTE.border};">
-      <div style="font-size:10px;font-weight:600;letter-spacing:1px;color:${PALETTE.muted};text-transform:uppercase;margin-bottom:6px;">
+      <div style="font-size:10px;font-weight:600;color:${PALETTE.muted};text-transform:uppercase;margin-bottom:6px;">
         ${escape(label)}
       </div>
-      <div style="font-family:'Courier New',monospace;font-size:18px;font-weight:700;color:${PALETTE.fg};margin-bottom:4px;">
+      <div style="font-size:18px;font-weight:700;color:${PALETTE.fg};margin-bottom:3px;">
         ${escape(formatIDR(amount, lang))}
       </div>
-      <div style="font-size:10px;color:${deltaColor};">
+      <div style="font-size:11px;color:${deltaColor};">
         ${escape(d.text)}
       </div>
     </td>
@@ -124,15 +131,15 @@ function netHero(input: GenerateReportHtmlInput): string {
   const delta = thisNet - lastNet;
   const d = deltaText(delta, lang, t);
   return `
-    <div style="margin-top:24px;">
-      <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:${PALETTE.muted};text-transform:uppercase;margin-bottom:4px;">
+    <div style="margin-top:20px;">
+      <div style="font-size:10px;font-weight:700;color:${PALETTE.muted};text-transform:uppercase;margin-bottom:2px;">
         ${escape(t('report:summary.net'))}
       </div>
-      <div style="font-family:'Courier New',monospace;font-size:30px;font-weight:700;color:${heroColor};margin-bottom:4px;">
+      <div style="font-size:28px;font-weight:700;color:${heroColor};margin-bottom:2px;">
         ${escape(formatIDR(thisNet, lang))}
       </div>
       <div style="font-size:11px;color:${PALETTE.muted};">
-        ${escape(d.text)}
+        ${escape(t('report:delta.vsLastMonth'))} &middot; ${escape(d.text)}
       </div>
     </div>
   `;
@@ -157,7 +164,7 @@ function breakdownTable(input: GenerateReportHtmlInput): string {
         <td style="padding:8px 12px;border-bottom:1px solid ${PALETTE.border};font-size:11px;color:${PALETTE.muted};text-align:right;">
           ${escape(formatPercent(share, lang))}
         </td>
-        <td style="padding:8px 12px;border-bottom:1px solid ${PALETTE.border};font-family:'Courier New',monospace;font-size:11px;color:${PALETTE.fg};text-align:right;">
+        <td style="padding:8px 12px;border-bottom:1px solid ${PALETTE.border};font-size:11px;font-weight:600;color:${PALETTE.fg};text-align:right;">
           ${escape(formatIDR(row.totalIDR, lang))}
         </td>
       </tr>
@@ -168,13 +175,13 @@ function breakdownTable(input: GenerateReportHtmlInput): string {
     <table style="width:100%;border-collapse:collapse;margin-top:8px;border:1px solid ${PALETTE.border};">
       <thead>
         <tr style="background:${PALETTE.zebra};">
-          <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.5px;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
+          <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
             ${escape(t('report:export.col.category'))}
           </th>
-          <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;letter-spacing:0.5px;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
+          <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
             ${escape(t('report:export.col.share'))}
           </th>
-          <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;letter-spacing:0.5px;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
+          <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
             ${escape(t('report:export.col.amount'))}
           </th>
         </tr>
@@ -203,7 +210,7 @@ function topExpensesTable(input: GenerateReportHtmlInput): string {
           <div>${escape(desc)}</div>
           ${meta ? `<div style="font-size:10px;color:${PALETTE.muted};margin-top:2px;">${escape(meta)}</div>` : ''}
         </td>
-        <td style="padding:8px 12px;border-bottom:1px solid ${PALETTE.border};font-family:'Courier New',monospace;font-size:11px;color:${PALETTE.fg};text-align:right;white-space:nowrap;">
+        <td style="padding:8px 12px;border-bottom:1px solid ${PALETTE.border};font-size:11px;font-weight:600;color:${PALETTE.fg};text-align:right;white-space:nowrap;">
           ${escape(formatIDR(tx.amountIDR, lang))}
         </td>
       </tr>
@@ -214,13 +221,13 @@ function topExpensesTable(input: GenerateReportHtmlInput): string {
     <table style="width:100%;border-collapse:collapse;margin-top:8px;border:1px solid ${PALETTE.border};">
       <thead>
         <tr style="background:${PALETTE.zebra};">
-          <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.5px;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
+          <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
             ${escape(t('report:export.col.date'))}
           </th>
-          <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;letter-spacing:0.5px;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
+          <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:600;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
             ${escape(t('report:export.col.description'))}
           </th>
-          <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;letter-spacing:0.5px;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
+          <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:600;color:${PALETTE.muted};text-transform:uppercase;border-bottom:1px solid ${PALETTE.border};">
             ${escape(t('report:export.col.amount'))}
           </th>
         </tr>
@@ -232,7 +239,7 @@ function topExpensesTable(input: GenerateReportHtmlInput): string {
 
 function sectionHeading(label: string): string {
   return `
-    <div style="margin-top:24px;margin-bottom:8px;font-size:10px;font-weight:700;letter-spacing:1px;color:${PALETTE.muted};text-transform:uppercase;">
+    <div style="margin-top:24px;margin-bottom:8px;font-size:11px;font-weight:700;color:${PALETTE.muted};text-transform:uppercase;">
       ${escape(label)}
     </div>
   `;
