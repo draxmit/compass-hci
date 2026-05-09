@@ -588,13 +588,15 @@ export default function InsightsScreen() {
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md lg:max-w-3xl">
         {/* ===== ASK COMPASS ENTRY (v3 phase B, ADR-23) ===== */}
-        <AskCompassCta
-          isDark={isDark}
-          fgColor={fgColor}
-          mutedColor={mutedColor}
-          t={t}
-          onPress={() => router.push('/ask')}
-        />
+        <View style={{ marginBottom: 48 }}>
+          <AskCompassCta
+            isDark={isDark}
+            fgColor={fgColor}
+            mutedColor={mutedColor}
+            t={t}
+            onPress={() => router.push('/ask')}
+          />
+        </View>
 
         {/* ===== TREND =====
             Trend / Anomalies first — they're the strongest "this is
@@ -953,7 +955,6 @@ function AskCompassCta({
       accessibilityLabel={t('ask:entryCta')}
       onPress={onPress}
       style={({ pressed }) => ({
-        marginBottom: 40,
         borderRadius: 999,
         opacity: pressed ? 0.88 : 1,
         transform: [{ scale: pressed ? 0.98 : 1 }],
