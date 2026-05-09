@@ -71,5 +71,13 @@
   },
   "dashboard": {
     "primaryGoalProgress": "{{name}} — {{percent}}"
+  },
+  "milestone": {
+    "title": "{{pct}}% there!",
+    "titleComplete": "Goal reached!",
+    "body": "{{current}} saved of {{target}}. Just {{remaining}} to go.",
+    "bodyComplete": "You hit your target of {{amount}}. Time to celebrate.",
+    "cta": "Keep going",
+    "ctaComplete": "Done"
   }
 }

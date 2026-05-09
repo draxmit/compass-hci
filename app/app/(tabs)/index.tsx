@@ -30,6 +30,8 @@ import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Skeleton, SkeletonCard } from '@/shared/ui/Skeleton';
 import { Text } from '@/shared/ui/Text';
+import { GoalMilestoneModal } from '@/features/goals/GoalMilestoneModal';
+import { useGoalMilestone } from '@/features/goals/useGoalMilestone';
 import { computeCashflowProjection } from '@/shared/utils/cashflowProjection';
 import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
 import { formatDate, formatTimeUntil } from '@/shared/utils/formatDate';
@@ -240,6 +242,11 @@ export default function DashboardScreen() {
 
   const allLoaded = accountsLoaded && categoriesLoaded && monthTotalsLoaded && recentLoaded;
 
+  // Goal milestone celebrations (#5). Hook detects the highest unseen
+  // milestone (25/50/75/100%) across all goals; one-shot dismiss writes
+  // it into users.goalMilestonesSeen so it doesn't re-fire.
+  const { pending: pendingMilestone, dismiss: dismissMilestone } = useGoalMilestone(allGoals);
+
   // ---- Derived values ----
   const includedAccounts = useMemo(
     () => accounts.filter((a) => !a.isArchived && a.includedInNetWorth),
@@ -449,6 +456,7 @@ export default function DashboardScreen() {
   }
 
   return (
+    <>
     <ScrollView
       contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
       refreshControl={
@@ -1087,6 +1095,16 @@ export default function DashboardScreen() {
             see the Net Worth section above. */}
       </View>
     </ScrollView>
+    {/* Goal milestone celebration overlay (#5). Lives at the root so
+        it renders above the ScrollView's content. Auto-shown by the
+        useGoalMilestone hook when an unseen 25/50/75/100 threshold
+        crosses; dismiss() persists it as seen. */}
+    <GoalMilestoneModal
+      pending={pendingMilestone}
+      onDismiss={() => { void dismissMilestone(); }}
+      lang={lang}
+    />
+    </>
   );
 }
 
