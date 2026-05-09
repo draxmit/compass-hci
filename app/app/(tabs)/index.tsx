@@ -495,8 +495,10 @@ export default function DashboardScreen() {
             </View>
             {user ? (
               <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t(balancesHidden
+                accessibilityRole="switch"
+                accessibilityLabel={t('dashboard:cards.netWorth')}
+                accessibilityState={{ checked: !balancesHidden }}
+                accessibilityHint={t(balancesHidden
                   ? 'dashboard:balancesHidden.show'
                   : 'dashboard:balancesHidden.hide')}
                 onPress={() => {
@@ -1173,6 +1175,9 @@ function SavingsRatePill({
   return (
     <View className="mb-6">
       <View
+        accessibilityRole="progressbar"
+        accessibilityLabel={t('dashboard:savingsRate.headlineGood', { pct })}
+        accessibilityValue={{ min: 0, max: 100, now: pct }}
         style={{
           flexDirection: 'row',
           alignItems: 'center',

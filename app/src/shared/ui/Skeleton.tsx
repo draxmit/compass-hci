@@ -44,6 +44,13 @@ export function Skeleton({ width = '100%', height = 14, radius = 6, style }: Ske
 
   return (
     <Animated.View
+      // Skeleton bars are pure decoration — they signal loading state
+      // visually but they're not content the screen reader should
+      // announce. Marking them as not-important for accessibility
+      // keeps VoiceOver / TalkBack from spamming "image, image, image"
+      // while the skeleton paints.
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       style={[
         {
           width,

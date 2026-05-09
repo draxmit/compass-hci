@@ -60,6 +60,8 @@ export function GoalMilestoneModal({ pending, onDismiss, lang }: Props) {
           // Inner Pressable absorbs taps so backdrop-tap dismisses but
           // tapping the card itself doesn't.
           onPress={(e) => e.stopPropagation()}
+          accessibilityViewIsModal
+          accessibilityLiveRegion="polite"
           style={{
             width: '100%',
             maxWidth: 360,

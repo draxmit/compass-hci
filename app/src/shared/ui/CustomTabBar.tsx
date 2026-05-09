@@ -42,8 +42,14 @@ function TabCell({ iconColor, label, selected, onPress, renderIcon }: TabCellPro
       {/* Top accent pill for the active tab — narrow capsule pinned to
           the cell's top edge in the page-accent color. Mirrors the
           iOS-13+ tab-bar treatment and gives a clear "you are here"
-          signal without competing with the icon + label below. */}
+          signal without competing with the icon + label below.
+          Hidden from screen readers because the active state is
+          already conveyed via accessibilityState on the parent
+          Pressable — duplicating it would announce "Selected"
+          twice in a row. */}
       <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
         style={{
           position: 'absolute',
           top: 0,

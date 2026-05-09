@@ -617,6 +617,25 @@ export default function InsightsScreen() {
   const totallyEmpty =
     loaded && trend.every((m) => m.total === 0) && thisMonthTxs.length === 0;
 
+  // Day-detail data for the heatmap drill-in sheet. Computed at the top
+  // level (above any early returns) so React's hook-order invariant
+  // holds across all render branches.
+  const selectedDayDate = useMemo(() => {
+    if (selectedDay === null || !heatmap) return null;
+    return `${heatmap.year}-${String(heatmap.month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+  }, [selectedDay, heatmap]);
+  const selectedDayTxs = useMemo(() => {
+    if (!selectedDayDate) return [];
+    const monthTxs = allTxsByMonth.get(heatmap?.yearMonth ?? '') ?? [];
+    return monthTxs
+      .filter((tx) => tx.date === selectedDayDate)
+      .sort((a, b) => b.amountIDR - a.amountIDR);
+  }, [selectedDayDate, allTxsByMonth, heatmap?.yearMonth]);
+  const selectedDayTotal = useMemo(
+    () => selectedDayTxs.reduce((s, tx) => s + (tx.type === 'expense' ? tx.amountIDR : 0), 0),
+    [selectedDayTxs],
+  );
+
   if (loadError) {
     return (
       <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 40, paddingBottom: 100 }}>
@@ -751,25 +770,6 @@ export default function InsightsScreen() {
       </ScrollView>
     );
   }
-
-  // Day-detail data for the heatmap drill-in sheet. When a day is
-  // selected we filter the already-loaded current-month transactions
-  // by date — no extra fetch.
-  const selectedDayDate = useMemo(() => {
-    if (selectedDay === null || !heatmap) return null;
-    return `${heatmap.year}-${String(heatmap.month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
-  }, [selectedDay, heatmap]);
-  const selectedDayTxs = useMemo(() => {
-    if (!selectedDayDate) return [];
-    const monthTxs = allTxsByMonth.get(heatmap?.yearMonth ?? '') ?? [];
-    return monthTxs
-      .filter((tx) => tx.date === selectedDayDate)
-      .sort((a, b) => b.amountIDR - a.amountIDR);
-  }, [selectedDayDate, allTxsByMonth, heatmap?.yearMonth]);
-  const selectedDayTotal = useMemo(
-    () => selectedDayTxs.reduce((s, tx) => s + (tx.type === 'expense' ? tx.amountIDR : 0), 0),
-    [selectedDayTxs],
-  );
 
   return (
     <>
@@ -2160,8 +2160,15 @@ function CategoryDonut({
 
   return (
     <View>
-      {/* SVG donut */}
-      <View style={{ width: '100%', maxWidth: 280, alignSelf: 'center' }}>
+      {/* SVG donut. The chart is decorative for screen-reader users —
+          all the data is also rendered as accessible legend rows
+          below, so we hide the SVG itself to avoid announcing
+          "image" with no useful info. */}
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{ width: '100%', maxWidth: 280, alignSelf: 'center' }}
+      >
         <View style={{ aspectRatio: 1 }}>
           <Svg viewBox={`0 0 ${SIZE} ${SIZE}`} width="100%" height="100%">
             {/* Background ring (very faint) so the chart silhouette
@@ -2222,20 +2229,28 @@ function CategoryDonut({
           </Text>
         </View>
       </View>
-      {/* Legend rows */}
+      {/* Legend rows — also serve as row-level accessible labels for
+          the chart. Each row's accessibilityLabel includes the slice
+          label, percentage, and amount so a screen reader user gets
+          the same info as a sighted user staring at the donut. */}
       <View style={{ marginTop: 16, gap: 8 }}>
         {slices.map((s) => {
           const pct = ((s.amount / total) * 100).toFixed(0);
           return (
             <View
               key={s.key}
+              accessibilityRole="text"
+              accessibilityLabel={`${s.label}: ${formatIDR(s.amount, lang)}, ${pct} percent`}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 10,
+                minHeight: 28,
               }}
             >
               <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
                 style={{
                   width: 10,
                   height: 10,
@@ -2352,7 +2367,7 @@ function Heatmap({
                   <Pressable
                     key={i}
                     accessibilityRole="button"
-                    accessibilityLabel={`Day ${cell.day}`}
+                    accessibilityLabel={`Day ${cell.day}, spent ${formatIDR(cell.total)}. Tap to see transactions.`}
                     onPress={() => onDayPress(cell.day)}
                     style={({ pressed }) => ({
                       ...cellStyle,
