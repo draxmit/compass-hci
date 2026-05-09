@@ -2546,12 +2546,6 @@ function YearMonthBoxes({
 
 // ---------- helpers ----------
 
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
-
 function alphaHex(alpha: number): string {
   const v = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
   return v.toString(16).padStart(2, '0');

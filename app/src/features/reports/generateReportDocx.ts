@@ -468,15 +468,32 @@ function tableBorders(hex: string) {
  * Web entry point. Takes the same input the doc builder needs and
  * returns a Blob ready for download via createObjectURL.
  *
- * `Packer.toBlob` is browser-only; on React Native callers should use
- * the alternate `toBase64String` path documented inline in the report
- * screen's export handler.
+ * `Packer.toBlob` is browser-only; native callers should use
+ * `generateReportDocxBase64` below.
  */
 export async function generateReportDocxBlob(
   input: GenerateReportDocxInput,
 ): Promise<Blob> {
   const doc = buildReportDocument(input);
   return Packer.toBlob(doc);
+}
+
+/**
+ * Native entry point. Returns a base64-encoded string of the DOCX
+ * binary, which the caller writes to a file via expo-file-system and
+ * shares via expo-sharing. Used only on native (Platform.OS !== 'web')
+ * — `Packer.toBlob` works in both web AND node, but on RN the Blob
+ * implementation is incomplete enough that base64 is the safer path.
+ *
+ * `docx` itself bundles fine on native via static imports (the Metro
+ * dynamic-chunk issues called out in earlier comments were specific
+ * to dynamic imports; see report screen for context).
+ */
+export async function generateReportDocxBase64(
+  input: GenerateReportDocxInput,
+): Promise<string> {
+  const doc = buildReportDocument(input);
+  return Packer.toBase64String(doc);
 }
 
 /**

@@ -32,6 +32,7 @@
     "errorBody": "Couldn't generate the Word document. Please try again.",
     "nativeUnsupportedTitle": "Available on web",
     "nativeUnsupportedBody": "Word export currently runs on the web app. Open Compass in your browser and try again from the Reports screen.",
+    "sharingUnavailable": "Sharing isn't available on this device. Try saving the file from the share sheet or use the web app.",
     "totalLabel": "Total",
     "noDescription": "(no description)",
     "unknownCategory": "(uncategorised)",

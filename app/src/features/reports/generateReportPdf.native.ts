@@ -5,18 +5,18 @@ import type {
 import type { Locale } from '@/shared/i18n';
 
 /**
- * Native stub for the PDF export. The real implementation
+ * Native stub for the PDF export. The web implementation
  * (`generateReportPdf.ts`) imports `jspdf` + `jspdf-autotable`,
- * both browser-targeted with internal `require([...])` calls
- * Metro can't resolve. Metro picks THIS file for native bundles
- * because of the `.native.ts` extension priority, leaving the
- * `.ts` variant as web-only.
+ * which bundle for browsers but pull in DOM-leaning deps Metro
+ * rejects on native. This `.native.ts` extension is picked by Metro
+ * for native bundles and keeps `jspdf` out of the RN graph.
  *
- * The screen guards with `Platform.OS !== 'web'` before calling,
- * so this stub should never execute. The throw is a defence-in-
- * depth signal in case the platform check is ever bypassed.
+ * On native, the report screen builds a PDF via `expo-print` from
+ * `generateReportHtml.ts` instead — same input shape, different
+ * engine, identical visual output. The throw here is defence-in-
+ * depth; the screen's `Platform.OS` check prevents this code path
+ * from ever executing.
  */
-
 export type GenerateReportPdfInput = {
   yearMonth: string;
   lang: Locale;
@@ -37,7 +37,9 @@ export type GenerateReportPdfInput = {
 export async function generateReportPdfBlob(
   _input: GenerateReportPdfInput,
 ): Promise<Blob> {
-  throw new Error('PDF export is not available on native — use the web app.');
+  throw new Error(
+    'generateReportPdfBlob is web-only on native — caller should use expo-print + generateReportHtml instead.',
+  );
 }
 
 export function reportPdfFilename(yearMonth: string): string {

@@ -12,8 +12,9 @@ import { BackHandler, Platform, Pressable, ScrollView, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  generateReportDocxBlob, reportDocxFilename,
+  generateReportDocxBase64, generateReportDocxBlob, reportDocxFilename,
 } from '@/features/reports/generateReportDocx';
+import { generateReportHtml } from '@/features/reports/generateReportHtml';
 import {
   generateReportPdfBlob, reportPdfFilename,
 } from '@/features/reports/generateReportPdf';
@@ -209,19 +210,15 @@ export default function MonthlyReportScreen() {
 
   const noData = loaded && thisExpenseTotal === 0 && thisIncomeTotal === 0;
 
-  // Export to Word OR PDF. Web-only — both `docx` and `jspdf` are
-  // browser-targeted and pull in deps Metro rejects at bundle time.
-  // Both modules are dynamic-imported on click so native bundles
-  // cleanly. Native click shows a friendly 'use the web app' alert.
+  // Export to Word OR PDF. Now works on BOTH web and native:
+  //   - web docx:  Packer.toBlob -> anchor download
+  //   - web pdf:   jspdf -> Blob -> anchor download
+  //   - native docx: Packer.toBase64String -> FileSystem write -> Sharing.shareAsync
+  //   - native pdf:  generateReportHtml -> Print.printToFileAsync -> Sharing.shareAsync
+  // Native deps (expo-print, expo-sharing, expo-file-system) are
+  // dynamic-imported so the web bundle doesn't pull them in.
   const handleExport = async (format: 'docx' | 'pdf') => {
     if (!yearMonth || !loaded || noData || exporting) return;
-    if (Platform.OS !== 'web') {
-      appAlert(
-        t('report:export.nativeUnsupportedTitle'),
-        t('report:export.nativeUnsupportedBody'),
-      );
-      return;
-    }
     setExporting(true);
     try {
       // i18next's TFunction returns a special detailed-result type
@@ -246,42 +243,91 @@ export default function MonthlyReportScreen() {
         accountsById,
         t: tStr,
       };
-      // Static imports (resolved at module load above) — earlier
-      // dynamic imports were chunked oddly by Metro and one bundle
-      // hit "Requiring unknown module 2671" at runtime. Static
-      // imports get the modules into the main bundle reliably.
-      // Web/native split is now handled at the file level via
-      // `.native.ts` stubs that throw — caller's Platform.OS check
-      // prevents native execution.
-      let blob: Blob;
-      let filename: string;
-      if (format === 'docx') {
-        blob = await generateReportDocxBlob(sharedInput);
-        filename = reportDocxFilename(yearMonth);
-      } else {
-        blob = await generateReportPdfBlob(sharedInput);
-        filename = reportPdfFilename(yearMonth);
+
+      if (Platform.OS === 'web') {
+        // ===== WEB =====
+        let blob: Blob;
+        let filename: string;
+        if (format === 'docx') {
+          blob = await generateReportDocxBlob(sharedInput);
+          filename = reportDocxFilename(yearMonth);
+        } else {
+          blob = await generateReportPdfBlob(sharedInput);
+          filename = reportPdfFilename(yearMonth);
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        appAlert(
+          t('report:export.successTitle'),
+          t('report:export.successBody', { filename }),
+        );
+        return;
       }
-      // Browser download via a transient anchor element. ObjectURL
-      // released after the click handler so the browser has had a
-      // chance to start the download.
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      appAlert(
-        t('report:export.successTitle'),
-        t('report:export.successBody', { filename }),
-      );
+
+      // ===== NATIVE =====
+      // Dynamic imports keep these packages out of the web bundle.
+      // expo-file-system v19 split its API: the new File/Directory
+      // class API is at the package root, the legacy
+      // writeAsStringAsync/cacheDirectory live at /legacy. We use
+      // legacy for simplicity — base64 → file in a single call.
+      // The package ships its src/ as the main entry, which leaks
+      // an internal `exactOptionalPropertyTypes` violation through
+      // the TS resolver — type-asserting the import keeps our
+      // strict tsconfig clean while leaving runtime behaviour intact.
+      type FsLegacyShape = {
+        cacheDirectory: string | null;
+        writeAsStringAsync: (uri: string, contents: string, options?: { encoding?: string }) => Promise<void>;
+        EncodingType: { Base64: string; UTF8: string };
+      };
+      const FsLegacy = (await import('expo-file-system/legacy')) as unknown as FsLegacyShape;
+      const Sharing = await import('expo-sharing');
+      let fileUri: string;
+      let filename: string;
+      let mimeType: string;
+      if (format === 'docx') {
+        const base64 = await generateReportDocxBase64(sharedInput);
+        filename = reportDocxFilename(yearMonth);
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        fileUri = `${FsLegacy.cacheDirectory ?? ''}${filename}`;
+        await FsLegacy.writeAsStringAsync(fileUri, base64, {
+          encoding: FsLegacy.EncodingType.Base64,
+        });
+      } else {
+        const Print = await import('expo-print');
+        const html = generateReportHtml(sharedInput);
+        const result = await Print.printToFileAsync({ html, base64: false });
+        fileUri = result.uri;
+        filename = reportPdfFilename(yearMonth);
+        mimeType = 'application/pdf';
+      }
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        appAlert(
+          t('report:export.errorTitle'),
+          t('report:export.sharingUnavailable'),
+        );
+        return;
+      }
+      await Sharing.shareAsync(fileUri, {
+        mimeType,
+        dialogTitle: filename,
+        UTI: format === 'docx'
+          ? 'org.openxmlformats.wordprocessingml.document'
+          : 'com.adobe.pdf',
+      });
+      // Sharing.shareAsync resolves whether the user shared or
+      // cancelled. Either way the file is already in cacheDirectory
+      // and we don't show a separate success toast — the share-sheet
+      // result IS the success signal.
     } catch (err) {
       console.warn('[report] export failed', err);
-      // Surface the actual error message so users (and us) can
-      // diagnose. Falls back to the friendly 'try again' copy when
-      // the throwable isn't an Error instance.
       const detail = err instanceof Error
         ? `${err.message}`
         : t('report:export.errorBody');

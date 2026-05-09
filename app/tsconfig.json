@@ -6,8 +6,10 @@
     "exactOptionalPropertyTypes": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@compass/shared-types": ["../packages/shared-types/src/index.ts"]
-    }
+      "@compass/shared-types": ["../packages/shared-types/src/index.ts"],
+      "expo-file-system/legacy": ["../node_modules/expo-file-system/build/legacy"]
+    },
+    "skipLibCheck": true
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts"]
 }

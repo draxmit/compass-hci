@@ -32,6 +32,7 @@
     "errorBody": "Tidak bisa membuat dokumen Word. Coba lagi.",
     "nativeUnsupportedTitle": "Tersedia di web",
     "nativeUnsupportedBody": "Ekspor Word baru tersedia di aplikasi web. Buka Compass di browser dan coba lagi dari halaman Ringkasan.",
+    "sharingUnavailable": "Fitur berbagi tidak tersedia di perangkat ini. Coba simpan file dari share sheet atau gunakan aplikasi web.",
     "totalLabel": "Total",
     "noDescription": "(tanpa deskripsi)",
     "unknownCategory": "(tanpa kategori)",
