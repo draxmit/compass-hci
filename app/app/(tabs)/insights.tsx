@@ -885,14 +885,15 @@ function AskCompassCta({
       style={({ hovered, pressed }) => ({
         marginTop: 4,        // breathing room from the page-top edge
         marginBottom: 32,    // generous gap to the BUDGET HEALTH section below
-        borderRadius: 18,    // softer corners than the prior 14 — feels less boxy
+        borderRadius: 24,    // pronounced curve — reads as a hero pill, not a rectangle
         borderWidth: 1,
-        // Border lifts saturation on hover/press so the card feels
-        // "live" under the cursor on web. Native sees only `pressed`.
+        // Border softer at rest, slightly brighter on hover/press so
+        // the card feels "live" under the cursor on web. Native only
+        // sees `pressed`.
         borderColor:
           (hovered as boolean | undefined) || pressed
-            ? tokens.accent.dashboard + '99'
-            : tokens.accent.dashboard + '55',
+            ? tokens.accent.dashboard + '88'
+            : tokens.accent.dashboard + '40',
         overflow: 'hidden',
         transform: [{ scale: pressed ? 0.99 : 1 }],
       })}
@@ -903,9 +904,9 @@ function AskCompassCta({
           and dark themes. */}
       <RNLinearGradient
         colors={[
-          tokens.accent.dashboard + '1f',
-          tokens.accent.dashboard + '14',
-          tokens.accent.dashboard + '08',
+          tokens.accent.dashboard + '1a',
+          tokens.accent.dashboard + '0f',
+          tokens.accent.dashboard + '05',
         ]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -913,8 +914,8 @@ function AskCompassCta({
           flexDirection: 'row',
           alignItems: 'center',
           gap: 16,
-          paddingVertical: 18,
-          paddingHorizontal: 18,
+          paddingVertical: 22,
+          paddingHorizontal: 20,
         }}
       >
         <View
