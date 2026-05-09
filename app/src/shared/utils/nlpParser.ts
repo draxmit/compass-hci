@@ -162,25 +162,60 @@ const TRANSFER_KEYWORDS = ['transfer', 'pindah', 'kirim', 'tarik tunai', 'tarik'
 //   - '50,5' / '50.5' (decimal — \d{1,2} after sep)
 //   - '25.000,50'  (Indonesian thousands + decimal)
 // Followed by an optional Indonesian / English magnitude suffix.
-const AMOUNT_RE = /(\d+(?:[.,]\d{3})*(?:[.,]\d{1,2})?)\s*(rb|ribu|k|jt|juta|m)?\b/i;
+// Global flag (`g`) so we can iterate ALL candidate numbers in the
+// text and pick the most likely amount — important when year-like
+// numbers (2020, 2024) and real prices appear in the same utterance.
+const AMOUNT_RE = /(\d+(?:[.,]\d{3})*(?:[.,]\d{1,2})?)\s*(rb|ribu|k|jt|juta|m)?\b/gi;
 
 export function parseTransaction(raw: string, ctx: ParseContext): NlpResult {
   const lower = raw.toLowerCase();
   const today = ctx.today ?? new Date().toISOString().slice(0, 10);
 
   // ---- Amount ----
+  // Walk ALL number-suffix matches and score them. Heuristic:
+  //   1. Numbers with an explicit Indonesian magnitude suffix
+  //      (rb/ribu/k/jt/juta/m) win immediately — that's an
+  //      unambiguous money signal.
+  //   2. Otherwise prefer the LARGEST candidate, mirroring the
+  //      receipt parser's "totals are bigger than line items" rule.
+  //   3. Skip 4-digit numbers in the 1900-2099 range when they have
+  //      NO suffix — those almost always look like years (movie
+  //      titles, transaction dates, references) and should never
+  //      become the amount.
   let amount: number | null = null;
   let amountConfidence = 0;
-  const amountMatch = AMOUNT_RE.exec(lower);
-  if (amountMatch) {
-    const numText = amountMatch[1] ?? '';
-    const suffix = (amountMatch[2] ?? '').toLowerCase();
-    // parseLooseAmount disambiguates Indonesian (1.500.000,00) vs
-    // English (1,500,000.00) vs unseparated (1500000) by looking at
-    // the LAST separator's right-hand side: 3 digits → thousands;
-    // 1-2 digits → decimal. Voice transcripts on id-ID overwhelmingly
-    // emit the Indonesian form (50.000 = 50,000), which the previous
-    // parseFloat-with-replace logic was reading as 50.0.
+  let bestRaw = '';
+  let bestSuffix = '';
+  let bestScore = -1;
+  AMOUNT_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = AMOUNT_RE.exec(lower)) !== null) {
+    const numText = m[1] ?? '';
+    const suffix = (m[2] ?? '').toLowerCase();
+    const value = parseLooseAmount(numText);
+    if (!Number.isFinite(value) || value <= 0) continue;
+    // Year filter — bare 4-digit number in 1900-2099 with no
+    // magnitude suffix is almost certainly a year, not money.
+    const isYearLike =
+      !suffix &&
+      !numText.includes('.') &&
+      !numText.includes(',') &&
+      Number.isInteger(value) &&
+      value >= 1900 &&
+      value <= 2099;
+    if (isYearLike) continue;
+    // Suffix-bearing numbers always score highest (they're explicit
+    // money) — pick the largest among them.
+    const score = suffix ? 1_000_000_000 + value : value;
+    if (score > bestScore) {
+      bestScore = score;
+      bestRaw = numText;
+      bestSuffix = suffix;
+    }
+  }
+  if (bestScore > -1) {
+    const numText = bestRaw;
+    const suffix = bestSuffix;
     const n = parseLooseAmount(numText);
     if (Number.isFinite(n)) {
       let multiplier: number;
