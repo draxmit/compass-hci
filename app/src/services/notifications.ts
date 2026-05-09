@@ -1,5 +1,30 @@
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+
+/**
+ * Lazy load `expo-notifications`. The package's internal init touches
+ * `ExpoPushTokenManager` (push-token listener), which throws on dev
+ * client APKs built BEFORE the package was added — see commit history
+ * around `da50e58` (notifications added) vs the user's APK build date.
+ *
+ * Wrapping `require()` in try/catch defers the load to runtime AND
+ * catches the synchronous throw from native-module-not-found. The
+ * top-level `import *` form is hoisted by Metro and crashes before
+ * the React tree mounts (cannot be caught with surrounding try/catch).
+ *
+ * Treated as `null` when the module fails to load — every function
+ * below short-circuits on null and the app degrades to no-op.
+ */
+type NotificationsModule = typeof import('expo-notifications');
+let Notifications: NotificationsModule | null = null;
+if (Platform.OS !== 'web') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Notifications = require('expo-notifications') as NotificationsModule;
+  } catch (err) {
+    console.warn('[notifications] module load failed (rebuild dev client?):', err);
+    Notifications = null;
+  }
+}
 
 /**
  * Wrapper around `expo-notifications` for local notifications. We only
@@ -23,12 +48,11 @@ import { Platform } from 'react-native';
  */
 
 /**
- * `true` when local notifications might work on the current platform.
- * Web returns `false`; iOS / Android both return `true` even though
- * the dev client APK might still be missing the native module — the
- * try/catch in each function handles that gracefully.
+ * `true` when local notifications work on the current platform AND the
+ * native module is actually loaded. Returns `false` on web, OR on a
+ * dev client where the require() above failed.
  */
-export const notificationsSupported = Platform.OS !== 'web';
+export const notificationsSupported = Notifications !== null;
 
 /**
  * Foreground behaviour: even when the app is open, surface scheduled
@@ -40,7 +64,7 @@ export const notificationsSupported = Platform.OS !== 'web';
  * Wrapped in try/catch so a missing native module on a stale dev
  * client doesn't crash the app at boot.
  */
-if (notificationsSupported) {
+if (notificationsSupported && Notifications) {
   try {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -51,7 +75,7 @@ if (notificationsSupported) {
       }),
     });
   } catch (err) {
-    console.warn('[notifications] setNotificationHandler failed (rebuild dev client?):', err);
+    console.warn('[notifications] setNotificationHandler failed:', err);
   }
 }
 
@@ -65,7 +89,7 @@ if (notificationsSupported) {
  * link to Settings → Notifications for the user to flip it manually.
  */
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (!notificationsSupported) return false;
+  if (!Notifications) return false;
   try {
     const existing = await Notifications.getPermissionsAsync();
     if (existing.granted) return true;
@@ -85,7 +109,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
  *     next user's device)
  */
 export async function cancelAllScheduled(): Promise<void> {
-  if (!notificationsSupported) return;
+  if (!Notifications) return;
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch (err) {
@@ -99,7 +123,7 @@ export async function cancelAllScheduled(): Promise<void> {
  * scheduler can rebuild one category without nuking the others.
  */
 export async function cancelByPrefix(prefix: string): Promise<void> {
-  if (!notificationsSupported) return;
+  if (!Notifications) return;
   try {
     const all = await Notifications.getAllScheduledNotificationsAsync();
     for (const n of all) {
@@ -128,7 +152,7 @@ export async function scheduleDaily(
   title: string,
   body: string,
 ): Promise<void> {
-  if (!notificationsSupported) return;
+  if (!Notifications) return;
   try {
     // Cancel any existing daily reminder with this id before scheduling
     // a fresh one — `expo-notifications` allows duplicate ids and would
@@ -162,7 +186,7 @@ export async function scheduleAtDate(
   title: string,
   body: string,
 ): Promise<void> {
-  if (!notificationsSupported) return;
+  if (!Notifications) return;
   if (date.getTime() < Date.now()) return; // past — skip
   try {
     try {
@@ -192,7 +216,7 @@ export async function fireImmediate(
   title: string,
   body: string,
 ): Promise<void> {
-  if (!notificationsSupported) return;
+  if (!Notifications) return;
   try {
     await Notifications.scheduleNotificationAsync({
       identifier,

@@ -46,6 +46,13 @@ export function usePageAccent(): { key: AccentKey; color: string } {
     'categories': 'neutral',
     'goals': 'neutral',
     'import-csv': 'neutral',
+    // Ask Compass chat (/ask) lives off the Insights tab — Insights is
+    // its only entry point. Keep Insights highlighted while the chat
+    // is open so the user's mental model "I'm in the AI surface that
+    // started from Insights" stays consistent. Without this mapping,
+    // /ask fell through to the default 'dashboard' accent and the
+    // sidebar incorrectly lit up Dashboard.
+    'ask': 'insights',
   };
 
   // Default: 'dashboard'. The (auth) screens depend on this for brand
