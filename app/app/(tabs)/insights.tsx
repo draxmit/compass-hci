@@ -927,29 +927,34 @@ function AskCompassCta({
       style={({ hovered, pressed }) => ({
         marginBottom: 24,
         borderRadius: 999,
-        borderWidth: 1,
+        borderWidth: 1.5,           // up from 1px — clear container edge
         borderColor:
           (hovered as boolean | undefined) || pressed
-            ? tokens.accent.dashboard + '99'
-            : tokens.accent.dashboard + '40',
+            ? tokens.accent.dashboard
+            : tokens.accent.dashboard + 'aa',  // 67% — was 25%, invisible on light bg
         backgroundColor: isDark
           ? tokens.surface['dark-input']
-          : tokens.surface['light-input'],
+          : tokens.surface['light-card'],
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        paddingVertical: 14,
+        gap: 10,
+        paddingVertical: 8,
         paddingLeft: 18,
-        paddingRight: 6,
+        paddingRight: 8,
+        // Subtle elevation on web (boxShadow is the modern API; native
+        // ignores it harmlessly). Gives the input a soft lift so it
+        // reads as a contained surface, not floating elements.
+        shadowColor: tokens.accent.dashboard,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 2,
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}
     >
-      {/* Sparkles glyph hints "this is the AI surface" without making
-          the whole row a chip. */}
+      {/* Sparkles glyph hints "this is the AI surface". */}
       <Sparkles size={18} color={tokens.accent.dashboard} />
-      {/* Placeholder text — reads exactly like a textfield's
-          placeholder copy. The user sees "this is where my question
-          goes" rather than "this is a button labeled Ask Compass". */}
+      {/* Placeholder text — reads like a textfield's placeholder copy. */}
       <Text
         className="font-sans text-sm"
         style={{ color: mutedColor, flex: 1 }}
@@ -958,19 +963,19 @@ function AskCompassCta({
         {t('ask:composerPlaceholder')}
       </Text>
       {/* Send-arrow circle — the affordance side of the input,
-          mirroring iMessage / WhatsApp / ChatGPT's "submit" button
-          tucked at the right of a textfield. */}
+          mirroring iMessage / ChatGPT's submit button at right of
+          textfield. */}
       <View
         style={{
-          width: 32,
-          height: 32,
-          borderRadius: 16,
+          width: 36,
+          height: 36,
+          borderRadius: 18,
           backgroundColor: tokens.accent.dashboard,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <ChevronRight size={16} color="#fff" />
+        <ChevronRight size={18} color="#fff" />
       </View>
     </Pressable>
   );
