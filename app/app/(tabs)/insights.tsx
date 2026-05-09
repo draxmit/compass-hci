@@ -2311,18 +2311,19 @@ function Heatmap({
   daysInMonth, firstDow, dayTotals, max,
   accent, borderColor, mutedColor, fgColor, weekdayShortNames, onDayPress,
 }: HeatmapProps) {
-  // Pad cells before day 1 so the first day lines up with the right weekday
-  // column. `firstDow` is 0=Sun..6=Sat; our column order matches.
+  // Pad cells before day 1 so the first day lines up with the right
+  // weekday column. `firstDow` is 0=Sun..6=Sat; our column order matches.
+  // Pad short final row to a multiple of 7 too, so flex-wrap produces
+  // a clean rectangle even when the month doesn't end on Saturday.
   const cells: ({ day: number; total: number } | null)[] = [];
   for (let i = 0; i < firstDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, total: dayTotals[d] ?? 0 });
+  while (cells.length % 7 !== 0) cells.push(null);
 
-  // Measure container width to compute exact pixel cell sizes. Two
-  // earlier attempts (flex:1 + aspectRatio:1, then width:'13%' +
-  // aspectRatio:1) both broke on Android RN — the renderer was
-  // producing inconsistent cell widths/heights, leaving some cells
-  // inline-text-sized and others huge. Pixel-exact sizes via
-  // onLayout sidestep the entire flex/aspect-ratio interaction.
+  // Pixel-exact cell sizes — same pattern as the year view that the
+  // user confirmed works. Single flex-wrap container (no nested
+  // rows) is the structural change vs. the prior chunked-row layout
+  // that was breaking on Android RN.
   const GAP_PX = 4;
   const [containerW, setContainerW] = useState(320);
   const cellSize = Math.floor((containerW - GAP_PX * 6) / 7);
@@ -2334,9 +2335,17 @@ function Heatmap({
         if (w > 0 && Math.abs(w - containerW) > 1) setContainerW(w);
       }}
     >
-      {/* Weekday header — same fixed cell width keeps the labels
-          aligned with the day columns below. */}
-      <View className="flex-row" style={{ gap: GAP_PX, marginBottom: 4 }}>
+      {/* Weekday header — single flex-wrap row matching the day-cell
+          grid below. Each label sized to cellSize so columns align
+          1:1 with the day cells underneath. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: GAP_PX,
+          marginBottom: 4,
+        }}
+      >
         {weekdayShortNames.map((n, i) => (
           <View key={i} style={{ width: cellSize, alignItems: 'center' }}>
             <Text
@@ -2348,71 +2357,70 @@ function Heatmap({
           </View>
         ))}
       </View>
-      {/* Day cells in rows of 7 with measured pixel sizes. */}
-      <View style={{ gap: GAP_PX }}>
-        {chunk(cells, 7).map((row, rowIdx) => (
-          <View key={rowIdx} className="flex-row" style={{ gap: GAP_PX }}>
-            {row.map((cell, i) => {
-              const cellLayoutStyle = { width: cellSize, height: cellSize };
-              if (!cell) return <View key={i} style={cellLayoutStyle} />;
-              const intensity = max === 0 ? 0 : cell.total / max;
-              const fillAlpha = intensity === 0 ? 0 : Math.max(0.18, intensity);
-              const cellPressable = !!onDayPress && cell.total > 0;
-              // Visual treatment: no-spend cells get a subtle muted
-              // tile (no border) so they read as "background" rather
-              // than "empty boxes with skeleton borders". Spend cells
-              // get the accent fill at intensity-scaled alpha. No
-              // border on either — the spacing between tiles already
-              // segments the grid visually.
-              const visualStyle = {
-                width: cellSize,
-                height: cellSize,
-                borderRadius: 8,
-                backgroundColor:
-                  intensity === 0
-                    ? borderColor                                  // muted neutral tile
-                    : accent + alphaHex(fillAlpha),
-                alignItems: 'center' as const,
-                justifyContent: 'center' as const,
-              };
-              const dayText = (
-                <Text
-                  className="font-sans-medium text-[11px]"
-                  style={{
-                    color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
-                  }}
-                >
-                  {cell.day}
-                </Text>
-              );
-              if (cellPressable) {
-                return (
-                  <Pressable
-                    key={i}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Day ${cell.day}, spent ${formatIDR(cell.total)}. Tap to see transactions.`}
-                    onPress={() => onDayPress!(cell.day)}
-                    style={({ pressed }) => ({
-                      ...visualStyle,
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    {dayText}
-                  </Pressable>
-                );
-              }
-              return (
-                <View key={i} style={visualStyle}>{dayText}</View>
-              );
-            })}
-            {/* Pad short final row to keep visual rhythm */}
-            {row.length < 7
-              ? Array.from({ length: 7 - row.length }).map((_, i) => (
-                  <View key={`pad-${i}`} style={{ width: cellSize, height: cellSize }} />
-                ))
-              : null}
-          </View>
-        ))}
+      {/* Day cells — single flex-wrap container. Same structural
+          pattern as the YearMonthBoxes (which works). Each cell at
+          a fixed pixel width/height; flex-wrap automatically breaks
+          rows after 7 cells fit. No nested row Views, no chunk(). */}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: GAP_PX,
+        }}
+      >
+        {cells.map((cell, i) => {
+          if (!cell) {
+            return (
+              <View
+                key={i}
+                style={{ width: cellSize, height: cellSize }}
+              />
+            );
+          }
+          const intensity = max === 0 ? 0 : cell.total / max;
+          const fillAlpha = intensity === 0 ? 0 : Math.max(0.18, intensity);
+          const cellPressable = !!onDayPress && cell.total > 0;
+          const visualStyle = {
+            width: cellSize,
+            height: cellSize,
+            borderRadius: 8,
+            backgroundColor:
+              intensity === 0
+                ? borderColor                              // muted neutral tile
+                : accent + alphaHex(fillAlpha),
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+          };
+          const dayText = (
+            <Text
+              className="font-sans-medium text-[11px]"
+              style={{
+                color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
+              }}
+            >
+              {cell.day}
+            </Text>
+          );
+          if (cellPressable) {
+            return (
+              <Pressable
+                key={i}
+                accessibilityRole="button"
+                accessibilityLabel={`Day ${cell.day}, spent ${formatIDR(cell.total)}. Tap to see transactions.`}
+                onPress={() => onDayPress!(cell.day)}
+                style={({ pressed }) => ({
+                  ...visualStyle,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                {dayText}
+              </Pressable>
+            );
+          }
+          return (
+            <View key={i} style={visualStyle}>{dayText}</View>
+          );
+        })}
       </View>
     </View>
   );
