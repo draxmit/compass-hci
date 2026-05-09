@@ -2356,22 +2356,28 @@ function Heatmap({
               const cellLayoutStyle = { width: cellSize, height: cellSize };
               if (!cell) return <View key={i} style={cellLayoutStyle} />;
               const intensity = max === 0 ? 0 : cell.total / max;
-              const fillAlpha = intensity === 0 ? 0 : Math.max(0.15, intensity);
+              const fillAlpha = intensity === 0 ? 0 : Math.max(0.18, intensity);
               const cellPressable = !!onDayPress && cell.total > 0;
+              // Visual treatment: no-spend cells get a subtle muted
+              // tile (no border) so they read as "background" rather
+              // than "empty boxes with skeleton borders". Spend cells
+              // get the accent fill at intensity-scaled alpha. No
+              // border on either — the spacing between tiles already
+              // segments the grid visually.
               const visualStyle = {
                 width: cellSize,
                 height: cellSize,
-                borderRadius: 6,
-                borderWidth: 1,
-                borderColor,
+                borderRadius: 8,
                 backgroundColor:
-                  intensity === 0 ? 'transparent' : accent + alphaHex(fillAlpha),
+                  intensity === 0
+                    ? borderColor                                  // muted neutral tile
+                    : accent + alphaHex(fillAlpha),
                 alignItems: 'center' as const,
                 justifyContent: 'center' as const,
               };
               const dayText = (
                 <Text
-                  className="font-sans text-[10px]"
+                  className="font-sans-medium text-[11px]"
                   style={{
                     color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
                   }}

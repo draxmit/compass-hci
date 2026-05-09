@@ -471,6 +471,44 @@ export default function BudgetsScreen() {
           </Pressable>
         </View>
 
+        {/* View Report link — moved here per user request: lives BELOW
+            the month nav (its data scope) and ABOVE the style selector
+            (so the user sees "review what happened" before picking
+            "how to budget"). Pressable handles only press feedback;
+            all geometry on a static-styled inner View — same Android
+            RN-layout-bug workaround the heatmap and Ask Compass use. */}
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={t('budgets:actions.viewReport')}
+          onPress={() => router.push(`/report/${yearMonth}` as Href)}
+          style={({ pressed }) => ({
+            marginTop: 12,
+            marginBottom: 4,
+            opacity: pressed ? 0.85 : 1,
+            transform: [{ scale: pressed ? 0.98 : 1 }],
+          })}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              paddingVertical: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor,
+              backgroundColor: 'transparent',
+            }}
+          >
+            <FileText size={14} color={mutedColor} />
+            <Text className="font-sans-medium text-sm" style={{ color: mutedColor }}>
+              {t('budgets:actions.viewReport')}
+            </Text>
+            <ChevronRight size={14} color={mutedColor} />
+          </View>
+        </Pressable>
+
         {/* Style selector strip — segmented buttons. Active style uses
             a horizontal accent gradient (matches the rest of the app's
             active-state treatment); inactive states stay transparent
@@ -773,43 +811,6 @@ export default function BudgetsScreen() {
                 </Card>
               </View>
             ) : null}
-
-            {/* Footer link to monthly summary report. Reports are a
-                destination AFTER reviewing budgets, not before — so
-                this lives at the bottom as a tertiary outlined link
-                with no icon avatar. Was previously promoted to the
-                top of the page; demoted back per design critique. */}
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel={t('budgets:actions.viewReport')}
-              onPress={() => router.push(`/report/${yearMonth}` as Href)}
-              style={({ hovered, pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                paddingVertical: 12,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor:
-                  (hovered as boolean | undefined) || pressed
-                    ? tokens.accent.budgets + '66'
-                    : borderColor,
-                backgroundColor:
-                  (hovered as boolean | undefined) || pressed
-                    ? tokens.accent.budgets + '0d'
-                    : 'transparent',
-                marginTop: 8,
-                marginBottom: 24,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              })}
-            >
-              <FileText size={14} color={mutedColor} />
-              <Text className="font-sans-medium text-sm" style={{ color: mutedColor }}>
-                {t('budgets:actions.viewReport')}
-              </Text>
-              <ChevronRight size={14} color={mutedColor} />
-            </Pressable>
           </>
         ) : null}
       </View>
