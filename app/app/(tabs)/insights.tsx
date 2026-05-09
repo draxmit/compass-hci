@@ -588,7 +588,7 @@ export default function InsightsScreen() {
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md lg:max-w-3xl">
         {/* ===== ASK COMPASS ENTRY (v3 phase B, ADR-23) ===== */}
-        <View style={{ marginBottom: 48 }}>
+        <View style={{ marginBottom: 36 }}>
           <AskCompassCta
             isDark={isDark}
             fgColor={fgColor}
