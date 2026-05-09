@@ -6,9 +6,9 @@ import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Check, ChevronDown, ChevronLeft, ChevronRight, FileText, Pencil, Plus, Trash2, X } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import { updateUserDoc } from '@/services/firebase';
 import { listBudgets, subscribeBudgets, deleteBudget, upsertBudget } from '@/services/firestore/budgetsService';
@@ -352,6 +352,15 @@ export default function BudgetsScreen() {
     );
   }, [selectedStyle, monthIncomeMinor, monthTotals, categories]);
 
+  // Pull-to-refresh: data is realtime so the spinner is tactile
+  // feedback. Brief reset preserves the "I asked for fresh data"
+  // affordance.
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 600);
+  }, []);
+
   // Cold-load silhouette — month navigator + style-pill + budgeted
   // section + unbudgeted section. Without this the user sees the
   // empty "no budgets yet" branch flash for ~50–100 ms before the
@@ -362,7 +371,17 @@ export default function BudgetsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+    <ScrollView
+      contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={tokens.accent.budgets}
+          colors={[tokens.accent.budgets]}
+        />
+      }
+    >
       <View className="self-center w-full max-w-md lg:max-w-3xl">
         {/* Month navigator — left/right chevrons step through months,
             center shows the active month's name in hero typography,

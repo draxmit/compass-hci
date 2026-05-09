@@ -5,10 +5,10 @@ import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { Bookmark, BookmarkPlus, ChevronDown, Plus, SlidersHorizontal, X } from 'lucide-react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Animated, Modal, PanResponder, Pressable, ScrollView, TextInput, View,
+  Animated, Modal, PanResponder, Pressable, RefreshControl, ScrollView, TextInput, View,
 } from 'react-native';
 import type { GestureResponderEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -216,6 +216,15 @@ export default function TransactionsScreen() {
     const unsubS = subscribeSavedFilters(wid, setSavedFilters);
     return () => { unsubT(); unsubA(); unsubC(); unsubS(); };
   }, [wid]);
+
+  // Pull-to-refresh: data is realtime so the spinner is mostly tactile
+  // feedback. Resolves after a short tick so users still feel the
+  // refresh "do something" instead of immediately collapsing.
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 600);
+  }, []);
 
   const accountsById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
@@ -463,7 +472,17 @@ export default function TransactionsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+    <ScrollView
+      contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={tokens.accent.transactions}
+          colors={[tokens.accent.transactions]}
+        />
+      }
+    >
       <View className="self-center w-full max-w-md lg:max-w-3xl">
         {/* Title now lives in MobileTopBar — no screen-level duplication. */}
 

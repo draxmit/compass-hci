@@ -5,9 +5,9 @@ import type { TFunction } from 'i18next';
 import {
   CalendarDays, ChevronLeft, ChevronRight, Plus, Sparkles, TrendingUp, Zap,
 } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 // expo-linear-gradient was used by an older AskCompassCta variant
 // (banner card with diagonal gradient). The current "conversational
 // composer" Ask Compass uses solid input bg, so the gradient import
@@ -208,53 +208,65 @@ export default function InsightsScreen() {
     return out;   // [current, last, ..., oldest]
   }, []);
 
-  useEffect(() => {
+  // Pull-to-refresh: re-runs the snapshot load. When triggered via
+  // RefreshControl we set `refreshing` true so the spinner stays
+  // visible until the load resolves; mount-time loads use the
+  // existing `loaded` flag for the skeleton path instead.
+  const [refreshing, setRefreshing] = useState(false);
+  const loadAll = useCallback(async (isRefresh: boolean) => {
     if (!wid) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const cmtPromises = yearMonths.map((ym) => listMonthTotals(wid, ym));
-        // Load transactions for all 6 months upfront so heatmap month
-        // navigation is instant. Per-month txs are bounded (~50/month
-        // typical) so 6 × 50 = 300 reads is a small bump over the
-        // single-month variant. orderByDate: false dodges the
-        // composite index requirement (Insights doesn't need date
-        // order — it filters by day-of-month + category).
-        const txsPromises = yearMonths.map((ym) =>
-          listTransactions(wid, { yearMonth: ym, orderByDate: false }),
-        );
-        const [cmts, txsList, cats, budgets] = await Promise.all([
-          Promise.all(cmtPromises),
-          Promise.all(txsPromises),
-          listCategories(wid),
-          // This-month budgets — needed for the Budget Health pill.
-          // Single read; cheap (<10 docs typical).
-          listBudgets(wid, yearMonths[0]!),
-        ]);
-        if (cancelled) return;
-        const trendData = yearMonths.map((ym, i) => ({
-          yearMonth: ym,
-          total: cmts[i]?.reduce((s, m) => s + m.totalIDR, 0) ?? 0,
-        }));
-        const txsByMonth = new Map<string, Transaction[]>();
-        yearMonths.forEach((ym, i) => txsByMonth.set(ym, txsList[i] ?? []));
-        setTrend(trendData);
-        setTrendCmts(cmts);
-        setThisMonthTotals(cmts[0] ?? []);
-        setThisMonthTxs(txsList[0] ?? []);
-        setAllTxsByMonth(txsByMonth);
-        setCategories(cats);
-        setThisMonthBudgets(budgets);
-        setLoaded(true);
-      } catch (err) {
-        if (cancelled) return;
-        console.warn('[insights] load failed', err);
-        setLoadError(true);
-        setLoaded(true);
-      }
-    })();
-    return () => { cancelled = true; };
+    if (isRefresh) setRefreshing(true);
+    try {
+      const cmtPromises = yearMonths.map((ym) => listMonthTotals(wid, ym));
+      // Load transactions for all 6 months upfront so heatmap month
+      // navigation is instant. Per-month txs are bounded (~50/month
+      // typical) so 6 × 50 = 300 reads is a small bump over the
+      // single-month variant. orderByDate: false dodges the
+      // composite index requirement (Insights doesn't need date
+      // order — it filters by day-of-month + category).
+      const txsPromises = yearMonths.map((ym) =>
+        listTransactions(wid, { yearMonth: ym, orderByDate: false }),
+      );
+      const [cmts, txsList, cats, budgets] = await Promise.all([
+        Promise.all(cmtPromises),
+        Promise.all(txsPromises),
+        listCategories(wid),
+        // This-month budgets — needed for the Budget Health pill.
+        // Single read; cheap (<10 docs typical).
+        listBudgets(wid, yearMonths[0]!),
+      ]);
+      const trendData = yearMonths.map((ym, i) => ({
+        yearMonth: ym,
+        total: cmts[i]?.reduce((s, m) => s + m.totalIDR, 0) ?? 0,
+      }));
+      const txsByMonth = new Map<string, Transaction[]>();
+      yearMonths.forEach((ym, i) => txsByMonth.set(ym, txsList[i] ?? []));
+      setTrend(trendData);
+      setTrendCmts(cmts);
+      setThisMonthTotals(cmts[0] ?? []);
+      setThisMonthTxs(txsList[0] ?? []);
+      setAllTxsByMonth(txsByMonth);
+      setCategories(cats);
+      setThisMonthBudgets(budgets);
+      setLoaded(true);
+      // Refresh dropped any prior load error — if the new fetch
+      // succeeded we're back to a healthy state.
+      setLoadError(false);
+    } catch (err) {
+      console.warn('[insights] load failed', err);
+      setLoadError(true);
+      setLoaded(true);
+    } finally {
+      if (isRefresh) setRefreshing(false);
+    }
   }, [wid, yearMonths]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!wid) return;
+    void loadAll(false).then(() => { if (cancelled) return; });
+    return () => { cancelled = true; };
+  }, [wid, loadAll]);
 
   const categoriesById = useMemo(
     () => new Map(categories.map((c) => [c.id, c])),
@@ -706,7 +718,17 @@ export default function InsightsScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+    <ScrollView
+      contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => { void loadAll(true); }}
+          tintColor={accent}
+          colors={[accent]}
+        />
+      }
+    >
       <View className="self-center w-full max-w-md lg:max-w-3xl">
         {/* ===== ASK COMPASS ENTRY (v3 phase B, ADR-23) ===== */}
         <View style={{ marginBottom: 36 }}>

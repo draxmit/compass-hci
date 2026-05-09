@@ -5,9 +5,9 @@ import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { ChevronDown, ChevronRight, ChevronUp, Eye, EyeOff, Pin, Plus, Sparkles, Target } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { LinearGradient as RNLinearGradient } from 'expo-linear-gradient';
 import Svg, {
   Circle, Defs, LinearGradient, Path, Polyline, Stop,
@@ -183,26 +183,38 @@ export default function DashboardScreen() {
       setRecentTxs(data);
       setRecentLoaded(true);
     });
-    // Last month is one-shot — used only for the delta computation, not
-    // realtime. Not part of the loaded-gate; if it lands a frame after
-    // the others the delta line just briefly reads "no change", which is
-    // acceptable.
-    listMonthTotals(wid, lastYearMonth)
-      .then(setLastMonthTotals)
-      .catch((err: unknown) => console.warn('[dashboard] listMonthTotals(last) failed', err));
-    // Income transactions for this + last month (Cash Flow card +
-    // Savings Rate pill). One-shot, not realtime — saving doesn't move
-    // fast enough for realtime to matter, and a fresh fetch on every
-    // Dashboard mount is cheap. We filter by yearMonth which uses the
-    // pre-built composite index from ADR-07.
-    listTransactions(wid, { yearMonth: thisYearMonth })
-      .then((txs) => setThisMonthIncomeTxs(txs.filter((t) => t.type === 'income')))
-      .catch((err: unknown) => console.warn('[dashboard] income(this) failed', err));
-    listTransactions(wid, { yearMonth: lastYearMonth })
-      .then((txs) => setLastMonthIncomeTxs(txs.filter((t) => t.type === 'income')))
-      .catch((err: unknown) => console.warn('[dashboard] income(last) failed', err));
+    // Run the one-shot fetches via a shared helper so pull-to-refresh
+    // can re-trigger them. Realtime subscriptions don't need
+    // re-subscribing.
+    void refetchOneShots();
     return () => { unsubA(); unsubC(); unsubM(); unsubR(); };
+    // refetchOneShots is stable per (wid, this/lastYearMonth)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wid, thisYearMonth, lastYearMonth]);
+
+  // Pull-to-refresh: realtime subs (accounts/categories/recent/this-
+  // month-totals) auto-update so we just re-fetch the one-shots that
+  // power the Cash Flow card + delta + projection.
+  const [refreshing, setRefreshing] = useState(false);
+  const refetchOneShots = useCallback(async () => {
+    if (!wid) return;
+    try {
+      const [lastMonth, thisIncome, lastIncome] = await Promise.all([
+        listMonthTotals(wid, lastYearMonth),
+        listTransactions(wid, { yearMonth: thisYearMonth }),
+        listTransactions(wid, { yearMonth: lastYearMonth }),
+      ]);
+      setLastMonthTotals(lastMonth);
+      setThisMonthIncomeTxs(thisIncome.filter((t) => t.type === 'income'));
+      setLastMonthIncomeTxs(lastIncome.filter((t) => t.type === 'income'));
+    } catch (err) {
+      console.warn('[dashboard] refetch one-shots failed', err);
+    }
+  }, [wid, thisYearMonth, lastYearMonth]);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await refetchOneShots(); } finally { setRefreshing(false); }
+  }, [refetchOneShots]);
 
   // Pinned-goal subscription is keyed on the id so it tears down +
   // re-subscribes when the user pins a different goal. Defensively
@@ -437,7 +449,17 @@ export default function DashboardScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+    <ScrollView
+      contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={tokens.accent.dashboard}
+          colors={[tokens.accent.dashboard]}
+        />
+      }
+    >
       <View className="self-center w-full max-w-md lg:max-w-3xl">
         {/* Total Balance — flat editorial layout. Section label + eye
             toggle in a row, hero number below. The eye button toggles
