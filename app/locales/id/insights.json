@@ -23,7 +23,10 @@
     "perMonth": "per bulan",
     "sinceMonth": "sejak {{month}}",
     "showAll": "Tampilkan {{count}} lainnya",
-    "showLess": "Sembunyikan"
+    "showLess": "Sembunyikan",
+    "notifyTitle": "{{merchant}} akan ditagih",
+    "notifyBody_one": "Heads up: {{merchant}} ({{amount}}) diperkirakan {{days}} hari lagi.",
+    "notifyBody_other": "Heads up: {{merchant}} ({{amount}}) diperkirakan {{days}} hari lagi."
   },
   "dayDetail": {
     "spentLabel_one": "{{count}} pengeluaran",

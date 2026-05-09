@@ -22,6 +22,7 @@ import { listBudgets } from '@/services/firestore/budgetsService';
 import { listCategories } from '@/services/firestore/categoriesService';
 import { listMonthTotals } from '@/services/firestore/categoryMonthTotalsService';
 import { listTransactions } from '@/services/firestore/transactionsService';
+import { scheduleRecurringReminders } from '@/services/recurringReminders';
 import { useAuthUser } from '@/stores/authStore';
 import { useBreakpoint } from '@/shared/hooks/useBreakpoint';
 import type { Locale } from '@/shared/i18n';
@@ -416,6 +417,35 @@ export default function InsightsScreen() {
     [recurringExpenses],
   );
   const recurringAnnualTotal = recurringMonthlyTotal * 12;
+
+  // Schedule local notifications for the detected recurrings (#2).
+  // Wipe-then-replace runs every time the list changes so cancelled
+  // subscriptions stop nagging the user. Permission check is intentionally
+  // not gated on first call — expo-notifications no-ops when permission
+  // is denied; user can opt in via Settings → Notifications later.
+  // Using a ref-keyed signature so the effect only fires when the SET
+  // of recurrings actually changes (id + latestDate per row), not on
+  // every shallow array reference change.
+  const recurringSignature = useMemo(
+    () => recurringExpenses.map((r) => `${r.id}@${r.latestDate}`).join(','),
+    [recurringExpenses],
+  );
+  useEffect(() => {
+    if (recurringExpenses.length === 0) return;
+    void scheduleRecurringReminders(recurringExpenses, {
+      titleFor: (r) => t('insights:recurring.notifyTitle', { merchant: r.merchant }),
+      bodyFor: (r, days) => t('insights:recurring.notifyBody', {
+        merchant: r.merchant,
+        amount: formatIDR(r.averageAmountMinor, lang),
+        days,
+        count: days,
+        context: days === 1 ? 'one' : 'other',
+      }),
+    });
+    // signature changes are the trigger; recurringExpenses + locale-bound
+    // labels are intentionally stable per signature.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recurringSignature]);
 
   // ----- Year heatmap data (v3 phase A — 6) -----
   // Rolling 12-month window ending in the current month. Fetched lazily

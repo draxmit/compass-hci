@@ -23,7 +23,10 @@
     "perMonth": "per month",
     "sinceMonth": "since {{month}}",
     "showAll": "Show {{count}} more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "notifyTitle": "{{merchant}} coming up",
+    "notifyBody_one": "Heads up: {{merchant}} ({{amount}}) expected in {{days}} day.",
+    "notifyBody_other": "Heads up: {{merchant}} ({{amount}}) expected in {{days}} days."
   },
   "dayDetail": {
     "spentLabel_one": "{{count}} expense",
