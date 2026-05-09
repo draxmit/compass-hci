@@ -1,13 +1,12 @@
 import { Link } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useState } from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { signInWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { tokens } from '@/shared/theme/tokens';
-import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Button } from '@/shared/ui/Button';
 import { Logo } from '@/shared/ui/Logo';
 import { Text } from '@/shared/ui/Text';
@@ -16,7 +15,6 @@ import { TextField } from '@/shared/ui/TextField';
 export default function SignInScreen() {
   const { t } = useTranslation(['auth']);
   const { color: accent } = usePageAccent();
-  const appAlert = useAppAlert();
   const { promptAsync: googlePromptAsync, isPending: isGooglePending } = useGoogleSignIn();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,16 +39,12 @@ export default function SignInScreen() {
     }
   };
 
-  // Expo Go can't authorize the LAN redirect URI used by expo-auth-session, so
-  // Google sign-in only works on web until we ship an EAS dev client. The
-  // button stays visible to keep the layout stable across builds — tapping it
-  // on native explains the gap rather than silently failing.
+  // Google sign-in works on web (signInWithPopup) AND on native via the
+  // EAS dev client APK + Android OAuth Client ID configured in
+  // .env.local (see ADR-03 §11). expo-auth-session/providers/google
+  // wraps both transparently — see services/firebase/google-signin.ts.
   const onGoogle = async () => {
     setError(null);
-    if (Platform.OS !== 'web') {
-      appAlert(t('auth:googleAndroid.title'), t('auth:googleAndroid.signInBody'));
-      return;
-    }
     const result = await googlePromptAsync();
     if (result.type === 'error') setError(result.message);
     // 'dismiss' is silent — user backed out intentionally.

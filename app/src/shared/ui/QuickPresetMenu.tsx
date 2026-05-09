@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import { Plus, Settings, Zap } from 'lucide-react-native';
-import { useState } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Modal, PanResponder, Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -53,6 +53,51 @@ export function QuickPresetMenu({ visible, onClose, presets, fromPath }: Props) 
   const accent = tokens.accent.dashboard;
 
   const [submitting, setSubmitting] = useState<string | null>(null);
+
+  // Swipe-to-close — same pattern as the Insights heatmap day sheet.
+  // Animated.Value tracks downward drag on the handle; release past
+  // threshold (>100px or vy > 0.5) animates the sheet off-screen
+  // before calling onClose so the gesture feels natural. A near-tap
+  // on the handle (dy < 4) dismisses too — the handle doubles as a
+  // close affordance for users who don't realise it's draggable.
+  const sheetTranslateY = useRef(new Animated.Value(0)).current;
+  const sheetPanResponder = useMemo(
+    () => PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: (_e, gesture) => {
+        sheetTranslateY.setValue(Math.max(0, gesture.dy));
+      },
+      onPanResponderRelease: (_e, gesture) => {
+        const isTap = Math.abs(gesture.dy) < 4 && Math.abs(gesture.vy) < 0.1;
+        const shouldClose = isTap || gesture.dy > 100 || gesture.vy > 0.5;
+        if (shouldClose) {
+          Animated.timing(sheetTranslateY, {
+            toValue: 600,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(() => {
+            onClose();
+            sheetTranslateY.setValue(0);
+          });
+        } else {
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 4,
+          }).start();
+        }
+      },
+    }),
+    [sheetTranslateY, onClose],
+  );
+  // Reset drag offset whenever the sheet (re)opens. Without this, a
+  // previous close animation could leave the value at 600 and the
+  // sheet would render fully translated-down on the next open.
+  useEffect(() => {
+    if (visible) sheetTranslateY.setValue(0);
+  }, [visible, sheetTranslateY]);
 
   // A preset is "complete" when it has all the fields needed for an
   // instant tx write: a non-zero amount, a non-empty accountId, and
@@ -134,17 +179,25 @@ export function QuickPresetMenu({ visible, onClose, presets, fromPath }: Props) 
           accessibilityRole="button"
           accessibilityLabel={t('common:actions.close')}
         />
-        <View
+        <Animated.View
           style={{
             backgroundColor: isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'],
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             paddingTop: 8,
             paddingBottom: Math.max(16, insets.bottom),
+            transform: [{ translateY: sheetTranslateY }],
           }}
         >
-          {/* Drag handle */}
-          <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+          {/* Drag handle — wrapped in a tall hit-area View that owns
+              the PanResponder. View (not Pressable) so the gesture
+              system isn't fighting Pressable's own touch handling.
+              Tap-on-handle still dismisses via the isTap branch in
+              onPanResponderRelease. */}
+          <View
+            style={{ alignItems: 'center', paddingVertical: 10 }}
+            {...sheetPanResponder.panHandlers}
+          >
             <View
               style={{
                 width: 40, height: 4, borderRadius: 2,
@@ -314,7 +367,7 @@ export function QuickPresetMenu({ visible, onClose, presets, fromPath }: Props) 
               </Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

@@ -1,13 +1,12 @@
 import { Link } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useState } from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { signUpWithEmailPassword, useGoogleSignIn } from '@/services/firebase';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { tokens } from '@/shared/theme/tokens';
-import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Button } from '@/shared/ui/Button';
 import { Logo } from '@/shared/ui/Logo';
 import { Text } from '@/shared/ui/Text';
@@ -16,7 +15,6 @@ import { TextField } from '@/shared/ui/TextField';
 export default function SignUpScreen() {
   const { t } = useTranslation(['auth']);
   const { color: accent } = usePageAccent();
-  const appAlert = useAppAlert();
   const { promptAsync: googlePromptAsync, isPending: isGooglePending } = useGoogleSignIn();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -50,15 +48,11 @@ export default function SignUpScreen() {
     }
   };
 
-  // See sign-in.tsx — Google sign-in only works on web until we ship an EAS
-  // dev client; tapping on native shows a "coming soon" alert instead of
-  // failing on the unauthorized LAN redirect URI.
+  // Google sign-in works on web (signInWithPopup) AND on native via the
+  // EAS dev client APK + Android OAuth Client ID configured in
+  // .env.local — see sign-in.tsx for the full note.
   const onGoogle = async () => {
     setError(null);
-    if (Platform.OS !== 'web') {
-      appAlert(t('auth:googleAndroid.title'), t('auth:googleAndroid.signUpBody'));
-      return;
-    }
     const result = await googlePromptAsync();
     if (result.type === 'error') setError(result.message);
   };
