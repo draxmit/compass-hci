@@ -48,3 +48,16 @@ export function convertToIDRMinor(amountMinor: number, currency: Currency): numb
   if (currency === 'IDR') return amountMinor;
   return Math.round(amountMinor * FX_TO_IDR[currency]);
 }
+
+/**
+ * Inverse: convert an IDR-minor amount into `currency`'s minor units.
+ * Used when the user enters a value in IDR (e.g. goal contribution
+ * amount) but the underlying source-account balance is denominated
+ * in a foreign currency — without this conversion the deduction
+ * would be applied 1:1 against the foreign-cents balance, sending
+ * the account hilariously negative (Rp 50jt = 5 billion USD-cents).
+ */
+export function convertFromIDRMinor(amountIDRMinor: number, currency: Currency): number {
+  if (currency === 'IDR') return amountIDRMinor;
+  return Math.round(amountIDRMinor / FX_TO_IDR[currency]);
+}

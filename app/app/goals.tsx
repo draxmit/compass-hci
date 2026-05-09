@@ -14,6 +14,7 @@ import { subscribeAccounts } from '@/services/firestore/accountsService';
 import {
   contributeGoal, createGoal, deleteGoal, subscribeGoals,
 } from '@/services/firestore/goalsService';
+import { InsufficientBalanceError } from '@/services/firestore/transactionsService';
 import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import { GOAL_TEMPLATES, getTemplate } from '@/shared/data/goalTemplates';
 import type { Locale } from '@/shared/i18n';
@@ -40,7 +41,7 @@ import { formatIDR } from '@/shared/utils/formatIDR';
  * v2 launch ships sinking funds only. Habit streaks deferred.
  */
 export default function GoalsScreen() {
-  const { t, i18n } = useTranslation(['goals', 'common']);
+  const { t, i18n } = useTranslation(['goals', 'common', 'transactions']);
   const router = useRouter();
   const appAlert = useAppAlert();
   const insets = useSafeAreaInsets();
@@ -393,8 +394,17 @@ function GoalRow({
       setContribAccountId(null);
       onToggleContribute();   // collapse
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t('goals:contribute.errors.saveFailed');
-      appAlert(t('goals:title'), msg);
+      // Friendly surface for the no-negative-balance gate (ADR-22)
+      // — same pattern the transaction-entry screen uses.
+      if (err instanceof InsufficientBalanceError) {
+        appAlert(
+          t('goals:contribute.title', { goalName: goal.name }),
+          t('transactions:entry.errors.insufficientBalance'),
+        );
+      } else {
+        const msg = err instanceof Error ? err.message : t('goals:contribute.errors.saveFailed');
+        appAlert(t('goals:title'), msg);
+      }
     } finally {
       setSaving(false);
     }

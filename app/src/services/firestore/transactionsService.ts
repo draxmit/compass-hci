@@ -29,9 +29,11 @@ function isLiabilityType(type: Account['type']): boolean {
 
 /**
  * Compute the signed delta to apply to `currentBalance` for an
- * outflow or inflow of `amount` on `accountType`.
+ * outflow or inflow of `amount` on `accountType`. Exported so other
+ * balance-mutating services (goals, future transfers/etc.) can reuse
+ * the same sign-flip rules instead of re-deriving them per call site.
  */
-function balanceDelta(
+export function balanceDelta(
   amount: number,
   accountType: Account['type'],
   direction: 'in' | 'out',
