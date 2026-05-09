@@ -309,22 +309,37 @@ export default function InsightsScreen() {
     setYearTxsLoading(true);
     let cancelled = false;
 
-    // Seed with empty arrays for every month so the UI renders 12
-    // skeleton grids immediately while the first query is in flight.
-    // Each month's data populates as its own query resolves —
-    // progressive UX vs the prior "wait for all 12 then show".
-    const seed = new Map<string, Transaction[]>();
-    for (const ym of yearMonthsList) seed.set(ym, []);
-    setYearTxsByMonth(seed);
+    // (Seed map handled by the hot-start logic below — months
+    // already in `allTxsByMonth` from the trend-chart fetch
+    // populate instantly; only the older 6 months hit the network.)
+    // ⚡ Hot start: months we ALREADY have from the trend-chart fetch
+    // (`allTxsByMonth` covers the 6-month trend window) populate
+    // instantly without a Firestore round trip. Only the OLDER 6
+    // months hit the network. Cuts year-view perceived load time
+    // roughly in half.
+    const seedFromCache = new Map<string, Transaction[]>();
+    const cacheHitMonths = new Set<string>();
+    for (const ym of yearMonthsList) {
+      const cached = allTxsByMonth.get(ym);
+      if (cached) {
+        seedFromCache.set(ym, cached);
+        cacheHitMonths.add(ym);
+      } else {
+        seedFromCache.set(ym, []);
+      }
+    }
+    setYearTxsByMonth(seedFromCache);
+    setYearResolvedMonths(cacheHitMonths);
 
-    // Fire 12 parallel per-month queries. Promise.allSettled lets
-    // partial failures (e.g. a single month rate-limited) not abort
-    // the whole load. Each successful query updates state immediately
-    // — that month's grid lights up as data arrives, no waiting for
-    // siblings.
-    setYearResolvedMonths(new Set());
+    // Fire network fetches ONLY for the months the cache didn't cover.
+    const monthsToFetch = yearMonthsList.filter((ym) => !cacheHitMonths.has(ym));
+    if (monthsToFetch.length === 0) {
+      // Everything served from cache — no network needed.
+      setYearTxsLoading(false);
+      return;
+    }
     let resolvedCount = 0;
-    yearMonthsList.forEach((ym) => {
+    monthsToFetch.forEach((ym) => {
       const start = Date.now();
       void listTransactions(wid, { yearMonth: ym, orderByDate: false })
         .then((txs) => {
@@ -369,7 +384,7 @@ export default function InsightsScreen() {
     });
 
     return () => { cancelled = true; };
-  }, [heatmapView, yearTxsByMonth, yearTxsLoading, wid, yearMonthsList]);
+  }, [heatmapView, yearTxsByMonth, yearTxsLoading, wid, yearMonthsList, allTxsByMonth]);
 
   // Per-month heatmap data for the stacked-grid year view. Each entry
   // is a single month's daily totals + how to lay it out (firstDow,
