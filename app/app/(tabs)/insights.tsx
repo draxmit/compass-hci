@@ -883,13 +883,14 @@ function AskCompassCta({
       accessibilityLabel={t('ask:entryCta')}
       onPress={onPress}
       style={({ hovered, pressed }) => ({
-        marginTop: 4,        // breathing room from the page-top edge
-        marginBottom: 32,    // generous gap to the BUDGET HEALTH section below
-        borderRadius: 24,    // pronounced curve — reads as a hero pill, not a rectangle
+        marginTop: 4,
+        marginBottom: 32,
+        // Half-pill geometry. With a 56px content area + 22px padding
+        // = ~100px total height, a 50px radius fully rounds the
+        // vertical edges so the card silhouette is a true rounded
+        // pill instead of "rectangle with rounded corners".
+        borderRadius: 50,
         borderWidth: 1,
-        // Border softer at rest, slightly brighter on hover/press so
-        // the card feels "live" under the cursor on web. Native only
-        // sees `pressed`.
         borderColor:
           (hovered as boolean | undefined) || pressed
             ? tokens.accent.dashboard + '88'
@@ -899,9 +900,7 @@ function AskCompassCta({
       })}
     >
       {/* Diagonal accent gradient — mirrors the "AI feature" treatment
-          banks/fintech apps use for new ML-powered surfaces. Soft
-          corner-to-corner stops keep the card readable in both light
-          and dark themes. */}
+          banks/fintech apps use for new ML-powered surfaces. */}
       <RNLinearGradient
         colors={[
           tokens.accent.dashboard + '1a',
@@ -914,15 +913,19 @@ function AskCompassCta({
           flexDirection: 'row',
           alignItems: 'center',
           gap: 16,
-          paddingVertical: 22,
-          paddingHorizontal: 20,
+          paddingVertical: 16,
+          paddingLeft: 16,
+          paddingRight: 22,
         }}
       >
+        {/* Perfectly-circular icon avatar so the leftmost shape on
+            the row is a full circle — anchors the eye to a curved
+            silhouette rather than a square inside a rounded card. */}
         <View
           style={{
-            width: 48,
-            height: 48,
-            borderRadius: 14,
+            width: 52,
+            height: 52,
+            borderRadius: 26,
             backgroundColor: tokens.accent.dashboard + '22',
             alignItems: 'center',
             justifyContent: 'center',
