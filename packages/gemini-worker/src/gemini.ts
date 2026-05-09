@@ -14,13 +14,22 @@ import type {
  * generativelanguage.googleapis.com — plenty for a class-demo app.
  */
 
-// Free-tier model. Google rolled gemini-2.0-flash out of free tier in
-// mid-2026; the current free-tier flash variant is gemini-2.5-flash.
+// Free-tier model. Picked `gemini-2.5-flash-lite` over `gemini-2.5-flash`
+// because the daily request quota on the lite variant is 1000/day vs 20
+// on the regular flash — and 20/day is tight for class-demo iteration
+// (chat + voice + receipt scan share the same daily counter).
+//
+// The lite model trades a bit of reasoning depth for the throughput,
+// but for our use case (structured field extraction, short Q&A on a
+// finite snapshot) the difference is negligible. If quality regresses
+// on a specific prompt path, swap that path's URL back to
+// `gemini-2.5-flash` and accept the lower daily ceiling.
+//
 // If Google rolls models again, swap this constant — everything else
 // in the Worker (system prompt, JSON schema, contents shape) is
 // model-agnostic.
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 
 const SYSTEM_PROMPT = `You are Compass, a personal financial assistant for Indonesian users.
 You have READ-ONLY access to the user's financial data via the snapshot below.
