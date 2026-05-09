@@ -59,10 +59,19 @@
       "labelPlaceholder": "mis. Kopi",
       "type": "Jenis",
       "amount": "Jumlah",
+      "amountOptional": "Jumlah (opsional)",
+      "amountPlaceholderOptional": "Kosongkan untuk diisi saat dipakai",
       "account": "Akun",
+      "accountOptional": "Akun (opsional)",
+      "skipAccount": "Pilih nanti",
       "category": "Kategori",
+      "categoryOptional": "Kategori (opsional)",
+      "skipCategory": "Pilih nanti",
       "description": "Catatan default",
       "descriptionPlaceholder": "Opsional"
-    }
+    },
+    "editorHint": "Cukup label yang wajib. Kosongkan field lain untuk diisi saat preset dipakai.",
+    "needsDetails": "Perlu detail",
+    "tapToFill": "Tap untuk isi"
   }
 }

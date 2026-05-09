@@ -311,9 +311,9 @@ function PresetEditor({
   const [label, setLabel] = useState(initial?.label ?? '');
   const [type, setType] = useState<'expense' | 'income'>(initial?.type ?? 'expense');
   const [amountText, setAmountText] = useState(
-    initial ? minorToInputText(initial.amountMinor, lang) : '',
+    initial && initial.amountMinor > 0 ? minorToInputText(initial.amountMinor, lang) : '',
   );
-  const [accountId, setAccountId] = useState<string | null>(initial?.accountId ?? accounts[0]?.id ?? null);
+  const [accountId, setAccountId] = useState<string | null>(initial?.accountId ?? null);
   const [categoryId, setCategoryId] = useState<string | null>(initial?.categoryId ?? null);
   const [description, setDescription] = useState(initial?.description ?? '');
   const [saving, setSaving] = useState(false);
@@ -321,17 +321,20 @@ function PresetEditor({
   const handleSave = async () => {
     if (saving) return;
     if (!label.trim()) return;
+    // Only `label` is strictly required. Amount, account, category
+    // are now ALL optional — if any are missing, tapping the preset
+    // routes to /transaction/new with the filled-in fields prefilled
+    // and the user fills the rest. Lets users save fast presets like
+    // "Coffee at Starbucks" with just the description + category and
+    // type the amount each time.
     const amount = parseAmountInput(amountText, lang);
-    if (!amount) return;
-    if (!accountId) return;
-    if (type === 'expense' && !categoryId) return;
     setSaving(true);
     const preset: QuickPreset = {
       id: initial?.id ?? `qp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       label: label.trim(),
       type,
-      amountMinor: amount,
-      accountId,
+      amountMinor: amount > 0 ? amount : 0,
+      accountId: accountId ?? '',
       categoryId: type === 'expense' ? categoryId : null,
       description: description.trim(),
       icon: 'zap',
@@ -374,146 +377,203 @@ function PresetEditor({
           ) : null}
         </View>
 
-        <Card padding="md" className="mb-4">
+        <Text className="font-sans text-xs mb-4" style={{ color: mutedColor, lineHeight: 16 }}>
+          {t('common:quickPresets.editorHint')}
+        </Text>
+
+        {/* Single consolidated card — all fields together with hairline
+            dividers between sections. Earlier multi-card layout had
+            too much vertical padding between adjacent cards on mobile,
+            making the form feel claustrophobic. */}
+        <Card padding="lg" className="mb-6">
+          {/* Label (required) */}
           <TextField
             label={t('common:quickPresets.fields.label')}
             value={label}
             onChangeText={setLabel}
             placeholder={t('common:quickPresets.fields.labelPlaceholder')}
           />
-          <View style={{ height: 12 }} />
-          {/* Type segmented */}
-          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
-            {t('common:quickPresets.fields.type')}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-            {(['expense', 'income'] as const).map((tp) => {
-              const selected = type === tp;
-              return (
-                <Pressable
-                  key={tp}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  onPress={() => setType(tp)}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 10,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: selected ? accent : borderColor,
-                    backgroundColor: selected ? accent + '14' : 'transparent',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text
-                    className="font-sans-medium text-sm"
-                    style={{ color: selected ? accent : fgColor }}
-                  >
-                    {t(`transactions:entry.types.${tp}`)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <TextField
-            label={t('common:quickPresets.fields.amount')}
-            value={amountText}
-            onChangeText={(text) => setAmountText(formatAmountInput(text, lang))}
-            placeholder="0"
-            keyboardType="numeric"
-          />
-        </Card>
 
-        <Card padding="md" className="mb-4">
-          <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
-            {t('common:quickPresets.fields.account')}
-          </Text>
-          {accounts.length === 0 ? (
-            <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-              {t('transactions:entry.pickers.noAccounts')}
+          {/* Type segmented */}
+          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: borderColor }}>
+            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
+              {t('common:quickPresets.fields.type')}
             </Text>
-          ) : (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {accounts.map((a) => {
-                const selected = accountId === a.id;
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['expense', 'income'] as const).map((tp) => {
+                const selected = type === tp;
                 return (
                   <Pressable
-                    key={a.id}
+                    key={tp}
                     accessibilityRole="radio"
                     accessibilityState={{ selected }}
-                    onPress={() => setAccountId(a.id)}
+                    onPress={() => setType(tp)}
                     style={{
-                      paddingHorizontal: 12, paddingVertical: 8,
-                      borderRadius: 999,
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
                       borderWidth: 1,
                       borderColor: selected ? accent : borderColor,
                       backgroundColor: selected ? accent + '14' : 'transparent',
+                      alignItems: 'center',
                     }}
                   >
                     <Text
-                      className="font-sans-medium text-xs"
+                      className="font-sans-medium text-sm"
                       style={{ color: selected ? accent : fgColor }}
                     >
-                      {a.name}
+                      {t(`transactions:entry.types.${tp}`)}
                     </Text>
                   </Pressable>
                 );
               })}
             </View>
-          )}
-        </Card>
+          </View>
 
-        {type === 'expense' ? (
-          <Card padding="md" className="mb-4">
+          {/* Amount — optional. Empty / 0 means "ask me at use-time". */}
+          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: borderColor }}>
+            <TextField
+              label={t('common:quickPresets.fields.amountOptional')}
+              value={amountText}
+              onChangeText={(text) => setAmountText(formatAmountInput(text, lang))}
+              placeholder={t('common:quickPresets.fields.amountPlaceholderOptional')}
+              keyboardType="numeric"
+            />
+          </View>
+
+          {/* Account — optional. Empty means "ask me at use-time". */}
+          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: borderColor }}>
             <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
-              {t('common:quickPresets.fields.category')}
+              {t('common:quickPresets.fields.accountOptional')}
             </Text>
-            {categories.length === 0 ? (
+            {accounts.length === 0 ? (
               <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-                {t('transactions:entry.pickers.noCategories')}
+                {t('transactions:entry.pickers.noAccounts')}
               </Text>
             ) : (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {categories.map((c) => {
-                  const selected = categoryId === c.id;
-                  const tint = resolveCategoryColor(c.color, isDark ? 'dark' : 'light');
+                {/* "Skip" pill — sets accountId to null */}
+                <Pressable
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: accountId === null }}
+                  onPress={() => setAccountId(null)}
+                  style={{
+                    paddingHorizontal: 12, paddingVertical: 8,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: accountId === null ? accent : borderColor,
+                    backgroundColor: accountId === null ? accent + '14' : 'transparent',
+                  }}
+                >
+                  <Text
+                    className="font-sans-medium text-xs"
+                    style={{ color: accountId === null ? accent : mutedColor }}
+                  >
+                    {t('common:quickPresets.fields.skipAccount')}
+                  </Text>
+                </Pressable>
+                {accounts.map((a) => {
+                  const selected = accountId === a.id;
                   return (
                     <Pressable
-                      key={c.id}
+                      key={a.id}
                       accessibilityRole="radio"
                       accessibilityState={{ selected }}
-                      onPress={() => setCategoryId(c.id)}
+                      onPress={() => setAccountId(a.id)}
                       style={{
-                        flexDirection: 'row', alignItems: 'center', gap: 6,
-                        paddingHorizontal: 10, paddingVertical: 6,
+                        paddingHorizontal: 12, paddingVertical: 8,
                         borderRadius: 999,
                         borderWidth: 1,
-                        borderColor: selected ? tint : borderColor,
-                        backgroundColor: selected ? tint + '14' : 'transparent',
+                        borderColor: selected ? accent : borderColor,
+                        backgroundColor: selected ? accent + '14' : 'transparent',
                       }}
                     >
-                      <CategoryIcon name={c.icon} color={tint} size={12} />
                       <Text
                         className="font-sans-medium text-xs"
-                        style={{ color: selected ? tint : fgColor }}
+                        style={{ color: selected ? accent : fgColor }}
                       >
-                        {c.name[lang]}
+                        {a.name}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
             )}
-          </Card>
-        ) : null}
+          </View>
 
-        <Card padding="md" className="mb-6">
-          <TextField
-            label={t('common:quickPresets.fields.description')}
-            value={description}
-            onChangeText={setDescription}
-            placeholder={t('common:quickPresets.fields.descriptionPlaceholder')}
-          />
+          {/* Category — optional, expense-only */}
+          {type === 'expense' ? (
+            <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: borderColor }}>
+              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
+                {t('common:quickPresets.fields.categoryOptional')}
+              </Text>
+              {categories.length === 0 ? (
+                <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+                  {t('transactions:entry.pickers.noCategories')}
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: categoryId === null }}
+                    onPress={() => setCategoryId(null)}
+                    style={{
+                      paddingHorizontal: 12, paddingVertical: 8,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: categoryId === null ? accent : borderColor,
+                      backgroundColor: categoryId === null ? accent + '14' : 'transparent',
+                    }}
+                  >
+                    <Text
+                      className="font-sans-medium text-xs"
+                      style={{ color: categoryId === null ? accent : mutedColor }}
+                    >
+                      {t('common:quickPresets.fields.skipCategory')}
+                    </Text>
+                  </Pressable>
+                  {categories.map((c) => {
+                    const selected = categoryId === c.id;
+                    const tint = resolveCategoryColor(c.color, isDark ? 'dark' : 'light');
+                    return (
+                      <Pressable
+                        key={c.id}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        onPress={() => setCategoryId(c.id)}
+                        style={{
+                          flexDirection: 'row', alignItems: 'center', gap: 6,
+                          paddingHorizontal: 10, paddingVertical: 6,
+                          borderRadius: 999,
+                          borderWidth: 1,
+                          borderColor: selected ? tint : borderColor,
+                          backgroundColor: selected ? tint + '14' : 'transparent',
+                        }}
+                      >
+                        <CategoryIcon name={c.icon} color={tint} size={12} />
+                        <Text
+                          className="font-sans-medium text-xs"
+                          style={{ color: selected ? tint : fgColor }}
+                        >
+                          {c.name[lang]}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          ) : null}
+
+          {/* Description — optional */}
+          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: borderColor }}>
+            <TextField
+              label={t('common:quickPresets.fields.description')}
+              value={description}
+              onChangeText={setDescription}
+              placeholder={t('common:quickPresets.fields.descriptionPlaceholder')}
+            />
+          </View>
         </Card>
 
         <View style={{ flexDirection: 'row', gap: 10 }}>

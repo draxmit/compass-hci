@@ -14,7 +14,6 @@ import { subscribeAccounts } from '@/services/firestore/accountsService';
 import {
   contributeGoal, createGoal, deleteGoal, subscribeGoals,
 } from '@/services/firestore/goalsService';
-import { InsufficientBalanceError } from '@/services/firestore/transactionsService';
 import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import { GOAL_TEMPLATES, getTemplate } from '@/shared/data/goalTemplates';
 import type { Locale } from '@/shared/i18n';
@@ -41,7 +40,7 @@ import { formatIDR } from '@/shared/utils/formatIDR';
  * v2 launch ships sinking funds only. Habit streaks deferred.
  */
 export default function GoalsScreen() {
-  const { t, i18n } = useTranslation(['goals', 'common', 'transactions']);
+  const { t, i18n } = useTranslation(['goals', 'common']);
   const router = useRouter();
   const appAlert = useAppAlert();
   const insets = useSafeAreaInsets();
@@ -373,7 +372,6 @@ function GoalRow({
   const reached = ratio >= 1;
 
   const [contribText, setContribText] = useState('');
-  const [contribAccountId, setContribAccountId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleContribute = async () => {
@@ -383,28 +381,17 @@ function GoalRow({
       appAlert(t('goals:contribute.title', { goalName: goal.name }), t('goals:contribute.errors.missingAmount'));
       return;
     }
-    if (!contribAccountId) {
-      appAlert(t('goals:contribute.title', { goalName: goal.name }), t('goals:contribute.errors.missingAccount'));
-      return;
-    }
     setSaving(true);
     try {
-      await contributeGoal(wid, goal.id, contribAccountId, amount);
+      // Pure tracking — no account balance touch. Per the goalsService
+      // contract change (commit after 267ec84), contributions just
+      // advance the goal's currentMinor.
+      await contributeGoal(wid, goal.id, amount);
       setContribText('');
-      setContribAccountId(null);
       onToggleContribute();   // collapse
     } catch (err) {
-      // Friendly surface for the no-negative-balance gate (ADR-22)
-      // — same pattern the transaction-entry screen uses.
-      if (err instanceof InsufficientBalanceError) {
-        appAlert(
-          t('goals:contribute.title', { goalName: goal.name }),
-          t('transactions:entry.errors.insufficientBalance'),
-        );
-      } else {
-        const msg = err instanceof Error ? err.message : t('goals:contribute.errors.saveFailed');
-        appAlert(t('goals:title'), msg);
-      }
+      const msg = err instanceof Error ? err.message : t('goals:contribute.errors.saveFailed');
+      appAlert(t('goals:title'), msg);
     } finally {
       setSaving(false);
     }
@@ -534,63 +521,15 @@ function GoalRow({
             placeholder={t('goals:contribute.amountPlaceholder')}
             keyboardType="numeric"
           />
-          {/* Account picker — required. Contribution debits this
-              account's balance atomically. Without it the user could
-              "contribute" money the system can't trace. */}
+          {/* Tracking-only note — contributions earmark progress
+              against the goal target; they don't move money out of
+              any account. Money stays where it is. */}
           <Text
-            className="font-sans-medium text-xs uppercase tracking-wider mt-3 mb-2"
-            style={{ color: mutedColor }}
+            className="font-sans text-xs mt-2"
+            style={{ color: mutedColor, lineHeight: 16 }}
           >
-            {t('goals:contribute.fromAccount')}
+            {t('goals:contribute.trackingNote')}
           </Text>
-          {accounts.length === 0 ? (
-            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-              {t('goals:contribute.noAccounts')}
-            </Text>
-          ) : (
-            <View className="flex-row flex-wrap" style={{ gap: 6 }}>
-              {accounts.filter((a) => !a.isArchived).map((acct) => {
-                const selected = acct.id === contribAccountId;
-                const acctTint = resolveCategoryColor(acct.color, isDark ? 'dark' : 'light');
-                return (
-                  <Pressable
-                    key={acct.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    onPress={() => setContribAccountId(acct.id)}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                      paddingHorizontal: 10,
-                      paddingVertical: 6,
-                      borderRadius: 999,
-                      borderWidth: 1,
-                      borderColor: selected ? accent : borderColor,
-                      backgroundColor: selected ? accent + '14' : 'transparent',
-                      minHeight: 32,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 16, height: 16, borderRadius: 4,
-                        backgroundColor: acctTint + '22',
-                        alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      <CategoryIcon name={acct.icon} color={acctTint} size={9} />
-                    </View>
-                    <Text
-                      className="font-sans-medium text-xs"
-                      style={{ color: selected ? accent : fgColor }}
-                    >
-                      {acct.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
           <View className="flex-row gap-2 mt-3">
             <Pressable
               accessibilityRole="button"

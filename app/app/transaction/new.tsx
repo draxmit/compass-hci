@@ -93,6 +93,15 @@ export default function NewTransactionScreen() {
     ocrMerchant?: string;
     ocrCategoryId?: string;
     ocrDate?: string;
+    // Quick-add preset prefill — set when the user taps an
+    // incomplete preset that's missing one or more fields. The
+    // preset menu navigates here with whichever fields it knows;
+    // the form pre-fills them and the user enters the rest.
+    presetType?: string;
+    presetAmount?: string;
+    presetAccount?: string;
+    presetCategory?: string;
+    presetDescription?: string;
   }>();
   const fromTab: Href = resolveFrom(params.from);
 
@@ -227,6 +236,42 @@ export default function NewTransactionScreen() {
       }
     }
     ocrAppliedRef.current = true;
+  }, [params, lang]);
+
+  // Quick-add preset prefill (parallel to OCR). Same touched-by-user
+  // guard pattern: each field is applied only on first mount, marked
+  // touched so subsequent NLP re-parses don't clobber.
+  const presetAppliedRef = useRef(false);
+  useEffect(() => {
+    if (presetAppliedRef.current) return;
+    const {
+      presetType, presetAmount, presetAccount, presetCategory, presetDescription,
+    } = params;
+    if (!presetType && !presetAmount && !presetAccount && !presetCategory && !presetDescription) return;
+    if (presetType === 'expense' || presetType === 'income') {
+      touched.current.type = true;
+      setType(presetType);
+    }
+    if (presetAmount) {
+      const minor = Number(presetAmount);
+      if (Number.isFinite(minor) && minor > 0) {
+        touched.current.amount = true;
+        setAmountText(minorToInputText(minor, lang));
+      }
+    }
+    if (presetAccount) {
+      touched.current.account = true;
+      setAccountId(presetAccount);
+    }
+    if (presetCategory) {
+      touched.current.category = true;
+      setCategoryId(presetCategory);
+    }
+    if (presetDescription) {
+      touched.current.description = true;
+      setDescription(presetDescription);
+    }
+    presetAppliedRef.current = true;
   }, [params, lang]);
 
   // Hardware back: same fallback as Profile — we may have arrived here via

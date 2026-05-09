@@ -54,8 +54,38 @@ export function QuickPresetMenu({ visible, onClose, presets, fromPath }: Props) 
 
   const [submitting, setSubmitting] = useState<string | null>(null);
 
+  // A preset is "complete" when it has all the fields needed for an
+  // instant tx write: a non-zero amount, a non-empty accountId, and
+  // (for expense) a non-null categoryId. Anything else routes to
+  // /transaction/new with the known fields pre-filled and the user
+  // fills the rest. Lets users save lightweight presets like
+  // "Coffee at Starbucks" with just a category + description and
+  // type the amount each time.
+  const presetIsComplete = (p: QuickPreset): boolean => {
+    if (p.amountMinor <= 0) return false;
+    if (!p.accountId) return false;
+    if (p.type === 'expense' && !p.categoryId) return false;
+    return true;
+  };
+
   const handlePresetTap = async (preset: QuickPreset) => {
     if (!wid || submitting) return;
+    if (!presetIsComplete(preset)) {
+      // Route to /transaction/new with the preset's filled-in fields
+      // as URL params. The new-tx screen reads these and pre-fills
+      // its form, so the user only completes the missing bits.
+      onClose();
+      const params: Record<string, string> = {
+        from: fromPath,
+        presetType: preset.type,
+        presetDescription: preset.description,
+      };
+      if (preset.amountMinor > 0) params.presetAmount = String(preset.amountMinor);
+      if (preset.accountId) params.presetAccount = preset.accountId;
+      if (preset.categoryId) params.presetCategory = preset.categoryId;
+      router.push({ pathname: '/transaction/new', params });
+      return;
+    }
     setSubmitting(preset.id);
     try {
       const today = new Date();
@@ -221,17 +251,29 @@ export function QuickPresetMenu({ visible, onClose, presets, fromPath }: Props) 
                           {p.type === 'income'
                             ? t('common:quickPresets.incomeLabel')
                             : t('common:quickPresets.expenseLabel')}
+                          {!presetIsComplete(p)
+                            ? ` · ${t('common:quickPresets.needsDetails')}`
+                            : ''}
                         </Text>
                       </View>
-                      <Text
-                        className="font-mono tabular-nums text-sm"
-                        style={{
-                          color: p.type === 'income' ? tokens.semantic.positive : fgColor,
-                        }}
-                      >
-                        {p.type === 'income' ? '+' : '−'}
-                        {formatIDR(p.amountMinor, lang)}
-                      </Text>
+                      {p.amountMinor > 0 ? (
+                        <Text
+                          className="font-mono tabular-nums text-sm"
+                          style={{
+                            color: p.type === 'income' ? tokens.semantic.positive : fgColor,
+                          }}
+                        >
+                          {p.type === 'income' ? '+' : '−'}
+                          {formatIDR(p.amountMinor, lang)}
+                        </Text>
+                      ) : (
+                        <Text
+                          className="font-sans text-xs"
+                          style={{ color: accent }}
+                        >
+                          {t('common:quickPresets.tapToFill')}
+                        </Text>
+                      )}
                     </View>
                   </Pressable>
                 );

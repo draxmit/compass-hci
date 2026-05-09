@@ -59,10 +59,19 @@
       "labelPlaceholder": "e.g. Coffee",
       "type": "Type",
       "amount": "Amount",
+      "amountOptional": "Amount (optional)",
+      "amountPlaceholderOptional": "Leave blank to enter at use-time",
       "account": "Account",
+      "accountOptional": "Account (optional)",
+      "skipAccount": "Pick later",
       "category": "Category",
+      "categoryOptional": "Category (optional)",
+      "skipCategory": "Pick later",
       "description": "Default note",
       "descriptionPlaceholder": "Optional"
-    }
+    },
+    "editorHint": "Only the label is required. Leave any field blank to fill it in when you use the preset.",
+    "needsDetails": "Needs detail",
+    "tapToFill": "Tap to fill"
   }
 }

@@ -54,6 +54,7 @@
     "amountPlaceholder": "0",
     "fromAccount": "From account",
     "noAccounts": "Add an account first to contribute.",
+    "trackingNote": "Tracking only — your account balances stay the same.",
     "save": "Add",
     "saving": "Saving…",
     "cancel": "Cancel",
