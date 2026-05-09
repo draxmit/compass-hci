@@ -1,13 +1,16 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useUserDoc } from '@/stores/authStore';
 import { usePageAccent } from '@/shared/hooks/usePageAccent';
 import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
+import { QuickPresetMenu } from './QuickPresetMenu';
 import { Text } from './Text';
 
 // Order in the bar: Dashboard, Transactions, [+ FAB], Budgets, Insights.
@@ -80,6 +83,12 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const { resolvedScheme } = useTheme();
   const { color: activeAccent } = usePageAccent();
   const isDark = resolvedScheme === 'dark';
+  // Quick-preset menu opens on FAB long-press. Pulls presets directly
+  // from the user doc — empty array shows a "no presets yet" state
+  // with a CTA to manage them.
+  const userDoc = useUserDoc();
+  const presets = userDoc?.quickPresets ?? [];
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const inactiveColor = isDark ? tokens.surface['dark-fg-muted'] : tokens.surface['light-fg-muted'];
   // Tab bar bg matches the page bg — no gradient to hide from anymore
@@ -105,6 +114,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
           : '/insights';
 
   return (
+    <>
     <View
       style={{
         flexDirection: 'row',
@@ -125,6 +135,7 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('common:nav.newTransaction')}
+                accessibilityHint={t('common:nav.fabLongPressHint')}
                 // Same trick as the avatar tap (see MobileTopBar): replace
                 // instead of push, so there's no layered Stack underneath
                 // the new screen for Android to snapshot-reveal during the
@@ -137,6 +148,11 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
                     params: { from: fromPath },
                   })
                 }
+                // Long-press → open quick-preset menu (#1). One-tap-create
+                // a transaction from a saved preset; bypasses the form
+                // entirely. ~500ms is the platform default for long press.
+                onLongPress={() => setMenuOpen(true)}
+                delayLongPress={400}
                 // Static style — function-style Pressable destructure of
                 // `hovered` (which is RN-Web only) was reportedly making
                 // the green circle invisible on Android dev clients
@@ -203,5 +219,15 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
         );
       })}
     </View>
+    {/* Quick-preset long-press menu — bottom sheet listing the user's
+        saved presets. Dismissed by tap-outside or selecting a preset.
+        Empty state CTA points to settings preset editor. */}
+    <QuickPresetMenu
+      visible={menuOpen}
+      onClose={() => setMenuOpen(false)}
+      presets={presets}
+      fromPath={fromPath}
+    />
+    </>
   );
 }

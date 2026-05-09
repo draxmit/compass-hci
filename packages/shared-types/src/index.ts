@@ -91,9 +91,57 @@ export type UserDoc = {
     budgetThreshold: 0.8 | 0.9 | 1.0;
     goalReminders: boolean;
   };
+  /**
+   * Quick-add presets (enhancement #1). User-defined "common
+   * transactions" that appear in a long-press menu on the FAB. Each
+   * preset stores everything needed to one-tap-create a transaction
+   * without opening the form: type, amount, account, category. The
+   * created tx still goes through transactionsService.createTransaction
+   * so atomic-write invariants hold.
+   *
+   * Optional + max ~6 enforced in the UI (long-press menu would
+   * become unusable past that). Persisted on the user doc so presets
+   * sync across devices.
+   */
+  quickPresets?: QuickPreset[];
+  /**
+   * Per-goal milestone tracker (enhancement #5). Maps goal id → list
+   * of percentage thresholds (25 / 50 / 75 / 100) the user has
+   * already been celebrated for. Prevents the milestone modal from
+   * re-firing every app open after the user crosses a threshold.
+   * Optional for backward compat with pre-enhancement docs.
+   */
+  goalMilestonesSeen?: Record<string, number[]>;
   createdAt: unknown;
   defaultWorkspaceId: string;
   workspaceIds: string[];
+};
+
+/**
+ * Quick-add transaction preset (enhancement #1). Stored as an array
+ * on `users.quickPresets`. One-tap-creates a transaction by passing
+ * its fields straight into `transactionsService.createTransaction` —
+ * no form, no NLP parsing, no friction. Power-user shortcut for the
+ * 60-70% of personal transactions that are direct repeats of prior
+ * transactions (Coffee, Grab, Lunch).
+ */
+export type QuickPreset = {
+  /** Stable id (uuid-ish; client-generated at create time). */
+  id: string;
+  /** User-facing label, shown in the long-press menu. e.g. "Coffee". */
+  label: string;
+  /** 'expense' or 'income' — transfers excluded (need 2 accounts). */
+  type: 'expense' | 'income';
+  /** Amount in IDR minor units. Multi-currency presets deferred to v3.5. */
+  amountMinor: number;
+  /** Source/destination account id. */
+  accountId: string;
+  /** Category id — required for expenses, ignored for income. */
+  categoryId: string | null;
+  /** Free-text default description. Empty string = no description. */
+  description: string;
+  /** Lucide icon name shown in the menu (defaults to "zap"). */
+  icon?: string;
 };
 
 /**

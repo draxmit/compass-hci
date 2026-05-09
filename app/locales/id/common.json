@@ -6,6 +6,7 @@
     "cancel": "Batal",
     "back": "Kembali",
     "edit": "Ubah",
+    "delete": "Hapus",
     "ok": "OK",
     "retry": "Coba lagi",
     "close": "Tutup",
@@ -18,6 +19,7 @@
     "budgets": "Budget",
     "insights": "Insight",
     "newTransaction": "Transaksi baru",
+    "fabLongPressHint": "Tekan lama untuk preset cepat",
     "openProfile": "Buka profil",
     "expandSidebar": "Buka sidebar",
     "collapseSidebar": "Tutup sidebar"
@@ -32,7 +34,35 @@
     "onboardingComingSoon": "Onboarding akan hadir di T10 (wizard goal-first)."
   },
   "errors": {
+    "title": "Ada yang salah",
     "generic": "Terjadi kesalahan. Coba lagi sebentar lagi.",
     "network": "Tidak bisa terhubung ke server. Periksa koneksi internet."
+  },
+  "quickPresets": {
+    "title": "Preset cepat",
+    "subtitle": "Tap salah satu untuk catat instan.",
+    "empty": "Belum ada preset — buat dulu untuk skip form di transaksi yang sering kamu catat.",
+    "manageCta": "Kelola preset",
+    "addCta": "Tambah preset",
+    "incomeLabel": "Pemasukan",
+    "expenseLabel": "Pengeluaran",
+    "hint": "Tekan lama tombol + kapan pun untuk buka menu ini.",
+    "editorIntro": "Sampai {{max}} pintasan satu-tap untuk transaksi yang paling sering kamu catat.",
+    "editorEmptyTitle": "Skip form",
+    "editorEmptyBody": "Simpan kopi harian, Grab, atau makan siang sebagai preset — lalu tekan lama tombol + untuk catat dengan satu tap.",
+    "editTitle": "Ubah preset",
+    "maxReached": "Sudah mencapai batas {{max}} preset. Hapus salah satu untuk menambah baru.",
+    "deleteConfirmTitle": "Hapus preset ini?",
+    "deleteConfirmBody": "Transaksi yang sudah dicatat tetap ada — hanya pintasan yang dihapus.",
+    "fields": {
+      "label": "Label",
+      "labelPlaceholder": "mis. Kopi",
+      "type": "Jenis",
+      "amount": "Jumlah",
+      "account": "Akun",
+      "category": "Kategori",
+      "description": "Catatan default",
+      "descriptionPlaceholder": "Opsional"
+    }
   }
 }

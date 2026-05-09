@@ -113,6 +113,8 @@ export async function updateUserDoc(
       | 'balancesHidden'
       | 'pinnedGoalId'
       | 'notifications'
+      | 'quickPresets'
+      | 'goalMilestonesSeen'
     >
   >,
 ): Promise<void> {

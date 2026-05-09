@@ -168,6 +168,15 @@ function StackTree() {
           contentStyle: { backgroundColor: overlayBg },
         }}
       />
+      <Stack.Screen
+        name="quick-presets"
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'none',
+          animationDuration: 0,
+          contentStyle: { backgroundColor: overlayBg },
+        }}
+      />
     </Stack>
   );
 }

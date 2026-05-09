@@ -6,6 +6,7 @@
     "cancel": "Cancel",
     "back": "Back",
     "edit": "Edit",
+    "delete": "Delete",
     "ok": "OK",
     "retry": "Retry",
     "close": "Close",
@@ -18,6 +19,7 @@
     "budgets": "Budgets",
     "insights": "Insights",
     "newTransaction": "New transaction",
+    "fabLongPressHint": "Long-press for quick-add presets",
     "openProfile": "Open profile",
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar"
@@ -32,7 +34,35 @@
     "onboardingComingSoon": "Coming in T10 (goal-first wizard)."
   },
   "errors": {
+    "title": "Something went wrong",
     "generic": "Something went wrong. Please try again in a moment.",
     "network": "Couldn't connect to the server. Check your internet."
+  },
+  "quickPresets": {
+    "title": "Quick add",
+    "subtitle": "Tap a preset to log it instantly.",
+    "empty": "No presets yet — set one up to skip the form for your most-logged transactions.",
+    "manageCta": "Manage presets",
+    "addCta": "Add preset",
+    "incomeLabel": "Income",
+    "expenseLabel": "Expense",
+    "hint": "Long-press the + button anytime to open this menu.",
+    "editorIntro": "Up to {{max}} one-tap shortcuts for the transactions you log most often.",
+    "editorEmptyTitle": "Skip the form",
+    "editorEmptyBody": "Save your daily coffee, Grab ride, or lunch as a preset — then long-press the + button to log it in one tap.",
+    "editTitle": "Edit preset",
+    "maxReached": "You've hit the {{max}}-preset limit. Delete one to add another.",
+    "deleteConfirmTitle": "Delete this preset?",
+    "deleteConfirmBody": "Existing transactions stay logged — only the shortcut is removed.",
+    "fields": {
+      "label": "Label",
+      "labelPlaceholder": "e.g. Coffee",
+      "type": "Type",
+      "amount": "Amount",
+      "account": "Account",
+      "category": "Category",
+      "description": "Default note",
+      "descriptionPlaceholder": "Optional"
+    }
   }
 }
