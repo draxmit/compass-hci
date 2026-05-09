@@ -3,13 +3,13 @@ main = "src/index.ts"
 compatibility_date = "2026-05-08"
 
 # Cloudflare KV namespace for per-user chat history (last 10 turns).
-# `id` and `preview_id` get filled in after running:
-#   wrangler kv:namespace create compass-gemini-history
-#   wrangler kv:namespace create compass-gemini-history --preview
+# IDs filled in after running:
+#   wrangler kv namespace create compass-gemini-history
+#   wrangler kv namespace create compass-gemini-history --preview
 [[kv_namespaces]]
 binding = "HISTORY"
-id = ""
-preview_id = ""
+id = "1e1935619c1e48d99311e4d2075b37d4"
+preview_id = "2b25ab1253c44546abe01108f81b1307"
 
 # Public, non-secret config. Override per-environment if needed.
 [vars]
