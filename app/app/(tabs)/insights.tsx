@@ -1018,13 +1018,23 @@ function AskCompassCta({
   // mobile pill feels like a proper iOS/Android textfield instead
   // of a chunky CTA chip.
   const isMobile = useBreakpoint() === 'mobile';
-  const sendSize = isMobile ? 28 : 36;
-  const padLeft = isMobile ? 14 : 18;
-  const padRight = isMobile ? 6 : 8;
-  const padVert = isMobile ? 5 : 8;
-  const sparkleSize = isMobile ? 15 : 18;
-  const arrowSize = isMobile ? 15 : 18;
-  const gapPx = isMobile ? 8 : 10;
+  // Mobile gets a chunkier, more-confident pill — taller padding +
+  // bigger send circle + shorter "Ask Compass" copy. Web stays in
+  // the slimmer composer geometry it already had. Per user feedback
+  // the previous slim pill on mobile read as a textfield rather than
+  // a primary CTA; the fatter shape makes "this is the AI feature
+  // button" unmistakable at a glance.
+  const sendSize = isMobile ? 36 : 36;
+  const padLeft = isMobile ? 18 : 18;
+  const padRight = isMobile ? 8 : 8;
+  const padVert = isMobile ? 12 : 8;
+  const sparkleSize = isMobile ? 18 : 18;
+  const arrowSize = isMobile ? 18 : 18;
+  const gapPx = isMobile ? 12 : 10;
+  // Short brand label on mobile — "Ask Compass" / "Tanya Compass"
+  // (the existing `entryCta` key). Web still shows the longer
+  // descriptor copy to fill the wider pill.
+  const labelKey = isMobile ? 'ask:entryCta' : 'ask:composerPlaceholder';
   // Solid-emerald fill + WHITE BOLD copy — per user feedback the
   // tinted-fill / muted-copy variant didn't read as a primary CTA
   // ("make it all green with white bold text so it is obvious it is
@@ -1066,13 +1076,15 @@ function AskCompassCta({
             emerald for high-contrast visibility. */}
         <Sparkles size={sparkleSize} color="#ffffff" strokeWidth={2.4} />
         {/* CTA copy — bold white text on the emerald pill, reads as a
-            primary button. */}
+            primary button. Mobile uses the short brand label ("Ask
+            Compass"); web fills the wider pill with the longer
+            descriptor. */}
         <Text
-          className={isMobile ? 'font-sans-bold text-xs' : 'font-sans-bold text-sm'}
+          className={isMobile ? 'font-sans-bold text-base' : 'font-sans-bold text-sm'}
           style={{ color: '#ffffff', flex: 1 }}
           numberOfLines={1}
         >
-          {t('ask:composerPlaceholder')}
+          {t(labelKey)}
         </Text>
         {/* Send-arrow circle — INVERTED from the pill colour: white bg
             + emerald arrow. Pops against the green field and reads as
