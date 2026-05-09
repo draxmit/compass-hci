@@ -932,6 +932,14 @@ function AskCompassCta({
   const sparkleSize = isMobile ? 15 : 18;
   const arrowSize = isMobile ? 15 : 18;
   const gapPx = isMobile ? 8 : 10;
+  // Emerald-tinted fill (10% accent) plus a SOLID-emerald border — the
+  // earlier rgba(255,255,255,0.04) bg + 67% emerald border combo was
+  // invisible on the dark page bg (bg blended into #0a0a0a, border
+  // got eaten by AA at 1.5px). Tinting the fill itself with the brand
+  // emerald gives the container a recognisable silhouette even when
+  // the user only glances at the screen, and the 2px solid border
+  // anchors the edge unambiguously.
+  const fillBg = isDark ? 'rgba(5,150,105,0.12)' : 'rgba(5,150,105,0.08)';
   return (
     <Pressable
       accessibilityRole="button"
@@ -940,14 +948,12 @@ function AskCompassCta({
       style={({ hovered, pressed }) => ({
         marginBottom: 24,
         borderRadius: 999,
-        borderWidth: 1.5,           // up from 1px — clear container edge
-        borderColor:
+        borderWidth: 2,
+        borderColor: tokens.accent.dashboard,  // solid emerald, no alpha
+        backgroundColor:
           (hovered as boolean | undefined) || pressed
-            ? tokens.accent.dashboard
-            : tokens.accent.dashboard + 'aa',  // 67% — was 25%, invisible on light bg
-        backgroundColor: isDark
-          ? tokens.surface['dark-input']
-          : tokens.surface['light-card'],
+            ? 'rgba(5,150,105,0.20)'           // brighter on press/hover
+            : fillBg,
         flexDirection: 'row',
         alignItems: 'center',
         gap: gapPx,
@@ -959,9 +965,9 @@ function AskCompassCta({
         // reads as a contained surface, not floating elements.
         shadowColor: tokens.accent.dashboard,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
+        shadowOpacity: 0.15,
         shadowRadius: 8,
-        elevation: 2,
+        elevation: 3,
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}
     >
