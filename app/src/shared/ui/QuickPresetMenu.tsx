@@ -166,6 +166,11 @@ export function QuickPresetMenu({ visible, onClose, presets, fromPath }: Props) 
                 const iconName = (p.icon ?? 'zap') as CategoryIconKey;
                 const isLast = idx === presets.length - 1;
                 const isSubmitting = submitting === p.id;
+                // Same Pressable→inner-View pattern as the Ask Compass
+                // fix (commit d291c33). Pressable's function-style was
+                // dropping the row layout on Android dev clients,
+                // making icon + label + amount stack vertically with
+                // no flex distribution.
                 return (
                   <Pressable
                     key={p.id}
@@ -174,55 +179,60 @@ export function QuickPresetMenu({ visible, onClose, presets, fromPath }: Props) 
                     onPress={() => { void handlePresetTap(p); }}
                     disabled={isSubmitting}
                     style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      paddingHorizontal: 20,
-                      paddingVertical: 14,
-                      borderBottomWidth: isLast ? 0 : 1,
-                      borderBottomColor: borderColor,
                       opacity: isSubmitting ? 0.4 : pressed ? 0.65 : 1,
                     })}
                   >
                     <View
                       style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 10,
-                        backgroundColor: accent + '22',
+                        flexDirection: 'row',
                         alignItems: 'center',
-                        justifyContent: 'center',
+                        gap: 12,
+                        paddingHorizontal: 20,
+                        paddingVertical: 14,
+                        borderBottomWidth: isLast ? 0 : 1,
+                        borderBottomColor: borderColor,
                       }}
                     >
-                      <CategoryIcon name={iconName} color={accent} size={18} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        className="font-sans-medium text-base"
-                        style={{ color: fgColor }}
-                        numberOfLines={1}
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
+                          backgroundColor: accent + '22',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
                       >
-                        {p.label}
-                      </Text>
+                        <CategoryIcon name={iconName} color={accent} size={18} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          className="font-sans-medium text-base"
+                          style={{ color: fgColor }}
+                          numberOfLines={1}
+                        >
+                          {p.label}
+                        </Text>
+                        <Text
+                          className="font-sans text-xs"
+                          style={{ color: mutedColor }}
+                          numberOfLines={1}
+                        >
+                          {p.type === 'income'
+                            ? t('common:quickPresets.incomeLabel')
+                            : t('common:quickPresets.expenseLabel')}
+                        </Text>
+                      </View>
                       <Text
-                        className="font-sans text-xs"
-                        style={{ color: mutedColor }}
-                        numberOfLines={1}
+                        className="font-mono tabular-nums text-sm"
+                        style={{
+                          color: p.type === 'income' ? tokens.semantic.positive : fgColor,
+                        }}
                       >
-                        {p.type === 'income'
-                          ? t('common:quickPresets.incomeLabel')
-                          : t('common:quickPresets.expenseLabel')}
+                        {p.type === 'income' ? '+' : '−'}
+                        {formatIDR(p.amountMinor, lang)}
                       </Text>
                     </View>
-                    <Text
-                      className="font-mono tabular-nums text-sm"
-                      style={{
-                        color: p.type === 'income' ? tokens.semantic.positive : fgColor,
-                      }}
-                    >
-                      {p.type === 'income' ? '+' : '−'}
-                      {formatIDR(p.amountMinor, lang)}
-                    </Text>
                   </Pressable>
                 );
               })}
@@ -234,19 +244,22 @@ export function QuickPresetMenu({ visible, onClose, presets, fromPath }: Props) 
                   onClose();
                   router.push('/quick-presets' as Href);
                 }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  paddingHorizontal: 20,
-                  paddingVertical: 14,
-                  opacity: pressed ? 0.65 : 1,
-                })}
+                style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}
               >
-                <Settings size={14} color={mutedColor} />
-                <Text className="font-sans-medium text-sm" style={{ color: mutedColor }}>
-                  {t('common:quickPresets.manageCta')}
-                </Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    paddingHorizontal: 20,
+                    paddingVertical: 14,
+                  }}
+                >
+                  <Settings size={14} color={mutedColor} />
+                  <Text className="font-sans-medium text-sm" style={{ color: mutedColor }}>
+                    {t('common:quickPresets.manageCta')}
+                  </Text>
+                </View>
               </Pressable>
             </View>
           )}

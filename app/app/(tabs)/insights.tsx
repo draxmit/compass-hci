@@ -2340,48 +2340,54 @@ function Heatmap({
               const intensity = max === 0 ? 0 : cell.total / max;
               // Map intensity 0..1 to opacity 0..1 atop the muted base.
               const fillAlpha = intensity === 0 ? 0 : Math.max(0.15, intensity);
-              const cellPressable = onDayPress && cell.total > 0;
-              const cellContent = (
-                <Text
-                  className="font-sans text-[10px]"
-                  style={{
-                    color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
-                  }}
-                >
-                  {cell.day}
-                </Text>
-              );
-              const cellStyle = {
-                flex: 1,
-                aspectRatio: 1,
-                borderRadius: 6,
-                borderWidth: 1,
-                borderColor,
-                backgroundColor:
-                  intensity === 0 ? 'transparent' : accent + alphaHex(fillAlpha),
-                alignItems: 'center' as const,
-                justifyContent: 'center' as const,
-              };
-              if (cellPressable) {
-                return (
-                  <Pressable
-                    key={i}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Day ${cell.day}, spent ${formatIDR(cell.total)}. Tap to see transactions.`}
-                    onPress={() => onDayPress(cell.day)}
-                    style={({ pressed }) => ({
-                      ...cellStyle,
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    {cellContent}
-                  </Pressable>
-                );
-              }
+              const cellPressable = !!onDayPress && cell.total > 0;
+              // ALL cells render as a Pressable — even non-tappable ones.
+              // Mixing Pressable + View as siblings inside the same
+              // flex-row was confusing RN-Native's layout pass on
+              // some Android dev clients (the non-Pressable Views
+              // collapsed to text-content width while Pressables kept
+              // flex:1, producing the "huge box + inline text" bug).
+              // Static inner-View pattern matches the Ask Compass fix
+              // from commit d291c33.
               return (
-                <View key={i} style={cellStyle}>
-                  {cellContent}
-                </View>
+                <Pressable
+                  key={i}
+                  accessibilityRole={cellPressable ? 'button' : undefined}
+                  accessibilityLabel={
+                    cellPressable
+                      ? `Day ${cell.day}, spent ${formatIDR(cell.total)}. Tap to see transactions.`
+                      : `Day ${cell.day}, no spending`
+                  }
+                  onPress={cellPressable ? () => onDayPress!(cell.day) : undefined}
+                  disabled={!cellPressable}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    aspectRatio: 1,
+                    opacity: cellPressable && pressed ? 0.7 : 1,
+                  })}
+                >
+                  <View
+                    style={{
+                      flex: 1,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor,
+                      backgroundColor:
+                        intensity === 0 ? 'transparent' : accent + alphaHex(fillAlpha),
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text
+                      className="font-sans text-[10px]"
+                      style={{
+                        color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
+                      }}
+                    >
+                      {cell.day}
+                    </Text>
+                  </View>
+                </Pressable>
               );
             })}
             {/* Pad short final row to keep cells the same width */}
@@ -2425,11 +2431,13 @@ type YearMonthBoxesProps = {
 function YearMonthBoxes({
   boxes, max, accent, borderColor, mutedColor, fgColor, lang,
 }: YearMonthBoxesProps) {
+  // Single-source spacing: `gap: 8` provides the between-cell space.
+  // The earlier impl mixed `gap` with `marginHorizontal: ±4` (negative
+  // margin trick), which double-counted spacing and forced the row
+  // into 3 columns instead of 4 (the 23% × 4 + gaps + margins added
+  // up to >100%).
   return (
-    <View
-      className="flex-row flex-wrap"
-      style={{ gap: 8, marginHorizontal: -4 }}
-    >
+    <View className="flex-row flex-wrap" style={{ gap: 8 }}>
       {boxes.map((b) => {
         const monthDate = new Date(`${b.yearMonth}-01T00:00:00`);
         const monthShort = formatDate(monthDate, 'long-month', lang).split(' ')[0];
@@ -2439,10 +2447,14 @@ function YearMonthBoxes({
           <View
             key={b.yearMonth}
             style={{
-              width: '23%',                  // 4 cols (with the gap)
+              // 4 columns with gap:8 between → each cell: (100% − 3×8px) / 4.
+              // Using `flexBasis` with the `calc`-equivalent computed
+              // arithmetic isn't available, so 22% is the safe approximation
+              // (4 × 22% = 88%; + 3 gaps × 8px = 24px ≈ 7-8% of typical
+              // width = 95-96% used). Leaves a small right margin which
+              // is fine and avoids the wrap-to-3 issue.
+              width: '22%',
               aspectRatio: 1,
-              marginHorizontal: 4,
-              marginVertical: 4,
               borderRadius: 12,
               borderWidth: 1,
               borderColor,
