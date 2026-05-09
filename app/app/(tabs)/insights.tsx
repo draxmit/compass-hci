@@ -1261,15 +1261,21 @@ function TrendLineChart({
   const [chartW, setChartW] = useState(320);
   const W = chartW;
   const H = 110;
-  const padX = 14;
   const padTop = 12;
   const padBot = 18;
-  const usableX = W - 2 * padX;
   const usableY = H - padTop - padBot;
-  const stepX = ordered.length > 1 ? usableX / (ordered.length - 1) : 0;
+  // Each dot sits at the CENTER of its corresponding column. The
+  // labels below use `flex: 1` per column (so column 0 centre is at
+  // W/12, column 1 at W/4, etc.), and the dots need to track the same
+  // anchor — without this they drift to the chart's outer edges
+  // while labels stay column-centred. Result: dot/label misalignment
+  // visible on web at wide widths (Dec dot was ~70px left of the
+  // "December" label at desktop width).
+  const colWidth = ordered.length > 0 ? W / ordered.length : 0;
+  const stepX = colWidth;
 
   const points = ordered.map((m, i) => {
-    const x = padX + i * stepX;
+    const x = colWidth / 2 + i * colWidth;
     const y = padTop + (1 - m.total / max) * usableY;
     return { x, y, total: m.total, yearMonth: m.yearMonth };
   });
@@ -1349,10 +1355,12 @@ function TrendLineChart({
               <Stop offset="100%" stopColor={accent} stopOpacity="0" />
             </LinearGradient>
           </Defs>
-          {/* Faint baseline. */}
+          {/* Faint baseline. Stretches between the first and last
+              dot's x-coords so it tracks them exactly even when
+              column-centred dot positions sit inside W. */}
           <SvgLine
-            x1={padX} y1={baselineY}
-            x2={W - padX} y2={baselineY}
+            x1={colWidth / 2} y1={baselineY}
+            x2={W - colWidth / 2} y2={baselineY}
             stroke={borderColor} strokeWidth="1"
           />
           {/* Gradient area beneath the line — drawn BEFORE the line so
