@@ -32,6 +32,12 @@ function activeLocale(): Locale {
  * where 'long' would crowd amounts beside it.
  */
 export function formatDate(d: Date, style: DateStyle = 'long', locale?: Locale): string {
+  // Defensive: Intl.DateTimeFormat.format() throws "Invalid time value"
+  // for a Date with NaN time. That used to crash the Dashboard when a
+  // goal had a malformed targetDate (e.g. user typed "2027" alone in
+  // the year input). Returning an empty string lets callers conditional-
+  // render without a try/catch at every call site.
+  if (Number.isNaN(d.getTime())) return '';
   const lang = locale ?? activeLocale();
   const options: Intl.DateTimeFormatOptions =
     style === 'long'
@@ -82,6 +88,11 @@ export function formatDateRelative(d: Date, locale?: Locale): string {
 export function formatTimeUntil(targetISO: string, locale?: Locale): { label: string; past: boolean } {
   const lang = locale ?? activeLocale();
   const target = new Date(`${targetISO}T00:00:00`);
+  // Same defensive guard as formatDate — return a benign label for
+  // garbage input rather than crashing downstream consumers.
+  if (Number.isNaN(target.getTime())) {
+    return { label: '', past: false };
+  }
   const now = new Date();
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const diffMs = target.getTime() - todayMidnight.getTime();

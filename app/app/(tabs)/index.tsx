@@ -1683,6 +1683,14 @@ function DashboardGoalRow({
               {formatAmountForDisplay(goal.targetMinor, 'IDR', displayInIDR, lang).primary}
             </Text>
             {goal.targetDate ? (() => {
+              // Validate the date before rendering — a goal saved
+              // with a malformed targetDate (e.g. just a year, or an
+              // empty-stringified placeholder) would crash formatDate
+              // with "Invalid time value" otherwise. Returning null
+              // hides the line entirely, which is what the user
+              // wants when no usable deadline exists.
+              const target = new Date(`${goal.targetDate}T00:00:00`);
+              if (Number.isNaN(target.getTime())) return null;
               const remaining = formatTimeUntil(goal.targetDate, lang);
               return (
                 <View className="flex-row items-baseline" style={{ gap: 4 }}>
@@ -1691,7 +1699,7 @@ function DashboardGoalRow({
                     style={{ color: mutedColor }}
                     numberOfLines={1}
                   >
-                    {formatDate(new Date(`${goal.targetDate}T00:00:00`), 'medium', lang)}
+                    {formatDate(target, 'medium', lang)}
                   </Text>
                   <Text
                     className="font-sans-medium text-xs"
@@ -1709,11 +1717,13 @@ function DashboardGoalRow({
           the date deadline if one is set — render it as a thin line
           when there's no progress bar above. */}
       {!hasTarget && goal.targetDate ? (() => {
+        const target = new Date(`${goal.targetDate}T00:00:00`);
+        if (Number.isNaN(target.getTime())) return null;
         const remaining = formatTimeUntil(goal.targetDate, lang);
         return (
           <View className="flex-row items-baseline mt-1" style={{ gap: 4 }}>
             <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-              {formatDate(new Date(`${goal.targetDate}T00:00:00`), 'medium', lang)}
+              {formatDate(target, 'medium', lang)}
             </Text>
             <Text
               className="font-sans-medium text-xs"
