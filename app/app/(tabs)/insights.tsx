@@ -953,7 +953,7 @@ function AskCompassCta({
       accessibilityLabel={t('ask:entryCta')}
       onPress={onPress}
       style={({ pressed }) => ({
-        marginBottom: 24,
+        marginBottom: 40,
         borderRadius: 999,
         opacity: pressed ? 0.88 : 1,
         transform: [{ scale: pressed ? 0.98 : 1 }],
