@@ -1,7 +1,7 @@
 import type { Account, Category, TransactionType } from '@compass/shared-types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
-import { Camera as CameraIcon, ChevronDown, ChevronLeft, ChevronRight, Layers, Mic, MicOff } from 'lucide-react-native';
+import { Camera as CameraIcon, ChevronDown, ChevronLeft, ChevronRight, Layers, Mic, MicOff, Sparkles } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -37,6 +37,7 @@ import { collectTagFrequencies, normaliseTagList } from '@/shared/utils/tags';
 import { useVoiceInput } from '@/shared/utils/voiceInput';
 import { buildContextSnapshot } from '@/features/ask/contextSnapshot';
 import { isConfigured as isGeminiConfigured, parseTextWithGemini } from '@/features/ask/geminiClient';
+import { useCategorySuggestion } from '@/features/transactions/useCategorySuggestion';
 
 const TYPES: readonly TransactionType[] = ['expense', 'income', 'transfer'];
 
@@ -486,6 +487,19 @@ export default function NewTransactionScreen() {
 
   const accountOptions = useMemo(() => accounts, [accounts]);
 
+  // AI category suggestion (#8). Watches the description field and
+  // proposes a category when the user hasn't picked one. Only fires
+  // for expense transactions; degrades silently when Gemini is
+  // unreachable.
+  const suggestion = useCategorySuggestion({
+    description,
+    type,
+    hasManualCategory: touched.current.category && categoryId !== null,
+    categories,
+    accounts,
+    lang,
+  });
+
   return (
     <View style={{ flex: 1, backgroundColor: overlayBg }}>
       <ScrollView
@@ -856,6 +870,67 @@ export default function NewTransactionScreen() {
               autoCapitalize="sentences"
               returnKeyType="done"
             />
+            {/* AI category suggestion chip (#8). Renders only when the
+                LLM returned a confident category match for the typed
+                description AND the user hasn't picked one yet. Tap
+                the body to apply, tap × to dismiss for this description. */}
+            {suggestion.suggested ? (
+              <View
+                style={{
+                  marginTop: 10,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  backgroundColor: tokens.accent.dashboard + '14',
+                  borderWidth: 1,
+                  borderColor: tokens.accent.dashboard + '44',
+                }}
+              >
+                <Sparkles size={14} color={tokens.accent.dashboard} />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('transactions:entry.aiCategory.applyLabel', {
+                    category: suggestion.suggested.name[lang],
+                  })}
+                  onPress={() => {
+                    if (!suggestion.suggested) return;
+                    touched.current.category = true;
+                    setCategoryId(suggestion.suggested.id);
+                    suggestion.dismiss();
+                  }}
+                  style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.65 : 1 })}
+                >
+                  <Text
+                    className="font-sans text-xs"
+                    style={{ color: mutedColor }}
+                    numberOfLines={1}
+                  >
+                    <Text style={{ color: tokens.accent.dashboard, fontWeight: '600' }}>
+                      {t('transactions:entry.aiCategory.label')}
+                    </Text>
+                    {' '}
+                    <Text style={{ color: fgColor, fontWeight: '600' }}>
+                      {suggestion.suggested.name[lang]}
+                    </Text>
+                    {'  '}
+                    <Text style={{ color: tokens.accent.dashboard }}>
+                      {t('transactions:entry.aiCategory.tapToApply')}
+                    </Text>
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common:actions.close')}
+                  onPress={() => suggestion.dismiss()}
+                  hitSlop={6}
+                >
+                  <Text style={{ color: mutedColor, fontSize: 14, fontWeight: '600' }}>×</Text>
+                </Pressable>
+              </View>
+            ) : null}
 
             <View
               style={{

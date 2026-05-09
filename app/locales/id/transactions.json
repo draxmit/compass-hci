@@ -41,6 +41,11 @@
       "noAccounts": "Belum ada akun. Tambahkan dulu di Profil.",
       "noCategories": "Belum ada kategori."
     },
+    "aiCategory": {
+      "label": "AI saranin:",
+      "tapToApply": "Tap untuk pakai",
+      "applyLabel": "Pakai saran kategori {{category}}"
+    },
     "errors": {
       "missingAmount": "Jumlah belum diisi.",
       "missingAccount": "Akun belum dipilih.",

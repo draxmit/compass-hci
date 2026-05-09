@@ -41,6 +41,11 @@
       "noAccounts": "No accounts yet. Add one from Profile first.",
       "noCategories": "No categories yet."
     },
+    "aiCategory": {
+      "label": "AI suggests:",
+      "tapToApply": "Tap to apply",
+      "applyLabel": "Apply suggested category {{category}}"
+    },
     "errors": {
       "missingAmount": "Amount is required.",
       "missingAccount": "Account is required.",
