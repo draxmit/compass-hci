@@ -44,9 +44,34 @@ export const FX_TO_IDR: Record<Exclude<Currency, 'IDR'>, number> = {
  * tx so historical reports remain stable) and at dashboard read time
  * to convert non-IDR account balances for the net-worth sum.
  */
+/**
+ * Read the most-recently-loaded rate for `currency`. Prefers the
+ * live cache (populated post-sign-in by services/fxRatesLive.ts);
+ * falls back to the static snapshot when the live cache is empty
+ * or doesn't have the currency yet.
+ *
+ * Wrapped in try/catch + dynamic require to keep this util portable
+ * (the seed script + worker code import it without dragging in the
+ * AsyncStorage-bound live service). Sync read — never blocks.
+ */
+function rateFor(currency: Exclude<Currency, 'IDR'>): number {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const live = (require('@/services/fxRatesLive') as {
+      getLiveOrFallbackRates?: () => { rates: Partial<Record<Exclude<Currency, 'IDR'>, number>> };
+    }).getLiveOrFallbackRates?.();
+    if (live && live.rates[currency]) {
+      return live.rates[currency] as number;
+    }
+  } catch {
+    /* fxRatesLive not available — happens in node scripts */
+  }
+  return FX_TO_IDR[currency];
+}
+
 export function convertToIDRMinor(amountMinor: number, currency: Currency): number {
   if (currency === 'IDR') return amountMinor;
-  return Math.round(amountMinor * FX_TO_IDR[currency]);
+  return Math.round(amountMinor * rateFor(currency));
 }
 
 /**
@@ -59,5 +84,5 @@ export function convertToIDRMinor(amountMinor: number, currency: Currency): numb
  */
 export function convertFromIDRMinor(amountIDRMinor: number, currency: Currency): number {
   if (currency === 'IDR') return amountIDRMinor;
-  return Math.round(amountIDRMinor / FX_TO_IDR[currency]);
+  return Math.round(amountIDRMinor / rateFor(currency));
 }

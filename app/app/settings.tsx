@@ -1,5 +1,6 @@
 import type { FirebaseError } from 'firebase/app';
 import { useRouter } from 'expo-router';
+import type { TFunction } from 'i18next';
 import { ChevronLeft, LogOut, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -622,6 +623,15 @@ export default function SettingsScreen() {
               </Text>
             </Pressable>
           </Card>
+
+          {/* Footer — FX rates freshness indicator. Useful to confirm
+              live rates loaded vs. fell back to the static snapshot. */}
+          <FxRatesFooter
+            mutedColor={mutedColor}
+            fgColor={fgColor}
+            borderColor={borderColor}
+            t={t}
+          />
         </View>
       </ScrollView>
     </View>
@@ -644,6 +654,94 @@ type SecurityRowProps = {
   borderColor: string;
   showDivider: boolean;
 };
+
+/**
+ * FX-rates freshness footer. Reads the current cache from
+ * `services/fxRatesLive` and renders source + relative timestamp +
+ * a manual "Refresh now" link. Useful for users on long-running
+ * sessions to confirm their FX is reasonably current.
+ */
+type FxFooterProps = {
+  mutedColor: string;
+  fgColor: string;
+  borderColor: string;
+  t: TFunction;
+};
+
+function FxRatesFooter({ mutedColor, fgColor, borderColor, t }: FxFooterProps) {
+  const [tick, setTick] = useState(0);             // bump on refresh / load to re-read cache
+  const [refreshing, setRefreshing] = useState(false);
+  const cache = (() => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return (require('@/services/fxRatesLive') as {
+        getLiveOrFallbackRates: () => { fetchedAt: number; source: 'live' | 'fallback' };
+      }).getLiveOrFallbackRates();
+    } catch {
+      return { fetchedAt: 0, source: 'fallback' as const };
+    }
+  })();
+  void tick; // referenced for re-render only
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require('@/services/fxRatesLive') as {
+        maybeRefreshRates: (force?: boolean) => Promise<unknown>;
+      };
+      await mod.maybeRefreshRates(true);
+      setTick((n) => n + 1);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  // Friendly relative-time label. fetchedAt = 0 means we're on the
+  // hardcoded snapshot (live fetch never succeeded this session).
+  const ageLabel = cache.fetchedAt === 0
+    ? t('settings:fx.usingFallback')
+    : (() => {
+        const ageMs = Date.now() - cache.fetchedAt;
+        const mins = Math.floor(ageMs / 60_000);
+        if (mins < 1) return t('settings:fx.justNow');
+        if (mins < 60) return t('settings:fx.minutesAgo', { count: mins });
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return t('settings:fx.hoursAgo', { count: hours });
+        const days = Math.floor(hours / 24);
+        return t('settings:fx.daysAgo', { count: days });
+      })();
+  return (
+    <View
+      style={{
+        marginTop: 24,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: borderColor,
+      }}
+    >
+      <Text className="font-sans text-xs" style={{ color: mutedColor, lineHeight: 16 }}>
+        {t('settings:fx.label')}{' '}
+        <Text style={{ color: fgColor }}>{ageLabel}</Text>
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('settings:fx.refreshNow')}
+        onPress={() => { void onRefresh(); }}
+        disabled={refreshing}
+        style={({ pressed }) => ({
+          marginTop: 6,
+          opacity: refreshing ? 0.4 : pressed ? 0.6 : 1,
+        })}
+      >
+        <Text
+          className="font-sans-medium text-xs"
+          style={{ color: tokens.accent.dashboard }}
+        >
+          {refreshing ? t('settings:fx.refreshing') : t('settings:fx.refreshNow')}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
 
 function SecurityRow({
   label, hint, comingSoon, value, onValueChange,

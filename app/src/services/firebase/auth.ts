@@ -180,6 +180,17 @@ export function useAuthSubscription(): void {
               migratePrimaryGoalToPinned(user.uid, wid),
             ),
           )
+          .then(() =>
+            // Hydrate the FX-rates cache from AsyncStorage, then refresh
+            // in the background if stale (>24h). Both calls swallow
+            // errors — the static snapshot in shared/utils/fxRates.ts
+            // is the safety net for offline / API-down. Live rates are
+            // a UX enhancement, not a correctness requirement.
+            import('../fxRatesLive').then(async ({ loadCachedRates, maybeRefreshRates }) => {
+              await loadCachedRates();
+              void maybeRefreshRates();
+            }),
+          )
           .catch((err: unknown) => {
             console.warn('[firebase] post-auth setup failed', err);
           });

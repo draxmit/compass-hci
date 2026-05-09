@@ -130,5 +130,18 @@
       "unlocking": "Menunggu konfirmasi…",
       "signOut": "Keluar saja"
     }
+  },
+  "fx": {
+    "label": "Kurs mata uang diperbarui",
+    "usingFallback": "pakai snapshot offline",
+    "justNow": "baru saja",
+    "minutesAgo_one": "{{count}} menit lalu",
+    "minutesAgo_other": "{{count}} menit lalu",
+    "hoursAgo_one": "{{count}} jam lalu",
+    "hoursAgo_other": "{{count}} jam lalu",
+    "daysAgo_one": "{{count}} hari lalu",
+    "daysAgo_other": "{{count}} hari lalu",
+    "refreshNow": "Perbarui sekarang",
+    "refreshing": "Memperbarui…"
   }
 }
