@@ -45,7 +45,6 @@ export function usePageAccent(): { key: AccentKey; color: string } {
     'accounts': 'neutral',
     'categories': 'neutral',
     'goals': 'neutral',
-    'import-csv': 'neutral',
     // Ask Compass chat (/ask) lives off the Insights tab — Insights is
     // its only entry point. Keep Insights highlighted while the chat
     // is open so the user's mental model "I'm in the AI surface that

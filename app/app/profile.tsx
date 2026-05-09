@@ -1,6 +1,6 @@
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { Check, ChevronLeft, ChevronRight, FileSpreadsheet, Pencil, Settings as SettingsIcon, Sparkles, Tag, Wallet, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, Tag, Wallet, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,7 +36,7 @@ function resolveFrom(raw: unknown): ValidFrom {
 // (desktop) or the avatar in MobileTopBar (mobile). Settings is reached
 // from a link card inside this screen.
 export default function ProfileScreen() {
-  const { t } = useTranslation(['settings', 'common', 'categories', 'accounts', 'goals', 'csvImport']);
+  const { t } = useTranslation(['settings', 'common', 'categories', 'accounts', 'goals']);
   const { resolvedScheme } = useTheme();
   const router = useRouter();
   const appAlert = useAppAlert();
@@ -349,15 +349,6 @@ export default function ProfileScreen() {
           title={t('categories:title')}
           subtitle={t('categories:tagline')}
           onPress={() => router.push('/categories')}
-          mutedColor={mutedColor}
-          borderColor={isDark ? tokens.surface['dark-border'] : tokens.surface['light-border']}
-          showDivider
-        />
-        <ProfileLinkRow
-          icon={<FileSpreadsheet size={20} color={mutedColor} />}
-          title={t('csvImport:title')}
-          subtitle={t('csvImport:subtitle')}
-          onPress={() => router.push('/import-csv')}
           mutedColor={mutedColor}
           borderColor={isDark ? tokens.surface['dark-border'] : tokens.surface['light-border']}
           showDivider

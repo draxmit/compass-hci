@@ -151,15 +151,6 @@ function StackTree() {
         }}
       />
       <Stack.Screen
-        name="import-csv"
-        options={{
-          presentation: 'fullScreenModal',
-          animation: 'none',
-          animationDuration: 0,
-          contentStyle: { backgroundColor: overlayBg },
-        }}
-      />
-      <Stack.Screen
         name="ask"
         options={{
           presentation: 'fullScreenModal',
