@@ -8,7 +8,11 @@ import {
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
-import { LinearGradient as RNLinearGradient } from 'expo-linear-gradient';
+// expo-linear-gradient was used by an older AskCompassCta variant
+// (banner card with diagonal gradient). The current "conversational
+// composer" Ask Compass uses solid input bg, so the gradient import
+// is no longer needed here. If you re-introduce a gradient surface
+// on this page, re-import as `RNLinearGradient`.
 import Svg, {
   Circle, Defs, LinearGradient, Path, Line as SvgLine, Polyline, Stop,
 } from 'react-native-svg';
@@ -299,70 +303,93 @@ export default function InsightsScreen() {
     if (!wid) return;
     setYearTxsLoading(true);
     let cancelled = false;
-    (async () => {
-      try {
-        // Single `where('date', '>=', X)` range query covers all 12
-        // months in one Firestore round-trip without internal fan-out
-        // (which `where('yearMonth', 'in', [...])` triggers). The
-        // oldest yearMonth's first day is the boundary.
-        const oldest = yearMonthsList[0];
-        if (!oldest) {
-          setYearTxsByMonth(new Map());
-          return;
-        }
-        const oldestDate = `${oldest}-01`;
-        const start = Date.now();
-        const allTxs = await listTransactions(wid, {
-          dateAfter: oldestDate,
-          orderByDate: false,
+
+    // Seed with empty arrays for every month so the UI renders 12
+    // skeleton grids immediately while the first query is in flight.
+    // Each month's data populates as its own query resolves —
+    // progressive UX vs the prior "wait for all 12 then show".
+    const seed = new Map<string, Transaction[]>();
+    for (const ym of yearMonthsList) seed.set(ym, []);
+    setYearTxsByMonth(seed);
+
+    // Fire 12 parallel per-month queries. Promise.allSettled lets
+    // partial failures (e.g. a single month rate-limited) not abort
+    // the whole load. Each successful query updates state immediately
+    // — that month's grid lights up as data arrives, no waiting for
+    // siblings.
+    let resolvedCount = 0;
+    yearMonthsList.forEach((ym) => {
+      const start = Date.now();
+      void listTransactions(wid, { yearMonth: ym, orderByDate: false })
+        .then((txs) => {
+          if (cancelled) return;
+          console.log(
+            `[insights] year fetch ${ym}: ${txs.length} txs in ${Date.now() - start}ms`,
+          );
+          setYearTxsByMonth((prev) => {
+            // Defensive null-coalesce — `prev` is the seed Map at this
+            // point (we initialised it above), but a re-render race
+            // could in theory hand us null.
+            const next = new Map(prev ?? []);
+            next.set(ym, txs);
+            return next;
+          });
+        })
+        .catch((err: unknown) => {
+          console.warn(`[insights] year fetch ${ym} failed`, err);
+        })
+        .finally(() => {
+          if (cancelled) return;
+          resolvedCount++;
+          if (resolvedCount === yearMonthsList.length) {
+            setYearTxsLoading(false);
+          }
         });
-        if (cancelled) return;
-        // Surface fetch perf in dev — helps diagnose slow networks.
-        console.log(`[insights] year fetch: ${allTxs.length} txs in ${Date.now() - start}ms`);
-        const map = new Map<string, Transaction[]>();
-        for (const ym of yearMonthsList) map.set(ym, []);
-        for (const tx of allTxs) {
-          const list = map.get(tx.yearMonth);
-          if (list) list.push(tx);
-        }
-        setYearTxsByMonth(map);
-      } catch (err) {
-        if (cancelled) return;
-        console.warn('[insights] year heatmap fetch failed', err);
-      } finally {
-        if (!cancelled) setYearTxsLoading(false);
-      }
-    })();
+    });
+
     return () => { cancelled = true; };
   }, [heatmapView, yearTxsByMonth, yearTxsLoading, wid, yearMonthsList]);
 
-  const yearHeatmap = useMemo(() => {
+  // Per-month heatmap data for the stacked-grid year view. Each entry
+  // is a single month's daily totals + how to lay it out (firstDow,
+  // daysInMonth). The `max` is shared across all months so cell color
+  // intensity is comparable month-to-month — without it, a quiet month
+  // would look just as "hot" as a heavy one.
+  const yearMonthGrids = useMemo(() => {
     if (heatmapView !== 'year' || !yearTxsByMonth) return null;
-    // Dense 2D grid: 12 columns (months) × 31 rows (days). Cells get
-    // the day's expense total; null for days that don't exist in the
-    // month (e.g. Feb 30, Apr 31).
-    const grid: (number | null)[][] = [];
+    const months: {
+      yearMonth: string;
+      daysInMonth: number;
+      firstDow: number;
+      dayTotals: number[];
+      hasData: boolean; // whether the parallel fetch resolved this month
+    }[] = [];
     let max = 0;
     for (const ym of yearMonthsList) {
       const [yStr, mStr] = ym.split('-');
       const year = Number(yStr);
       const month = Number(mStr) - 1;
       const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const firstDow = new Date(year, month, 1).getDay(); // 0=Sun..6=Sat
       const txs = yearTxsByMonth.get(ym) ?? [];
-      const col = new Array<number | null>(31).fill(null);
-      for (let d = 0; d < daysInMonth; d++) col[d] = 0;
+      const dayTotals = new Array<number>(daysInMonth + 1).fill(0); // 1-indexed
       for (const tx of txs) {
         if (tx.type !== 'expense') continue;
         const day = Number(tx.date.slice(8, 10));
         if (day >= 1 && day <= daysInMonth) {
-          const cur = col[day - 1] ?? 0;
-          col[day - 1] = cur + tx.amount;
-          if (cur + tx.amount > max) max = cur + tx.amount;
+          dayTotals[day] = (dayTotals[day] ?? 0) + tx.amount;
+          if (dayTotals[day]! > max) max = dayTotals[day]!;
         }
       }
-      grid.push(col);
+      months.push({
+        yearMonth: ym,
+        daysInMonth,
+        firstDow,
+        dayTotals,
+        hasData: txs.length > 0,
+      });
     }
-    return { grid, max, months: yearMonthsList };
+    return { months, max };
   }, [heatmapView, yearTxsByMonth, yearMonthsList]);
 
   // ----- Day-of-week aggregation -----
@@ -764,33 +791,34 @@ export default function InsightsScreen() {
                 </>
               )
             ) : (
-              // Year view (v3 phase A — 6).
-              yearTxsLoading ? (
-                // Skeleton placeholder — render the year heatmap grid
-                // with all-muted cells so the user sees structure
-                // immediately instead of a "Loading…" text spinner.
-                // Real data fades in once Firestore returns (typically
-                // ~2-5s on 4G for a 12-month tx range).
-                <YearHeatmapSkeleton
-                  borderColor={borderColor}
-                  mutedColor={mutedColor}
-                  loadingLabel={t('insights:heatmap.yearLoading')}
-                />
-              ) : !yearHeatmap || yearHeatmap.max === 0 ? (
-                <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-                  {t('insights:heatmap.yearNoData')}
-                </Text>
-              ) : (
-                <YearHeatmap
-                  grid={yearHeatmap.grid}
-                  months={yearHeatmap.months}
-                  max={yearHeatmap.max}
-                  accent={accent}
-                  borderColor={borderColor}
-                  mutedColor={mutedColor}
-                  fgColor={fgColor}
-                  lang={lang}
-                />
+              // Year view — 12 mini calendar grids stacked. Each
+              // renders as soon as ITS month's parallel fetch
+              // resolves (no waiting for siblings), so the user
+              // sees data progressively. Months still loading show
+              // a muted skeleton grid in the same shape.
+              !yearMonthGrids ? null : (
+                <View style={{ gap: 24 }}>
+                  {yearMonthGrids.months.map((m) => (
+                    <YearMonthGrid
+                      key={m.yearMonth}
+                      yearMonth={m.yearMonth}
+                      daysInMonth={m.daysInMonth}
+                      firstDow={m.firstDow}
+                      dayTotals={m.dayTotals}
+                      max={yearMonthGrids.max}
+                      hasData={m.hasData}
+                      stillLoading={yearTxsLoading}
+                      accent={accent}
+                      borderColor={borderColor}
+                      mutedColor={mutedColor}
+                      fgColor={fgColor}
+                      weekdayShortNames={
+                        (t('insights:weekday.shortNames', { returnObjects: true }) as string[]) ?? []
+                      }
+                      lang={lang}
+                    />
+                  ))}
+                </View>
               )
             )}
           </View>
@@ -1583,234 +1611,130 @@ function Heatmap({
   );
 }
 
-// ---------- YearHeatmap ----------
+// ---------- YearMonthGrid ----------
 
-type YearHeatmapProps = {
-  /** 12 columns of 31 cells each. null = day doesn't exist (e.g. Feb 30). */
-  grid: (number | null)[][];
-  /** Aligned with grid columns — one yearMonth per column, oldest → newest. */
-  months: string[];
-  /** Max day spend across the full year — used to normalise cell intensity. */
+type YearMonthGridProps = {
+  yearMonth: string;
+  daysInMonth: number;
+  firstDow: number;
+  dayTotals: number[];
   max: number;
+  hasData: boolean;
+  stillLoading: boolean;
   accent: string;
   borderColor: string;
   mutedColor: string;
   fgColor: string;
+  weekdayShortNames: string[];
   lang: Locale;
 };
 
 /**
- * Year-at-a-glance heatmap (v3 phase A — 6).
- *
- * 12 columns × 31 rows grid. Each column is a month (Jan-most-recent at
- * left → current month at right is reversed for rolling-12-month
- * window). Each row is a day (1..31). Cell intensity scales with
- * `dayTotal / max`. Empty cells where the day doesn't exist in that
- * month (Feb 30, Apr 31, etc.) render as a faint placeholder.
- *
- * Compact compared to the GitHub-style 53-week × 7-day layout — the
- * 12×31 shape is mobile-friendlier (no horizontal scroll) and aligns
- * with users' month/day mental model better than week-of-year.
+ * One month's calendar grid in the year heatmap. Visually the same as
+ * the existing month-Heatmap component, plus a month label above. When
+ * `stillLoading` is true and this month's data hasn't arrived yet
+ * (`hasData=false`), cells render as muted placeholders so the user
+ * sees the eventual layout immediately while parallel queries resolve
+ * one by one.
  */
-/**
- * Skeleton placeholder for the year heatmap. Renders the 12×31 grid
- * shape with all cells in the muted border color so the user sees
- * the eventual layout immediately instead of a "Loading…" spinner.
- * Adds a subtle "Loading…" label below the grid so screen readers
- * (and impatient users) know data is still on its way.
- *
- * No actual data — purely visual scaffold. Fades to the real
- * `<YearHeatmap />` once `yearTxsByMonth` resolves.
- */
-function YearHeatmapSkeleton({
-  borderColor,
-  mutedColor,
-  loadingLabel,
-}: {
-  borderColor: string;
-  mutedColor: string;
-  loadingLabel: string;
-}) {
+function YearMonthGrid({
+  yearMonth, daysInMonth, firstDow, dayTotals, max,
+  hasData, stillLoading, accent, borderColor, mutedColor, fgColor,
+  weekdayShortNames, lang,
+}: YearMonthGridProps) {
+  const monthDate = new Date(`${yearMonth}-01T00:00:00`);
+  const monthLabel = formatDate(monthDate, 'long-month', lang);
+  const isPlaceholder = stillLoading && !hasData;
+
+  // Pad cells before day 1 so the first day lines up with the right
+  // weekday column. Same logic as the month Heatmap component.
+  const cells: ({ day: number; total: number } | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, total: dayTotals[d] ?? 0 });
+
   return (
-    <View style={{ width: '100%', alignSelf: 'center' }}>
-      {/* 12 column header placeholders (no labels yet — those need
-          locale-aware month names which we'll show once data lands). */}
-      <View className="flex-row" style={{ gap: 2, marginBottom: 4 }}>
-        <View style={{ width: 18 }} />
-        {Array.from({ length: 12 }).map((_, i) => (
-          <View
-            key={i}
-            style={{
-              flex: 1,
-              height: 8,
-              backgroundColor: borderColor,
-              opacity: 0.4,
-              borderRadius: 2,
-            }}
-          />
-        ))}
-      </View>
-      {/* 31 day rows × 12 cells. All cells are flat muted bg — no
-          intensity yet. */}
-      {Array.from({ length: 31 }).map((_, dayIdx) => (
-        <View key={dayIdx} className="flex-row" style={{ gap: 2, marginBottom: 2 }}>
-          <View style={{ width: 18 }} />
-          {Array.from({ length: 12 }).map((__, colIdx) => (
-            <View
-              key={colIdx}
-              style={{
-                flex: 1,
-                aspectRatio: 1,
-                borderRadius: 2,
-                backgroundColor: borderColor,
-                opacity: 0.4,
-              }}
-            />
-          ))}
-        </View>
-      ))}
-      {/* Loading label — small + muted so it doesn't fight for
-          attention with the grid. Replaces the prior text-only
-          "Loading year..." which left the page looking blank. */}
+    <View>
       <Text
-        className="font-sans text-xs mt-3"
-        style={{ color: mutedColor, textAlign: 'center' }}
+        className="font-sans-medium text-xs uppercase tracking-wider mb-2"
+        style={{ color: mutedColor }}
       >
-        {loadingLabel}
+        {monthLabel}
       </Text>
-    </View>
-  );
-}
-
-function YearHeatmap({
-  grid, months, max, accent, borderColor, mutedColor, fgColor, lang,
-}: YearHeatmapProps) {
-  void fgColor;   // currently unused — kept for parity with month Heatmap signature
-  // 3-letter month abbreviations (Jan/Feb/Mar/...). Earlier 1-letter
-  // version made J/M/A ambiguous (Jan/Jun/Jul all 'J', Mar/May both 'M',
-  // Apr/Aug both 'A') — users read column 0 'J' as January when it was
-  // actually June from a year ago. The full 'Jan' / 'Jun' / 'Jul' is
-  // tiny but unambiguous.
-  //
-  // Year boundary markers: when a column is January (the calendar year
-  // boundary), we suffix with a 2-digit year ('26) so the user sees
-  // exactly which year's January it is. Other months get the bare
-  // 3-letter abbreviation.
-  const monthHeaders = months.map((ym) => {
-    const parts = ym.split('-');
-    const yStr = parts[0] ?? '0000';
-    const mStr = parts[1] ?? '01';
-    const monthNum = Number(mStr);
-    const yearShort = yStr.slice(2);
-    const d = new Date(2000, monthNum - 1, 1);
-    const abbrev = d.toLocaleString(lang === 'id' ? 'id-ID' : 'en-US', { month: 'short' });
-    // January → "Jan '26". Other months → 'Jun'.
-    return monthNum === 1 ? `${abbrev} '${yearShort}` : abbrev;
-  });
-
-  // Day labels — sparse on the left edge so we don't crowd 31 numbers.
-  const dayLabelRows = new Set([0, 4, 9, 14, 19, 24, 29]); // 1, 5, 10, 15, 20, 25, 30
-
-  return (
-    <View style={{ width: '100%', alignSelf: 'center' }}>
-      {/* Header row: blank left gutter, then 12 month abbreviations. */}
-      <View className="flex-row items-end" style={{ gap: 2, marginBottom: 4 }}>
-        <View style={{ width: 18 }} />
-        {monthHeaders.map((label, i) => (
+      {/* Weekday header */}
+      <View className="flex-row" style={{ gap: 4, marginBottom: 4 }}>
+        {weekdayShortNames.map((n, i) => (
           <Text
             key={i}
-            className="font-sans-medium"
-            style={{
-              flex: 1,
-              fontSize: 8,
-              textAlign: 'center',
-              color: i === monthHeaders.length - 1 ? accent : mutedColor,
-            }}
-            numberOfLines={1}
-            adjustsFontSizeToFit
+            className="font-sans-medium text-[10px]"
+            style={{ color: mutedColor, flex: 1, textAlign: 'center' }}
           >
-            {label}
+            {n}
           </Text>
         ))}
       </View>
-      {/* 31 day-rows. Each row has a sparse left label + 12 cells. */}
-      {Array.from({ length: 31 }).map((_, dayIdx) => (
-        <View key={dayIdx} className="flex-row" style={{ gap: 2, marginBottom: 2 }}>
-          <Text
-            className="font-sans"
-            style={{
-              width: 18,
-              fontSize: 8,
-              textAlign: 'right',
-              color: mutedColor,
-              paddingRight: 2,
-              alignSelf: 'center',
-            }}
-          >
-            {dayLabelRows.has(dayIdx) ? dayIdx + 1 : ''}
-          </Text>
-          {grid.map((col, colIdx) => {
-            const value = col[dayIdx];
-            // `value === null` means "day doesn't exist this month".
-            // `undefined` shouldn't happen since we pre-fill 31 cells,
-            // but the array access type permits it — collapse both to
-            // a faint placeholder so the grid stays rectangular.
-            if (value == null) {
+      {/* Day cells in rows of 7 */}
+      <View style={{ gap: 4 }}>
+        {chunk(cells, 7).map((row, rowIdx) => (
+          <View key={rowIdx} className="flex-row" style={{ gap: 4 }}>
+            {row.map((cell, i) => {
+              if (!cell) return <View key={i} style={{ flex: 1, aspectRatio: 1 }} />;
+              if (isPlaceholder) {
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      flex: 1,
+                      aspectRatio: 1,
+                      borderRadius: 4,
+                      backgroundColor: borderColor,
+                      opacity: 0.4,
+                    }}
+                  />
+                );
+              }
+              const intensity = max === 0 ? 0 : cell.total / max;
+              const fillAlpha = intensity === 0 ? 0 : Math.max(0.15, intensity);
               return (
                 <View
-                  key={colIdx}
+                  key={i}
                   style={{
                     flex: 1,
                     aspectRatio: 1,
-                    borderRadius: 2,
-                    backgroundColor: borderColor,
-                    opacity: 0.3,
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    borderColor,
+                    backgroundColor:
+                      intensity === 0 ? 'transparent' : accent + alphaHex(fillAlpha),
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
-                />
+                >
+                  <Text
+                    className="font-sans text-[10px]"
+                    style={{
+                      color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
+                    }}
+                  >
+                    {cell.day}
+                  </Text>
+                </View>
               );
-            }
-            const intensity = max === 0 ? 0 : value / max;
-            const fillAlpha = intensity === 0 ? 0 : Math.max(0.2, intensity);
-            return (
-              <View
-                key={colIdx}
-                style={{
-                  flex: 1,
-                  aspectRatio: 1,
-                  borderRadius: 2,
-                  backgroundColor:
-                    intensity === 0 ? borderColor : accent + alphaHex(fillAlpha),
-                  opacity: intensity === 0 ? 0.5 : 1,
-                }}
-              />
-            );
-          })}
-        </View>
-      ))}
-      {/* Legend. */}
-      <View className="flex-row items-center mt-3" style={{ gap: 4 }}>
-        <Text className="font-sans" style={{ fontSize: 9, color: mutedColor }}>
-          {/* less */}
-          —
-        </Text>
-        {[0.2, 0.4, 0.6, 0.8, 1].map((a) => (
-          <View
-            key={a}
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: 2,
-              backgroundColor: accent + alphaHex(a),
-            }}
-          />
+            })}
+            {row.length < 7
+              ? Array.from({ length: 7 - row.length }).map((_, i) => (
+                  <View key={`pad-${i}`} style={{ flex: 1, aspectRatio: 1 }} />
+                ))
+              : null}
+          </View>
         ))}
-        <Text className="font-sans" style={{ fontSize: 9, color: mutedColor }}>
-          +
-        </Text>
       </View>
     </View>
   );
 }
+
+// (Legacy YearHeatmap + YearHeatmapSkeleton removed — superseded by
+// the stacked YearMonthGrid above. See git history before this commit
+// for the at-a-glance 12x31 matrix variant.)
 
 // ---------- helpers ----------
 
