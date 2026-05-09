@@ -18,6 +18,12 @@
     "showAll": "Tampilkan {{count}} lainnya",
     "showLess": "Sembunyikan"
   },
+  "dayDetail": {
+    "spentLabel_one": "{{count}} pengeluaran",
+    "spentLabel_other": "{{count}} pengeluaran",
+    "noTxs": "Tidak ada transaksi di hari ini.",
+    "untitled": "(tanpa catatan)"
+  },
   "budgetHealth": {
     "onTrack": "Aman",
     "atRisk": "Hampir limit",

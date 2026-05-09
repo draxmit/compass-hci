@@ -18,6 +18,12 @@
     "showAll": "Show {{count}} more",
     "showLess": "Show less"
   },
+  "dayDetail": {
+    "spentLabel_one": "{{count}} expense",
+    "spentLabel_other": "{{count}} expenses",
+    "noTxs": "No transactions on this day.",
+    "untitled": "(no description)"
+  },
   "budgetHealth": {
     "onTrack": "On track",
     "atRisk": "At risk",

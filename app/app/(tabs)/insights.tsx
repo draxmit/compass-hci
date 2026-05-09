@@ -7,7 +7,8 @@ import {
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // expo-linear-gradient was used by an older AskCompassCta variant
 // (banner card with diagonal gradient). The current "conversational
 // composer" Ask Compass uses solid input bg, so the gradient import
@@ -190,6 +191,10 @@ export default function InsightsScreen() {
   // 12 month columns × 31 day rows. Year view triggers a separate
   // fetch since the trend window is only 6 months.
   const [heatmapView, setHeatmapView] = useState<'month' | 'year'>('month');
+  // Heatmap day drill-in (enhancement #4) — when set, opens a sheet
+  // listing the transactions for that calendar day. Cleared on dismiss.
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const insets = useSafeAreaInsets();
   // Year view data: ONE total per month, NOT daily transactions.
   // We fetch 12 monthly summary docs (tiny — sum-of-spending per
   // category per month). `null` = not yet fetched.
@@ -717,7 +722,27 @@ export default function InsightsScreen() {
     );
   }
 
+  // Day-detail data for the heatmap drill-in sheet. When a day is
+  // selected we filter the already-loaded current-month transactions
+  // by date — no extra fetch.
+  const selectedDayDate = useMemo(() => {
+    if (selectedDay === null || !heatmap) return null;
+    return `${heatmap.year}-${String(heatmap.month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+  }, [selectedDay, heatmap]);
+  const selectedDayTxs = useMemo(() => {
+    if (!selectedDayDate) return [];
+    const monthTxs = allTxsByMonth.get(heatmap?.yearMonth ?? '') ?? [];
+    return monthTxs
+      .filter((tx) => tx.date === selectedDayDate)
+      .sort((a, b) => b.amountIDR - a.amountIDR);
+  }, [selectedDayDate, allTxsByMonth, heatmap?.yearMonth]);
+  const selectedDayTotal = useMemo(
+    () => selectedDayTxs.reduce((s, tx) => s + (tx.type === 'expense' ? tx.amountIDR : 0), 0),
+    [selectedDayTxs],
+  );
+
   return (
+    <>
     <ScrollView
       contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
       refreshControl={
@@ -1055,6 +1080,7 @@ export default function InsightsScreen() {
                       weekdayShortNames={
                         (t('insights:weekday.shortNames', { returnObjects: true }) as string[]) ?? []
                       }
+                      onDayPress={(day) => setSelectedDay(day)}
                     />
                   </View>
                   {heatmap.heaviestDay > 0 ? (
@@ -1145,6 +1171,153 @@ export default function InsightsScreen() {
         ) : null}
       </View>
     </ScrollView>
+    {/* Heatmap day drill-in sheet (#4) — opens when a non-empty
+        heatmap day is tapped. Lists that day's transactions sorted by
+        amount desc with a hero total at top. Tap any row to edit. */}
+    <Modal
+      visible={selectedDay !== null}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setSelectedDay(null)}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+          justifyContent: 'flex-end',
+        }}
+      >
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={() => setSelectedDay(null)}
+          accessibilityRole="button"
+          accessibilityLabel={t('common:actions.close')}
+        />
+        <View
+          style={{
+            backgroundColor: isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'],
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            paddingTop: 8,
+            paddingBottom: Math.max(16, insets.bottom),
+            maxHeight: '75%',
+          }}
+        >
+          {/* Drag handle */}
+          <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+            <View
+              style={{
+                width: 40, height: 4, borderRadius: 2,
+                backgroundColor: borderColor,
+              }}
+            />
+          </View>
+          {/* Header: date + total */}
+          <View className="px-5 mb-3">
+            <Text
+              className="font-sans-medium text-xs uppercase tracking-wider"
+              style={{ color: mutedColor }}
+            >
+              {selectedDayDate ? formatDate(new Date(`${selectedDayDate}T00:00:00`), 'long', lang) : ''}
+            </Text>
+            <View className="flex-row items-baseline mt-1" style={{ gap: 8 }}>
+              <Text
+                className="font-mono tabular-nums text-2xl"
+                style={{ color: fgColor }}
+              >
+                {formatIDR(selectedDayTotal, lang)}
+              </Text>
+              <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+                {t('insights:dayDetail.spentLabel', {
+                  count: selectedDayTxs.filter((tx) => tx.type === 'expense').length,
+                  context: selectedDayTxs.length === 1 ? 'one' : 'other',
+                })}
+              </Text>
+            </View>
+          </View>
+          {/* Tx list */}
+          <ScrollView
+            style={{ paddingHorizontal: 20, paddingBottom: 8 }}
+            contentContainerStyle={{ paddingBottom: 16 }}
+          >
+            {selectedDayTxs.length === 0 ? (
+              <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+                {t('insights:dayDetail.noTxs')}
+              </Text>
+            ) : selectedDayTxs.map((tx, idx) => {
+              const cat = tx.splits[0]?.categoryId
+                ? categoriesById.get(tx.splits[0].categoryId)
+                : null;
+              const tint = cat
+                ? resolveCategoryColor(cat.color, isDark ? 'dark' : 'light')
+                : mutedColor;
+              const isLast = idx === selectedDayTxs.length - 1;
+              return (
+                <Pressable
+                  key={tx.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={tx.description || cat?.name[lang] || ''}
+                  onPress={() => {
+                    setSelectedDay(null);
+                    router.push(`/transaction/${tx.id}` as Href);
+                  }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 12,
+                    borderBottomWidth: isLast ? 0 : 1,
+                    borderBottomColor: borderColor,
+                    opacity: pressed ? 0.65 : 1,
+                  })}
+                >
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      backgroundColor: tint + '22',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {cat ? (
+                      <CategoryIcon name={cat.icon} color={tint} size={16} />
+                    ) : (
+                      <Sparkles size={16} color={tint} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text
+                      className="font-sans-medium text-sm"
+                      style={{ color: fgColor }}
+                      numberOfLines={1}
+                    >
+                      {tx.description || cat?.name[lang] || t('insights:dayDetail.untitled')}
+                    </Text>
+                    {cat ? (
+                      <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+                        {cat.name[lang]}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text
+                    className="font-mono tabular-nums text-sm"
+                    style={{
+                      color: tx.type === 'income' ? tokens.semantic.positive : fgColor,
+                    }}
+                  >
+                    {tx.type === 'income' ? '+' : tx.type === 'expense' ? '−' : ''}
+                    {formatIDR(tx.amountIDR, lang)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -1842,6 +2015,9 @@ type HeatmapProps = {
   mutedColor: string;
   fgColor: string;
   weekdayShortNames: string[];
+  /** Optional tap callback. When provided, days with non-zero spend
+      become Pressable and call back with the day-of-month (1-based). */
+  onDayPress?: (day: number) => void;
 };
 
 /**
@@ -1851,7 +2027,7 @@ type HeatmapProps = {
  */
 function Heatmap({
   daysInMonth, firstDow, dayTotals, max,
-  accent, borderColor, mutedColor, fgColor, weekdayShortNames,
+  accent, borderColor, mutedColor, fgColor, weekdayShortNames, onDayPress,
 }: HeatmapProps) {
   // Pad cells before day 1 so the first day lines up with the right weekday
   // column. `firstDow` is 0=Sun..6=Sat; our column order matches.
@@ -1882,29 +2058,47 @@ function Heatmap({
               const intensity = max === 0 ? 0 : cell.total / max;
               // Map intensity 0..1 to opacity 0..1 atop the muted base.
               const fillAlpha = intensity === 0 ? 0 : Math.max(0.15, intensity);
-              return (
-                <View
-                  key={i}
+              const cellPressable = onDayPress && cell.total > 0;
+              const cellContent = (
+                <Text
+                  className="font-sans text-[10px]"
                   style={{
-                    flex: 1,
-                    aspectRatio: 1,
-                    borderRadius: 6,
-                    borderWidth: 1,
-                    borderColor,
-                    backgroundColor:
-                      intensity === 0 ? 'transparent' : accent + alphaHex(fillAlpha),
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
                   }}
                 >
-                  <Text
-                    className="font-sans text-[10px]"
-                    style={{
-                      color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
-                    }}
+                  {cell.day}
+                </Text>
+              );
+              const cellStyle = {
+                flex: 1,
+                aspectRatio: 1,
+                borderRadius: 6,
+                borderWidth: 1,
+                borderColor,
+                backgroundColor:
+                  intensity === 0 ? 'transparent' : accent + alphaHex(fillAlpha),
+                alignItems: 'center' as const,
+                justifyContent: 'center' as const,
+              };
+              if (cellPressable) {
+                return (
+                  <Pressable
+                    key={i}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Day ${cell.day}`}
+                    onPress={() => onDayPress(cell.day)}
+                    style={({ pressed }) => ({
+                      ...cellStyle,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
                   >
-                    {cell.day}
-                  </Text>
+                    {cellContent}
+                  </Pressable>
+                );
+              }
+              return (
+                <View key={i} style={cellStyle}>
+                  {cellContent}
                 </View>
               );
             })}
