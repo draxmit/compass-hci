@@ -269,26 +269,89 @@ async function main() {
   await wipeCollection(db, ['workspaces', wid, 'goals']);
   await wipeCollection(db, ['workspaces', wid, 'saved_filters']);
 
-  // ---- Seed pinned dashboard goal (ADR-20) ----
-  // Lebaran 2027 with target Rp 12jt + current Rp 5jt → ~42% progress
-  // bar on the Dashboard pill. Replaces the legacy primaryGoal field
-  // path; the migration helper will no-op since pinnedGoalId is now set.
+  // ---- Seed multiple goals (ADR-20) ----
+  // Four goals across different templates + progress percentages so
+  // the Dashboard "show all goals" expansion is visually interesting,
+  // the goal-milestone celebration has both crossed (25/50%) and
+  // uncrossed (75/100%) thresholds, and the vault-math breakdown
+  // shows a meaningful "in goals" total.
   log('Seeding goals…');
-  const goalRef = doc(collection(db, 'workspaces', wid, 'goals'));
-  await setDoc(goalRef, {
-    kind: 'sinking_fund',
-    name: 'Lebaran 2027',
-    targetMinor: 12_000_000_00,
-    currentMinor: 5_000_000_00,
-    targetDate: '2027-04-01',
-    templateKey: 'lebaran_thr',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  // Update user doc to pin this goal + clear legacy primaryGoal.
+  const goalSpecs = [
+    {
+      key: 'lebaran',
+      kind: 'sinking_fund',
+      name: 'Lebaran 2027',
+      targetMinor: 12_000_000_00,
+      currentMinor: 5_000_000_00,         // 42%
+      targetDate: '2027-04-01',
+      templateKey: 'lebaran_thr',
+      pinned: true,
+    },
+    {
+      key: 'darurat',
+      kind: 'sinking_fund',
+      name: 'Dana Darurat',
+      targetMinor: 30_000_000_00,
+      currentMinor: 8_500_000_00,         // 28%
+      targetDate: null,
+      templateKey: 'dana_darurat',
+      pinned: false,
+    },
+    {
+      key: 'bali',
+      kind: 'sinking_fund',
+      name: 'Liburan Bali',
+      targetMinor: 8_000_000_00,
+      currentMinor: 6_200_000_00,         // 78% — close to done
+      targetDate: '2026-09-15',
+      templateKey: 'liburan',
+      pinned: false,
+    },
+    {
+      key: 'motor',
+      kind: 'sinking_fund',
+      name: 'DP Motor',
+      targetMinor: 5_000_000_00,
+      currentMinor: 1_200_000_00,         // 24% — early stage
+      targetDate: '2026-12-01',
+      templateKey: 'beli_motor',
+      pinned: false,
+    },
+  ];
+  const goalIds = {};
+  {
+    const batch = writeBatch(db);
+    for (const g of goalSpecs) {
+      const ref = doc(collection(db, 'workspaces', wid, 'goals'));
+      goalIds[g.key] = ref.id;
+      batch.set(ref, {
+        kind: g.kind,
+        name: g.name,
+        targetMinor: g.targetMinor,
+        currentMinor: g.currentMinor,
+        targetDate: g.targetDate,
+        templateKey: g.templateKey,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+  // Pin Lebaran on the dashboard. Mark the 25%-and-below thresholds
+  // as already-seen across all four goals so the celebration modal
+  // doesn't immediately fire on first sign-in (would make first-paint
+  // surprising). Higher thresholds still pending — user can trigger
+  // them by adding a contribution.
+  const goalMilestonesSeen = {};
+  for (const g of goalSpecs) {
+    const pct = (g.currentMinor / g.targetMinor) * 100;
+    const seen = [25, 50, 75, 100].filter((t) => t <= pct);
+    if (seen.length > 0) goalMilestonesSeen[goalIds[g.key]] = seen;
+  }
   await setDoc(userRef, {
-    pinnedGoalId: goalRef.id,
+    pinnedGoalId: goalIds.lebaran,
     primaryGoal: null,
+    goalMilestonesSeen,
   }, { merge: true });
 
   // ---- Look up category ids by their stored name.id ----
@@ -398,17 +461,28 @@ async function main() {
   for (let start = 0; start < txs.length; start += CHUNK) {
     const slice = txs.slice(start, start + CHUNK);
     const batch = writeBatch(db);
+    // Hardcoded FX snapshot — same constants the app uses
+    // (app/src/shared/utils/fxRates.ts). Mirrored here because seed
+    // is plain Node and can't import from the TS path-alias graph.
+    const FX_TO_IDR = { USD: 16500, SGD: 12300, EUR: 17800, AUD: 10800, JPY: 110, GBP: 20800, MYR: 3700, THB: 470, CNY: 2300 };
     for (const tx of slice) {
       const ref = doc(collection(db, 'workspaces', wid, 'transactions'));
+      const txCurrency = tx.currency ?? 'IDR';
+      const amountIDR = txCurrency === 'IDR'
+        ? tx.amount
+        : Math.round(tx.amount * (FX_TO_IDR[txCurrency] ?? 1));
       batch.set(ref, {
         type: tx.type,
         date: tx.date,
         yearMonth: tx.date.slice(0, 7),
         accountId: tx.accountId,
         toAccountId: tx.toAccountId ?? null,
-        currency: 'IDR',
+        currency: txCurrency,
         amount: tx.amount,
-        amountIDR: tx.amount,
+        amountIDR,
+        // Splits store the per-split amount in source-account native
+        // currency for v2 single-split (matches the app's createTx
+        // pattern). Multi-currency multi-split is deferred.
         splits: tx.type === 'transfer' ? [] : [{ categoryId: tx.categoryId, amount: tx.amount }],
         description: tx.description,
         // Demo seed engineers a few tags so the new tag UI has something
@@ -446,14 +520,17 @@ async function main() {
           });
         }
       }
-      // Category month total upsert (expense only)
+      // Category month total upsert (expense only). totalIDR is the
+      // FX-converted amount so cross-currency txs aggregate correctly
+      // — a USD subscription contributes its IDR equivalent to the
+      // monthly total, not its raw USD-cents value.
       if (tx.type === 'expense') {
         const ymKey = tx.date.slice(0, 7);
         const cmtRef = doc(db, 'workspaces', wid, 'category_month_totals', `${ymKey}_${tx.categoryId}`);
         batch.set(cmtRef, {
           categoryId: tx.categoryId,
           yearMonth: ymKey,
-          totalIDR: increment(tx.amount),
+          totalIDR: increment(amountIDR),
           txCount: increment(1),
           updatedAt: serverTimestamp(),
         }, { merge: true });
@@ -564,6 +641,68 @@ async function main() {
     await batch.commit();
   }
 
+  // ---- Seed quick-add presets on the user doc ----
+  // Five presets covering the new "complete + incomplete" mix so the
+  // FAB long-press menu showcases:
+  //   - Two complete presets (Coffee, Grab to office) → instant create
+  //   - Two amount-only-blank presets (Lunch, Snacks) → routes to
+  //     /transaction/new with everything else prefilled
+  //   - One nearly-blank (Income freelance) → mostly free-form
+  log('Seeding quick presets on user doc…');
+  const quickPresets = [
+    {
+      id: `qp-coffee-${Date.now()}`,
+      label: 'Coffee',
+      type: 'expense',
+      amountMinor: 35_000_00,
+      accountId: acctIds.gopay,
+      categoryId: catId('Cafe'),
+      description: 'Kopi pagi',
+      icon: 'coffee',
+    },
+    {
+      id: `qp-grab-${Date.now() + 1}`,
+      label: 'Grab to office',
+      type: 'expense',
+      amountMinor: 28_000_00,
+      accountId: acctIds.gopay,
+      categoryId: catId('Grab'),
+      description: 'Grab',
+      icon: 'car',
+    },
+    {
+      id: `qp-lunch-${Date.now() + 2}`,
+      label: 'Lunch warteg',
+      type: 'expense',
+      amountMinor: 0,                    // ask at use-time
+      accountId: acctIds.cash,
+      categoryId: catId('Warteg'),
+      description: 'Warteg',
+      icon: 'utensils',
+    },
+    {
+      id: `qp-snack-${Date.now() + 3}`,
+      label: 'Snack jajan',
+      type: 'expense',
+      amountMinor: 0,                    // ask at use-time
+      accountId: acctIds.cash,
+      categoryId: catId('Jajan'),
+      description: '',
+      icon: 'cookie',
+    },
+    {
+      id: `qp-freelance-${Date.now() + 4}`,
+      label: 'Freelance income',
+      type: 'income',
+      amountMinor: 0,                    // ask at use-time
+      accountId: acctIds.bca,
+      categoryId: null,
+      description: 'Project freelance',
+      icon: 'briefcase',
+    },
+  ];
+  await setDoc(userRef, { quickPresets }, { merge: true });
+
   log('');
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   log(' Demo data seeded. Sign in to the app with:');
@@ -573,13 +712,16 @@ async function main() {
   log('');
   log(' Months populated (6-month trend window for Insights):');
   log(`   ${months.map((m) => m.ym).reverse().join(', ')}`);
-  log(' 4 accounts: BCA, GoPay, Tunai, Mandiri Card');
+  log(' 6 accounts: BCA, GoPay, Tunai, Mandiri Card, USD Savings, Reksa Dana');
+  log(' 4 goals:    Lebaran 2027 (pinned), Dana Darurat, Liburan Bali, DP Motor');
   log(' 6 budgets:  Warteg, Grab, Bioskop, Pulsa, Skincare, Cafe');
+  log(' 5 quick presets (2 complete, 2 amount-blank, 1 mostly-blank)');
   log(' Engineered for Insights tab:');
   log('   - Bioskop ANOMALY: 4 movies this month vs ~1 historically');
   log('   - Skincare ANOMALY: Rp 1.5M splurge tx vs ~Rp 200k baseline avg');
   log('   - Weekend Grab spike for day-of-week pattern');
   log('   - Heavy day-14 cluster (Bandung trip) for heatmap signal');
+  log('   - Recurring detector picks up: Netflix / Spotify / Gym Fit / Pertamax');
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   // The Web SDK keeps a long-lived listener; force-exit so the script
@@ -820,6 +962,74 @@ function buildDemoTransactions({
     // Bioskop — just one movie historically (so the current-month 4
     // movies trigger the category-anomaly callout)
     txs.push({ type: 'expense', date: date(myr, mmn, Math.min(20, mdays)), accountId: A.gopay, categoryId: catId('Bioskop'),    amount: 75_000_00, description: 'XXI' });
+  }
+
+  // ===== Recurring expenses across all 6 months =====
+  // Engineered so the recurring-detector heuristic picks them up
+  // (≥3 occurrences across ≥3 distinct months, same merchant
+  // substring + amount within ±10%). Drives the Insights
+  // "Recurring expenses" section + the local-notification scheduler.
+  // Subscriptions hit the BCA card on the same day each month (1st
+  // for Netflix/Spotify, 5th for Gym Fit). Pertamax is added to the
+  // multi-month loop above too — these are explicit subs to make
+  // the demo unambiguous.
+  const recurrings = [
+    { day: 1,  desc: 'Netflix Premium',    amount: 169_000_00, accountId: A.card, categoryId: catId('Internet') },
+    { day: 1,  desc: 'Spotify Family',     amount:  49_000_00, accountId: A.card, categoryId: catId('Internet') },
+    { day: 5,  desc: 'Gym Fitness First',  amount: 580_000_00, accountId: A.bca,  categoryId: catId('Olahraga') },
+    { day: 10, desc: 'GoPay Plus',         amount:  50_000_00, accountId: A.gopay, categoryId: catId('Pulsa')   },
+  ];
+  for (let mi = 0; mi < months.length; mi++) {
+    const mDate = months[mi].date;
+    const myr = mDate.getFullYear();
+    const mmn = mDate.getMonth() + 1;
+    const mdays = new Date(myr, mmn, 0).getDate();
+    for (const r of recurrings) {
+      const day = Math.min(r.day, mdays);
+      // Make sure we don't seed a future-dated recurring tx if "today"
+      // is earlier in the month than the recurring day.
+      if (myr === yyyy && mmn === mm && day > today) continue;
+      txs.push({
+        type: 'expense',
+        date: date(myr, mmn, day),
+        accountId: r.accountId,
+        categoryId: r.categoryId,
+        amount: r.amount,
+        description: r.desc,
+      });
+    }
+  }
+
+  // ===== A few USD-denominated transactions =====
+  // Hits the USD Savings account so the multi-currency display
+  // toggle + FX equivalent caption have something concrete to render.
+  // Amounts are in USD-cents (×100) since the Transaction.amount
+  // field stores in source-account native currency.
+  // Note: the USD account has no income txs in this seed, so balance
+  // declines slowly over the 6-month window — fine since it starts
+  // at $2,150 and these monthly hits are small.
+  const usdRecurrings = [
+    { day: 15, desc: 'GitHub Pro',  amount: 4_00 },        // $4.00/mo
+    { day: 28, desc: 'AWS hosting', amount: 12_50 },       // $12.50/mo
+  ];
+  for (let mi = 0; mi < months.length; mi++) {
+    const mDate = months[mi].date;
+    const myr = mDate.getFullYear();
+    const mmn = mDate.getMonth() + 1;
+    const mdays = new Date(myr, mmn, 0).getDate();
+    for (const r of usdRecurrings) {
+      const day = Math.min(r.day, mdays);
+      if (myr === yyyy && mmn === mm && day > today) continue;
+      txs.push({
+        type: 'expense',
+        date: date(myr, mmn, day),
+        accountId: A.usd,
+        categoryId: catId('Internet'),
+        amount: r.amount,
+        currency: 'USD',
+        description: r.desc,
+      });
+    }
   }
 
   // Sort ascending by date so oldest writes first (cosmetic — Firestore

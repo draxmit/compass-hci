@@ -31,6 +31,8 @@ import {
   formatAmountInput, minorToInputText, parseAmountInput,
 } from '@/shared/utils/amountInput';
 import { formatIDR } from '@/shared/utils/formatIDR';
+import { formatCurrency } from '@/shared/utils/formatCurrency';
+import { convertFromIDRMinor, convertToIDRMinor } from '@/shared/utils/fxRates';
 import { parseTransaction } from '@/shared/utils/nlpParser';
 import type { NlpResult } from '@/shared/utils/nlpParser';
 import { collectTagFrequencies, normaliseTagList } from '@/shared/utils/tags';
@@ -122,6 +124,11 @@ export default function NewTransactionScreen() {
   // Form state — populated by NLP, overrideable by user.
   const [type, setType] = useState<TransactionType>('expense');
   const [amountText, setAmountText] = useState('');
+  // For non-IDR source accounts: which currency the user is TYPING
+  // the amount in. Default 'native' (the account's currency); flip
+  // to 'IDR' to type in rupiah and have the service convert at save.
+  // The toggle only renders when the source account's currency !== IDR.
+  const [amountInputMode, setAmountInputMode] = useState<'native' | 'IDR'>('native');
   const [accountId, setAccountId] = useState<string | null>(null);
   const [toAccountId, setToAccountId] = useState<string | null>(null);
   // Optional admin/transfer fee. Transfer-only — when type flips off
@@ -363,8 +370,8 @@ export default function NewTransactionScreen() {
 
   const handleSave = async () => {
     if (saving || !wid) return;
-    const amount = parseAmountInput(amountText, lang);
-    if (!amount) {
+    const rawAmount = parseAmountInput(amountText, lang);
+    if (!rawAmount) {
       appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingAmount'));
       return;
     }
@@ -372,6 +379,17 @@ export default function NewTransactionScreen() {
       appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingAccount'));
       return;
     }
+    // If user typed in IDR mode but the source account is non-IDR,
+    // convert before persisting. The Transaction.amount field is
+    // always in the source account's NATIVE currency (per ADR-16);
+    // amountIDR is computed by the service from amount × FX rate.
+    // So we convert IDR→native here once, then the service rederives
+    // amountIDR symmetrically for storage.
+    const sourceAcc = accounts.find((a) => a.id === accountId);
+    const sourceCurrency = sourceAcc?.currency ?? 'IDR';
+    const amount = (sourceCurrency !== 'IDR' && amountInputMode === 'IDR')
+      ? convertFromIDRMinor(rawAmount, sourceCurrency)
+      : rawAmount;
     if (type === 'transfer' && !toAccountId) {
       appAlert(t('transactions:entry.title'), t('transactions:entry.errors.missingToAccount'));
       return;
@@ -386,11 +404,17 @@ export default function NewTransactionScreen() {
     if (type !== 'transfer') {
       if (splitsMode === 'multi') {
         // Multi-mode: each row must have category + positive amount, and
-        // the sum must match the total.
-        const parsed = splitRows.map((r) => ({
-          categoryId: r.categoryId,
-          amount: parseAmountInput(r.amountText, lang),
-        }));
+        // the sum must match the total. Split row amounts respect the
+        // same currency-input mode as the top-level amount, so we
+        // run them through the same convert step before the sum-equals
+        // check (which compares against `amount`, already native).
+        const parsed = splitRows.map((r) => {
+          const raw = parseAmountInput(r.amountText, lang);
+          const converted = (sourceCurrency !== 'IDR' && amountInputMode === 'IDR')
+            ? convertFromIDRMinor(raw, sourceCurrency)
+            : raw;
+          return { categoryId: r.categoryId, amount: converted };
+        });
         if (parsed.some((r) => !r.categoryId)) {
           appAlert(t('transactions:entry.title'), t('transactions:entry.errors.splitsMissingCategory'));
           return;
@@ -412,25 +436,25 @@ export default function NewTransactionScreen() {
 
     setSaving(true);
     try {
-      // Source-account currency goes on the tx (denormalised) so the
-      // service can compute amountIDR via the FX snapshot. Defaults to
-      // IDR if for any reason the account isn't yet in state — the UI
-      // would have already blocked save by that point.
-      const sourceAccount = accounts.find((a) => a.id === accountId);
       // Parse the optional fee. parseAmountInput returns 0 for empty
       // strings — perfect, the service ignores 0 fees defensively.
       // Spread conditionally so the field is omitted entirely when 0
       // (strict optional types reject `feeMinor: undefined` at the
-      // call boundary).
-      const feeMinor = type === 'transfer'
+      // call boundary). The fee is in the SAME currency-input mode
+      // as the main amount (rare for users to mix); we convert it
+      // through the same path.
+      const rawFeeMinor = type === 'transfer'
         ? parseAmountInput(feeText, lang)
         : 0;
+      const feeMinor = (rawFeeMinor > 0 && sourceCurrency !== 'IDR' && amountInputMode === 'IDR')
+        ? convertFromIDRMinor(rawFeeMinor, sourceCurrency)
+        : rawFeeMinor;
       await createTransaction(wid, {
         type,
         date,
         accountId,
         toAccountId: type === 'transfer' ? toAccountId : null,
-        currency: sourceAccount?.currency ?? 'IDR',
+        currency: sourceCurrency,
         amount,
         ...(feeMinor > 0 ? { feeMinor } : {}),
         splits,
@@ -749,9 +773,64 @@ export default function NewTransactionScreen() {
               internal divider, mirroring the consolidation pattern from
               the Notes card below. */}
           <Card padding="lg" className="mb-4">
-            <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
-              {t('transactions:entry.fields.amount')}
-            </Text>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+                {t('transactions:entry.fields.amount')}
+              </Text>
+              {/* Currency-input toggle. Only renders when the source
+                  account's currency is non-IDR. Lets the user type in
+                  EITHER the account's native currency OR IDR — useful
+                  for Indonesian users with USD accounts who think in
+                  rupiah but want the deduction recorded against USD-
+                  cents accurately. The convert-to-account-native step
+                  happens once at save time. */}
+              {(() => {
+                const sourceAccount = accounts.find((a) => a.id === accountId);
+                const accCurrency = sourceAccount?.currency ?? 'IDR';
+                if (accCurrency === 'IDR') return null;
+                const modes: { mode: 'native' | 'IDR'; label: string }[] = [
+                  { mode: 'native', label: accCurrency },
+                  { mode: 'IDR', label: 'IDR' },
+                ];
+                return (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      borderWidth: 1,
+                      borderColor,
+                      borderRadius: 999,
+                      padding: 2,
+                      gap: 2,
+                    }}
+                  >
+                    {modes.map((m) => {
+                      const selected = amountInputMode === m.mode;
+                      return (
+                        <Pressable
+                          key={m.mode}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected }}
+                          onPress={() => setAmountInputMode(m.mode)}
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                            borderRadius: 999,
+                            backgroundColor: selected ? tokens.accent.transactions + '22' : 'transparent',
+                          }}
+                        >
+                          <Text
+                            className="font-sans-medium text-[11px]"
+                            style={{ color: selected ? tokens.accent.transactions : mutedColor }}
+                          >
+                            {m.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                );
+              })()}
+            </View>
             <TextField
               label=""
               value={amountText}
@@ -760,11 +839,39 @@ export default function NewTransactionScreen() {
               keyboardType="numeric"
               returnKeyType="done"
             />
-            {amountText ? (
-              <Text className="font-mono tabular-nums text-xs mt-2" style={{ color: mutedColor }}>
-                {formatIDR(parseAmountInput(amountText, lang))}
-              </Text>
-            ) : null}
+            {amountText ? (() => {
+              const parsedRaw = parseAmountInput(amountText, lang);
+              const sourceAccount = accounts.find((a) => a.id === accountId);
+              const accCurrency = sourceAccount?.currency ?? 'IDR';
+              // The "equivalent" caption depends on what the user is
+              // typing in. Native mode: show IDR equivalent. IDR mode:
+              // show native equivalent. Both directions go through
+              // the existing FX snapshot.
+              if (accCurrency === 'IDR') {
+                return (
+                  <Text className="font-mono tabular-nums text-xs mt-2" style={{ color: mutedColor }}>
+                    {formatIDR(parsedRaw)}
+                  </Text>
+                );
+              }
+              // Non-IDR account.
+              if (amountInputMode === 'native') {
+                const idrEq = convertToIDRMinor(parsedRaw, accCurrency);
+                return (
+                  <Text className="font-mono tabular-nums text-xs mt-2" style={{ color: mutedColor }}>
+                    {`≈ ${formatIDR(idrEq, lang)}`}
+                  </Text>
+                );
+              }
+              // amountInputMode === 'IDR' — typed amount is IDR-major,
+              // show what that converts to in the account's currency.
+              const nativeEq = convertFromIDRMinor(parsedRaw, accCurrency);
+              return (
+                <Text className="font-mono tabular-nums text-xs mt-2" style={{ color: mutedColor }}>
+                  {`≈ ${formatCurrency(nativeEq, accCurrency, lang)}`}
+                </Text>
+              );
+            })() : null}
 
             <View
               style={{
@@ -799,7 +906,15 @@ export default function NewTransactionScreen() {
             label={t(type === 'transfer' ? 'transactions:entry.fields.fromAccount' : 'transactions:entry.fields.account')}
             accounts={accountOptions}
             selectedId={accountId}
-            onSelect={(id) => { touched.current.account = true; setAccountId(id); }}
+            onSelect={(id) => {
+              touched.current.account = true;
+              setAccountId(id);
+              // Reset input-currency mode whenever the account
+              // changes — picking a different-currency account
+              // would otherwise leave a stale 'IDR' mode active
+              // and silently re-interpret the amount.
+              setAmountInputMode('native');
+            }}
             isDark={isDark}
             t={t}
           />
