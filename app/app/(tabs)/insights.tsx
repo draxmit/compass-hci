@@ -31,6 +31,8 @@ import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { Skeleton, SkeletonCard } from '@/shared/ui/Skeleton';
 import { Text } from '@/shared/ui/Text';
+import { detectRecurringExpenses } from '@/shared/utils/detectRecurring';
+import type { RecurringExpense } from '@/shared/utils/detectRecurring';
 import { formatDate } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
 
@@ -369,6 +371,34 @@ export default function InsightsScreen() {
     const heaviestDay = dayTotals.indexOf(max);
     return { yearMonth: heatmapYM, year, month, dayTotals, daysInMonth, firstDow, max, heaviestDay };
   }, [loaded, yearMonths, heatmapIdx, allTxsByMonth]);
+
+  // ----- Recurring expenses detector -----
+  // Reuses the 6 months of transactions already loaded into
+  // `allTxsByMonth` for the heatmap pre-warm — no additional fetch.
+  // The detector is pure + fast (<5ms on ~300 txs typical) so a
+  // useMemo on the flattened tx list is enough.
+  const recurringExpenses = useMemo<RecurringExpense[]>(() => {
+    if (!loaded) return [];
+    const allTxs: Transaction[] = [];
+    for (const monthTxs of allTxsByMonth.values()) {
+      allTxs.push(...monthTxs);
+    }
+    if (allTxs.length === 0) return [];
+    return detectRecurringExpenses(allTxs);
+  }, [loaded, allTxsByMonth]);
+
+  // Show at most 5 recurrings on first paint to keep the section
+  // skimmable. A "show all" affordance reveals the rest if needed.
+  const RECURRING_PREVIEW_COUNT = 5;
+  const [recurringExpanded, setRecurringExpanded] = useState(false);
+  const recurringDisplay = recurringExpanded
+    ? recurringExpenses
+    : recurringExpenses.slice(0, RECURRING_PREVIEW_COUNT);
+  const recurringMonthlyTotal = useMemo(
+    () => recurringExpenses.reduce((s, r) => s + r.averageAmountMinor, 0),
+    [recurringExpenses],
+  );
+  const recurringAnnualTotal = recurringMonthlyTotal * 12;
 
   // ----- Year heatmap data (v3 phase A — 6) -----
   // Rolling 12-month window ending in the current month. Fetched lazily
@@ -755,6 +785,131 @@ export default function InsightsScreen() {
             t={t}
             onPress={() => router.push('/budgets' as Href)}
           />
+        ) : null}
+
+        {/* ===== RECURRING EXPENSES (v3 polish — subscription leak detector) =====
+            Detects monthly subscriptions / recurring debits across the
+            6-month window. Sorted by monthly cost desc — biggest leaks
+            first. Hidden when no recurrings detected so the section
+            doesn't add noise on minimal-data accounts. */}
+        {loaded && recurringExpenses.length > 0 ? (
+          <View className="mb-8">
+            <Text className={sectionLabelClass} style={{ color: mutedColor }}>
+              {t('insights:sections.recurring')}
+            </Text>
+            {/* Summary line: count + monthly total + annual cost. The
+                annual figure is the persuasion — most users
+                underestimate yearly subscription cost. */}
+            <Text
+              className="font-sans text-xs mb-3"
+              style={{ color: mutedColor }}
+              numberOfLines={2}
+            >
+              {t('insights:recurring.summary', {
+                count: recurringExpenses.length,
+                monthly: formatIDR(recurringMonthlyTotal, lang),
+                annual: formatIDR(recurringAnnualTotal, lang),
+                context: recurringExpenses.length === 1 ? 'one' : 'other',
+              })}
+            </Text>
+            {recurringDisplay.map((r, idx) => {
+              const isLast = idx === recurringDisplay.length - 1;
+              return (
+                <View
+                  key={r.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 10,
+                    borderBottomWidth: isLast ? 0 : 1,
+                    borderBottomColor: borderColor,
+                    gap: 12,
+                  }}
+                >
+                  {/* Repeat-count badge */}
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      backgroundColor: accent + '14',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text
+                      className="font-mono tabular-nums"
+                      style={{ color: accent, fontSize: 11, fontWeight: '700' }}
+                    >
+                      {r.occurrenceCount}×
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text
+                      className="font-sans-medium text-sm"
+                      style={{ color: fgColor }}
+                      numberOfLines={1}
+                    >
+                      {r.merchant}
+                    </Text>
+                    <Text
+                      className="font-sans text-xs"
+                      style={{ color: mutedColor }}
+                      numberOfLines={1}
+                    >
+                      {t('insights:recurring.sinceMonth', {
+                        month: formatDate(
+                          new Date(`${r.earliestDate}T00:00:00`),
+                          'long-month',
+                          lang,
+                        ),
+                      })}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                    <Text
+                      className="font-mono tabular-nums text-sm"
+                      style={{ color: fgColor }}
+                      numberOfLines={1}
+                    >
+                      {formatIDR(r.averageAmountMinor, lang)}
+                    </Text>
+                    <Text
+                      className="font-sans text-[11px]"
+                      style={{ color: mutedColor }}
+                      numberOfLines={1}
+                    >
+                      {t('insights:recurring.perMonth')}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+            {/* Show-all toggle — only renders when there's overflow. */}
+            {recurringExpenses.length > RECURRING_PREVIEW_COUNT ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setRecurringExpanded((cur) => !cur)}
+                style={{
+                  alignSelf: 'flex-start',
+                  paddingVertical: 8,
+                  paddingHorizontal: 4,
+                  marginTop: 4,
+                }}
+              >
+                <Text
+                  className="font-sans-medium text-xs"
+                  style={{ color: accent }}
+                >
+                  {recurringExpanded
+                    ? t('insights:recurring.showLess')
+                    : t('insights:recurring.showAll', {
+                        count: recurringExpenses.length - RECURRING_PREVIEW_COUNT,
+                      })}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
 
         {/* ===== HEATMAP ===== */}

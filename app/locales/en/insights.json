@@ -7,7 +7,16 @@
     "anomalies": "What's notable this month",
     "heatmap": "When you spend most",
     "weekday": "Your weekly pattern",
-    "budgetHealth": "Budget health"
+    "budgetHealth": "Budget health",
+    "recurring": "Recurring expenses"
+  },
+  "recurring": {
+    "summary_one": "{{count}} recurring · {{monthly}}/mo · est. {{annual}}/year",
+    "summary_other": "{{count}} recurring · {{monthly}}/mo · est. {{annual}}/year",
+    "perMonth": "per month",
+    "sinceMonth": "since {{month}}",
+    "showAll": "Show {{count}} more",
+    "showLess": "Show less"
   },
   "budgetHealth": {
     "onTrack": "On track",

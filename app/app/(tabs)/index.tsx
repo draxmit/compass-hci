@@ -253,7 +253,6 @@ export default function DashboardScreen() {
     () => lastMonthTotals.reduce((s, m) => s + m.totalIDR, 0),
     [lastMonthTotals],
   );
-  const monthDelta = thisMonthSpent - lastMonthSpent;
 
   // Income totals — sum the FX-snapshotted `amountIDR` field already
   // computed at write-time (ADR-16). No need to re-convert here; that
@@ -1075,27 +1074,6 @@ type DeltaLineProps = {
   mutedColor: string;
   t: TFunction;
 };
-
-function DeltaLine({ delta, mutedColor, t }: DeltaLineProps) {
-  const abs = Math.abs(delta);
-  if (delta === 0) {
-    return (
-      <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
-        {t('dashboard:delta.same')} · {t('dashboard:cards.vsLastMonth')}
-      </Text>
-    );
-  }
-  const isUp = delta > 0;
-  const color = isUp ? tokens.semantic.danger : tokens.semantic.positive;
-  const key = isUp ? 'dashboard:delta.up' : 'dashboard:delta.down';
-  return (
-    <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
-      <Text style={{ color }}>{t(key, { amount: formatIDR(abs) })}</Text>
-      {' · '}
-      {t('dashboard:cards.vsLastMonth')}
-    </Text>
-  );
-}
 
 /**
  * Savings Rate pill — single-line health indicator at the top of the

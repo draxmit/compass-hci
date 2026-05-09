@@ -7,7 +7,16 @@
     "anomalies": "Yang berbeda bulan ini",
     "heatmap": "Kapan kamu paling banyak ngeluarin",
     "weekday": "Pola pengeluaran mingguan",
-    "budgetHealth": "Status budget"
+    "budgetHealth": "Status budget",
+    "recurring": "Pengeluaran berulang"
+  },
+  "recurring": {
+    "summary_one": "{{count}} berulang · {{monthly}}/bln · ~{{annual}}/tahun",
+    "summary_other": "{{count}} berulang · {{monthly}}/bln · ~{{annual}}/tahun",
+    "perMonth": "per bulan",
+    "sinceMonth": "sejak {{month}}",
+    "showAll": "Tampilkan {{count}} lainnya",
+    "showLess": "Sembunyikan"
   },
   "budgetHealth": {
     "onTrack": "Aman",
