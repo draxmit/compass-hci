@@ -5,9 +5,9 @@ import type { TFunction } from 'i18next';
 import {
   CalendarDays, ChevronLeft, ChevronRight, Plus, Sparkles, TrendingUp, Zap,
 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Animated, Modal, PanResponder, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // expo-linear-gradient was used by an older AskCompassCta variant
 // (banner card with diagonal gradient). The current "conversational
@@ -196,6 +196,49 @@ export default function InsightsScreen() {
   // listing the transactions for that calendar day. Cleared on dismiss.
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
+
+  // Swipe-to-close for the day-detail sheet. Mirrors the
+  // Transactions filter sheet pattern (commit history). PanResponder
+  // tracks downward drag; release past threshold animates the sheet
+  // off-screen then clears selectedDay (which closes the modal).
+  const daySheetTranslateY = useRef(new Animated.Value(0)).current;
+  const daySheetPanResponder = useMemo(
+    () => PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: (_e, gesture) => {
+        // Clamp upward — sheet shouldn't fly off the top.
+        daySheetTranslateY.setValue(Math.max(0, gesture.dy));
+      },
+      onPanResponderRelease: (_e, gesture) => {
+        const isTap = Math.abs(gesture.dy) < 4 && Math.abs(gesture.vy) < 0.1;
+        const shouldClose = isTap || gesture.dy > 100 || gesture.vy > 0.5;
+        if (shouldClose) {
+          Animated.timing(daySheetTranslateY, {
+            toValue: 600,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(() => {
+            setSelectedDay(null);
+            daySheetTranslateY.setValue(0);
+          });
+        } else {
+          Animated.spring(daySheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 4,
+          }).start();
+        }
+      },
+    }),
+    [daySheetTranslateY],
+  );
+  // Reset drag offset whenever the sheet opens — a previous close
+  // animation could have left it at a non-zero value.
+  useEffect(() => {
+    if (selectedDay !== null) daySheetTranslateY.setValue(0);
+  }, [selectedDay, daySheetTranslateY]);
   // Year view data: ONE total per month, NOT daily transactions.
   // We fetch 12 monthly summary docs (tiny — sum-of-spending per
   // category per month). `null` = not yet fetched.
@@ -1246,7 +1289,7 @@ export default function InsightsScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('common:actions.close')}
         />
-        <View
+        <Animated.View
           style={{
             backgroundColor: isDark ? tokens.surface['dark-bg'] : tokens.surface['light-bg'],
             borderTopLeftRadius: 20,
@@ -1254,10 +1297,18 @@ export default function InsightsScreen() {
             paddingTop: 8,
             paddingBottom: Math.max(16, insets.bottom),
             maxHeight: '75%',
+            transform: [{ translateY: daySheetTranslateY }],
           }}
         >
-          {/* Drag handle */}
-          <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+          {/* Drag handle — wrapped in a tall hit-area View that owns
+              the PanResponder. View (not Pressable) so the gesture
+              system isn't fighting Pressable's own touch handling.
+              Tap-on-handle still dismisses via the isTap branch in
+              onPanResponderRelease above. */}
+          <View
+            style={{ paddingVertical: 10, alignItems: 'center' }}
+            {...daySheetPanResponder.panHandlers}
+          >
             <View
               style={{
                 width: 40, height: 4, borderRadius: 2,
@@ -1305,6 +1356,11 @@ export default function InsightsScreen() {
                 ? resolveCategoryColor(cat.color, isDark ? 'dark' : 'light')
                 : mutedColor;
               const isLast = idx === selectedDayTxs.length - 1;
+              // Same Pressable→inner-View pattern that fixed the
+              // heatmap cells, ask CTA, preset rows. Pressable
+              // function-style on Android drops the row layout if
+              // it returns flexDirection — keep flex on a static
+              // inner View instead.
               return (
                 <Pressable
                   key={tx.id}
@@ -1314,60 +1370,63 @@ export default function InsightsScreen() {
                     setSelectedDay(null);
                     router.push(`/transaction/${tx.id}` as Href);
                   }}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 12,
-                    paddingVertical: 12,
-                    borderBottomWidth: isLast ? 0 : 1,
-                    borderBottomColor: borderColor,
-                    opacity: pressed ? 0.65 : 1,
-                  })}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}
                 >
                   <View
                     style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 10,
-                      backgroundColor: tint + '22',
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      gap: 12,
+                      paddingVertical: 12,
+                      borderBottomWidth: isLast ? 0 : 1,
+                      borderBottomColor: borderColor,
                     }}
                   >
-                    {cat ? (
-                      <CategoryIcon name={cat.icon} color={tint} size={16} />
-                    ) : (
-                      <Sparkles size={16} color={tint} />
-                    )}
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text
-                      className="font-sans-medium text-sm"
-                      style={{ color: fgColor }}
-                      numberOfLines={1}
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        backgroundColor: tint + '22',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
                     >
-                      {tx.description || cat?.name[lang] || t('insights:dayDetail.untitled')}
-                    </Text>
-                    {cat ? (
-                      <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-                        {cat.name[lang]}
+                      {cat ? (
+                        <CategoryIcon name={cat.icon} color={tint} size={16} />
+                      ) : (
+                        <Sparkles size={16} color={tint} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text
+                        className="font-sans-medium text-sm"
+                        style={{ color: fgColor }}
+                        numberOfLines={1}
+                      >
+                        {tx.description || cat?.name[lang] || t('insights:dayDetail.untitled')}
                       </Text>
-                    ) : null}
+                      {cat ? (
+                        <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+                          {cat.name[lang]}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text
+                      className="font-mono tabular-nums text-sm"
+                      style={{
+                        color: tx.type === 'income' ? tokens.semantic.positive : fgColor,
+                      }}
+                    >
+                      {tx.type === 'income' ? '+' : tx.type === 'expense' ? '−' : ''}
+                      {formatIDR(tx.amountIDR, lang)}
+                    </Text>
                   </View>
-                  <Text
-                    className="font-mono tabular-nums text-sm"
-                    style={{
-                      color: tx.type === 'income' ? tokens.semantic.positive : fgColor,
-                    }}
-                  >
-                    {tx.type === 'income' ? '+' : tx.type === 'expense' ? '−' : ''}
-                    {formatIDR(tx.amountIDR, lang)}
-                  </Text>
                 </Pressable>
               );
             })}
           </ScrollView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
     </>
