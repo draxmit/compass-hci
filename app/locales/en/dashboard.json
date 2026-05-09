@@ -24,6 +24,22 @@
     "down": "↓ {{amount}} less",
     "same": "no change"
   },
+  "cashFlow": {
+    "savedLabel": "SAVED",
+    "overspentLabel": "OVERSPENT",
+    "income": "Income",
+    "spent": "Spent"
+  },
+  "savingsRate": {
+    "headlineGood": "Saving {{pct}}% this month",
+    "headlineOk": "Saving {{pct}}% this month",
+    "headlineLow": "Saving {{pct}}% this month",
+    "subtitle": "Income kept after expenses",
+    "deltaUp_one": "↑ {{points}} pt vs last month",
+    "deltaUp_other": "↑ {{points}} pts vs last month",
+    "deltaDown_one": "↓ {{points}} pt vs last month",
+    "deltaDown_other": "↓ {{points}} pts vs last month"
+  },
   "empty": {
     "netWorth": "Add an account to see your total balance.",
     "addAccount": "Add account",

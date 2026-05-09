@@ -24,6 +24,22 @@
     "down": "↓ {{amount}} lebih hemat",
     "same": "tidak ada perubahan"
   },
+  "cashFlow": {
+    "savedLabel": "TABUNGAN",
+    "overspentLabel": "BOROS",
+    "income": "Pemasukan",
+    "spent": "Pengeluaran"
+  },
+  "savingsRate": {
+    "headlineGood": "Menabung {{pct}}% bulan ini",
+    "headlineOk": "Menabung {{pct}}% bulan ini",
+    "headlineLow": "Menabung {{pct}}% bulan ini",
+    "subtitle": "Sisa pemasukan setelah pengeluaran",
+    "deltaUp_one": "↑ {{points}} poin dari bulan lalu",
+    "deltaUp_other": "↑ {{points}} poin dari bulan lalu",
+    "deltaDown_one": "↓ {{points}} poin dari bulan lalu",
+    "deltaDown_other": "↓ {{points}} poin dari bulan lalu"
+  },
   "empty": {
     "netWorth": "Tambah akun dulu untuk lihat total saldomu.",
     "addAccount": "Tambah akun",

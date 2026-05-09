@@ -20,7 +20,7 @@ import {
   listMonthTotals, subscribeMonthTotals,
 } from '@/services/firestore/categoryMonthTotalsService';
 import { subscribeGoal, subscribeGoals } from '@/services/firestore/goalsService';
-import { subscribeRecent } from '@/services/firestore/transactionsService';
+import { listTransactions, subscribeRecent } from '@/services/firestore/transactionsService';
 import { useAuthUser, useUserDoc } from '@/stores/authStore';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
@@ -139,6 +139,14 @@ export default function DashboardScreen() {
   const [monthTotals, setMonthTotals] = useState<CategoryMonthTotal[]>([]);
   const [lastMonthTotals, setLastMonthTotals] = useState<CategoryMonthTotal[]>([]);
   const [recentTxs, setRecentTxs] = useState<Transaction[]>([]);
+  // Income transactions for this month + last month — needed for the
+  // Cash Flow card (income vs expense) and the Savings Rate pill.
+  // category_month_totals only stores expense totals (denormalised in
+  // T6/T7); income lives only on the transaction docs themselves. So
+  // we one-shot listTransactions for both months. Cheap on Spark (one
+  // user typically has <50 income tx in any given month).
+  const [thisMonthIncomeTxs, setThisMonthIncomeTxs] = useState<Transaction[]>([]);
+  const [lastMonthIncomeTxs, setLastMonthIncomeTxs] = useState<Transaction[]>([]);
 
   // Per-subscription "first emission landed" flags. Without these the
   // initial render sees [] for everything and triggers the welcome /
@@ -182,6 +190,17 @@ export default function DashboardScreen() {
     listMonthTotals(wid, lastYearMonth)
       .then(setLastMonthTotals)
       .catch((err: unknown) => console.warn('[dashboard] listMonthTotals(last) failed', err));
+    // Income transactions for this + last month (Cash Flow card +
+    // Savings Rate pill). One-shot, not realtime — saving doesn't move
+    // fast enough for realtime to matter, and a fresh fetch on every
+    // Dashboard mount is cheap. We filter by yearMonth which uses the
+    // pre-built composite index from ADR-07.
+    listTransactions(wid, { yearMonth: thisYearMonth })
+      .then((txs) => setThisMonthIncomeTxs(txs.filter((t) => t.type === 'income')))
+      .catch((err: unknown) => console.warn('[dashboard] income(this) failed', err));
+    listTransactions(wid, { yearMonth: lastYearMonth })
+      .then((txs) => setLastMonthIncomeTxs(txs.filter((t) => t.type === 'income')))
+      .catch((err: unknown) => console.warn('[dashboard] income(last) failed', err));
     return () => { unsubA(); unsubC(); unsubM(); unsubR(); };
   }, [wid, thisYearMonth, lastYearMonth]);
 
@@ -235,6 +254,40 @@ export default function DashboardScreen() {
     [lastMonthTotals],
   );
   const monthDelta = thisMonthSpent - lastMonthSpent;
+
+  // Income totals — sum the FX-snapshotted `amountIDR` field already
+  // computed at write-time (ADR-16). No need to re-convert here; that
+  // would double-apply FX if rates have changed since the tx was
+  // recorded. amountIDR is the canonical cross-account aggregation
+  // field — same field that month_totals uses for spending.
+  const thisMonthIncome = useMemo(
+    () => thisMonthIncomeTxs.reduce((s, tx) => s + tx.amountIDR, 0),
+    [thisMonthIncomeTxs],
+  );
+  const lastMonthIncome = useMemo(
+    () => lastMonthIncomeTxs.reduce((s, tx) => s + tx.amountIDR, 0),
+    [lastMonthIncomeTxs],
+  );
+  // Net cash flow = income − spent. Positive = saved this month.
+  const thisMonthSaved = thisMonthIncome - thisMonthSpent;
+  const lastMonthSaved = lastMonthIncome - lastMonthSpent;
+  const savedDelta = thisMonthSaved - lastMonthSaved;
+  // Savings rate (income > 0): (income − spent) / income, clamped to
+  // [0, 1]. We DON'T show negative rates — if you spent more than you
+  // earned the rate is just 0% with the full deficit elsewhere.
+  // Returns null when there's no income data yet (first paint /
+  // user without income).
+  const savingsRate = useMemo(() => {
+    if (thisMonthIncome <= 0) return null;
+    return Math.max(0, thisMonthSaved / thisMonthIncome);
+  }, [thisMonthIncome, thisMonthSaved]);
+  const lastSavingsRate = useMemo(() => {
+    if (lastMonthIncome <= 0) return null;
+    return Math.max(0, lastMonthSaved / lastMonthIncome);
+  }, [lastMonthIncome, lastMonthSaved]);
+  const savingsRateDelta = (savingsRate !== null && lastSavingsRate !== null)
+    ? savingsRate - lastSavingsRate
+    : null;
 
   // End-of-month projection (v3 phase A — 2). Linear extrapolation of
   // the current pace. Returns null in the first 7 days of the month
@@ -516,6 +569,23 @@ export default function DashboardScreen() {
           )}
         </View>
 
+        {/* Savings Rate pill — single-line health indicator. Renders
+            nothing if no income data yet; colour-coded ring for green
+            (≥20%) / amber (10-19%) / red (<10%). Drives the user's
+            mental "am I on track this month?" check at-a-glance. */}
+        {allLoaded ? (
+          <SavingsRatePill
+            rate={savingsRate}
+            delta={savingsRateDelta}
+            mutedColor={mutedColor}
+            fgColor={fgColor}
+            isDark={isDark}
+            borderColor={borderColor}
+            t={t}
+            lang={lang}
+          />
+        ) : null}
+
         {/* Goals section — collapsible only when there's more than 1
             goal. With 0–1 goals there's nothing to expand TO, so the
             toggle would be a no-op confusion. The whole section is
@@ -691,38 +761,137 @@ export default function DashboardScreen() {
           </Card>
         ) : (
           <>
-        {/* This Month — same pattern. */}
+        {/* Cash Flow — was "This Month spending only", now full
+            income/expense/saved view. Hero number flips to SAVED;
+            income + expense break down underneath; stacked bar
+            visualises the income/expense split. Sparkline + projection
+            stay below since they're spend-rate signals. */}
         <View className="mb-8">
           <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
             {t('dashboard:cards.thisMonth')}
           </Text>
-          {!allLoaded ? null : thisMonthSpent === 0 && lastMonthSpent === 0 ? (
+          {!allLoaded ? null : thisMonthSpent === 0 && thisMonthIncome === 0 && lastMonthSpent === 0 ? (
             <Text className="font-sans text-sm" style={{ color: mutedColor }}>
               {t('dashboard:empty.thisMonth')}
             </Text>
           ) : (
             <>
+              {/* Saved hero — flips colour by sign. Positive (saved) =
+                  brand emerald; negative (overspent) = danger red. */}
+              <Text className="font-sans-medium text-xs" style={{ color: mutedColor, marginBottom: 2 }}>
+                {thisMonthSaved >= 0
+                  ? t('dashboard:cashFlow.savedLabel')
+                  : t('dashboard:cashFlow.overspentLabel')}
+              </Text>
               <Text
                 className="font-mono tabular-nums text-3xl"
-                style={{ color: fgColor }}
+                style={{
+                  color: thisMonthSaved >= 0 ? tokens.semantic.positive : tokens.semantic.danger,
+                }}
                 adjustsFontSizeToFit
                 numberOfLines={1}
               >
-                {maskAmount(formatIDR(thisMonthSpent), balancesHidden)}
+                {maskAmount(formatIDR(Math.abs(thisMonthSaved), lang), balancesHidden)}
               </Text>
-              <DeltaLine
-                delta={monthDelta}
+              {/* Saved-vs-last-month delta. We invert the colour signal
+                  here from spending-DeltaLine: rising savings = good
+                  (positive green), rising overspend = bad. */}
+              <SavedDeltaLine
+                delta={savedDelta}
                 lang={lang}
                 mutedColor={mutedColor}
                 t={t}
               />
+              {/* Income / Spent breakdown — two rows with arrows,
+                  stacked bar below visualises proportion. */}
+              <View
+                style={{
+                  marginTop: 14,
+                  paddingTop: 14,
+                  borderTopWidth: 1,
+                  borderTopColor: borderColor,
+                }}
+              >
+                {/* Income row */}
+                <View className="flex-row items-center justify-between" style={{ marginBottom: 6 }}>
+                  <View className="flex-row items-center" style={{ gap: 8 }}>
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: tokens.semantic.positive + '22',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <ChevronUp size={14} color={tokens.semantic.positive} strokeWidth={2.6} />
+                    </View>
+                    <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+                      {t('dashboard:cashFlow.income')}
+                    </Text>
+                  </View>
+                  <Text className="font-mono tabular-nums text-sm" style={{ color: fgColor }}>
+                    {maskAmount(formatIDR(thisMonthIncome, lang), balancesHidden)}
+                  </Text>
+                </View>
+                {/* Spent row */}
+                <View className="flex-row items-center justify-between" style={{ marginBottom: 12 }}>
+                  <View className="flex-row items-center" style={{ gap: 8 }}>
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: mutedColor + '22',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <ChevronDown size={14} color={mutedColor} strokeWidth={2.6} />
+                    </View>
+                    <Text className="font-sans text-sm" style={{ color: mutedColor }}>
+                      {t('dashboard:cashFlow.spent')}
+                    </Text>
+                  </View>
+                  <Text className="font-mono tabular-nums text-sm" style={{ color: fgColor }}>
+                    {maskAmount(formatIDR(thisMonthSpent, lang), balancesHidden)}
+                  </Text>
+                </View>
+                {/* Stacked bar — green (income) + gray (expense) split.
+                    Width-of-each = proportion of total flow. Same total
+                    width regardless of absolute amounts. */}
+                {(thisMonthIncome + thisMonthSpent) > 0 ? (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      height: 6,
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      backgroundColor: borderColor,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${(thisMonthIncome / (thisMonthIncome + thisMonthSpent)) * 100}%`,
+                        backgroundColor: tokens.semantic.positive,
+                      }}
+                    />
+                    <View
+                      style={{
+                        width: `${(thisMonthSpent / (thisMonthIncome + thisMonthSpent)) * 100}%`,
+                        backgroundColor: mutedColor,
+                      }}
+                    />
+                  </View>
+                ) : null}
+              </View>
               {/* End-of-month projection — only renders when 7+ days of
                   data exist AND there are days remaining in the month.
-                  Renders one line, muted, below the delta to keep the
-                  glance hierarchy: realised total > delta > projection. */}
+                  Renders one line, muted, below the breakdown. */}
               {cashflowProjection ? (
                 <Text
-                  className="font-sans text-xs mt-1.5"
+                  className="font-sans text-xs mt-3"
                   style={{ color: mutedColor }}
                   numberOfLines={1}
                 >
@@ -730,13 +899,6 @@ export default function DashboardScreen() {
                     amount: formatIDR(cashflowProjection.projectedMinor, lang),
                     days: cashflowProjection.daysRemaining,
                     count: cashflowProjection.daysRemaining,
-                    // Explicit context forces i18next to look up
-                    // `cards.projection_one` / `cards.projection_other`
-                    // directly without relying on locale-specific plural
-                    // rules (Indonesian only has one plural form, which
-                    // can confuse the auto-resolver and fall back to the
-                    // bare key 'cards.projection'). Matches the pattern
-                    // used by `cards.acrossNAccounts` elsewhere.
                     context: cashflowProjection.daysRemaining === 1 ? 'one' : 'other',
                   })}
                 </Text>
@@ -925,6 +1087,143 @@ function DeltaLine({ delta, mutedColor, t }: DeltaLineProps) {
   }
   const isUp = delta > 0;
   const color = isUp ? tokens.semantic.danger : tokens.semantic.positive;
+  const key = isUp ? 'dashboard:delta.up' : 'dashboard:delta.down';
+  return (
+    <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
+      <Text style={{ color }}>{t(key, { amount: formatIDR(abs) })}</Text>
+      {' · '}
+      {t('dashboard:cards.vsLastMonth')}
+    </Text>
+  );
+}
+
+/**
+ * Savings Rate pill — single-line health indicator at the top of the
+ * Dashboard. Shows (income − spent) / income as a percentage with a
+ * coloured ring + delta vs last month.
+ *
+ * Bucketing:
+ *   green  — rate ≥ 20%   "you're on track"
+ *   amber  — rate 10–19%  "consider tightening"
+ *   red    — rate <10% or no savings (expense > income)
+ *
+ * Renders nothing when savings rate is null (no income data yet).
+ * Hidden state keeps the page clean for fresh users instead of
+ * showing a "0%" pill that reads as failure when really there's
+ * just no income tracked yet.
+ */
+type SavingsRatePillProps = {
+  rate: number | null;          // 0..1, or null for "no income data"
+  delta: number | null;         // 0..1 difference vs last month, or null
+  mutedColor: string;
+  fgColor: string;
+  isDark: boolean;
+  borderColor: string;
+  t: TFunction;
+  lang: Locale;
+};
+
+function SavingsRatePill({
+  rate, delta, mutedColor, fgColor, isDark, borderColor, t, lang,
+}: SavingsRatePillProps) {
+  void isDark;
+  void borderColor;
+  if (rate === null) return null;
+  const pct = Math.round(rate * 100);
+  // Bucket → ring colour (semantic positive / warning / danger).
+  // Note "neutral" tier renders the ring in muted instead of red so a
+  // 0% rate from a fresh tx-log doesn't visually scream "you failed".
+  let tint = tokens.semantic.danger;
+  if (pct >= 20) tint = tokens.semantic.positive;
+  else if (pct >= 10) tint = tokens.semantic.warning;
+  // Delta sub-line. Up = good (savings up = positive green), down = red.
+  const deltaPct = delta !== null ? Math.round(delta * 100) : null;
+  let deltaLine: React.ReactNode = null;
+  if (deltaPct !== null && deltaPct !== 0) {
+    const isUp = deltaPct > 0;
+    const deltaColor = isUp ? tokens.semantic.positive : tokens.semantic.danger;
+    deltaLine = (
+      <Text className="font-sans text-xs" style={{ color: deltaColor }}>
+        {' · '}
+        {t(
+          isUp ? 'dashboard:savingsRate.deltaUp' : 'dashboard:savingsRate.deltaDown',
+          { points: Math.abs(deltaPct), count: Math.abs(deltaPct) },
+        )}
+      </Text>
+    );
+  }
+  return (
+    <View className="mb-6">
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          paddingVertical: 10,
+          paddingHorizontal: 14,
+          borderRadius: 999,
+          backgroundColor: tint + '14',     // ~8% tint fill
+          borderWidth: 1,
+          borderColor: tint + '55',          // ~33% tint border
+        }}
+      >
+        {/* Round rate dial — coloured ring with the percentage in the
+            center. Visual anchor for the pill. */}
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            borderWidth: 2.5,
+            borderColor: tint,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text className="font-mono tabular-nums" style={{ color: tint, fontSize: 11, fontWeight: '700' }}>
+            {pct}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            className="font-sans-medium text-sm"
+            style={{ color: fgColor }}
+            numberOfLines={1}
+          >
+            {pct >= 20
+              ? t('dashboard:savingsRate.headlineGood', { pct, lng: lang })
+              : pct >= 10
+                ? t('dashboard:savingsRate.headlineOk', { pct, lng: lang })
+                : t('dashboard:savingsRate.headlineLow', { pct, lng: lang })}
+          </Text>
+          <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+            {t('dashboard:savingsRate.subtitle')}
+            {deltaLine}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Saved-vs-last-month delta line — colour signal INVERTED from the
+ * spending DeltaLine. For savings: rising = good (positive green);
+ * falling = bad (danger red). Same i18n keys reused (delta.up /
+ * delta.down) just with swapped colour resolution.
+ */
+function SavedDeltaLine({ delta, mutedColor, t }: DeltaLineProps) {
+  const abs = Math.abs(delta);
+  if (delta === 0) {
+    return (
+      <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
+        {t('dashboard:delta.same')} · {t('dashboard:cards.vsLastMonth')}
+      </Text>
+    );
+  }
+  const isUp = delta > 0;
+  // Inverted: saving more = good
+  const color = isUp ? tokens.semantic.positive : tokens.semantic.danger;
   const key = isUp ? 'dashboard:delta.up' : 'dashboard:delta.down';
   return (
     <Text className="font-sans text-xs mt-1" style={{ color: mutedColor }}>
