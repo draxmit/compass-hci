@@ -75,6 +75,7 @@ export default function EditTransactionScreen() {
   const [amountText, setAmountText] = useState('');
   const [accountId, setAccountId] = useState<string | null>(null);
   const [toAccountId, setToAccountId] = useState<string | null>(null);
+  const [feeText, setFeeText] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [date, setDate] = useState<string>('');
   const [description, setDescription] = useState('');
@@ -127,6 +128,11 @@ export default function EditTransactionScreen() {
         setAmountText(minorToInputText(tx.amount, lang));
         setAccountId(tx.accountId);
         setToAccountId(tx.toAccountId);
+        // Hydrate the fee field for transfer-with-fee txs. Older docs
+        // without feeMinor read as undefined and leave the input empty.
+        if (tx.type === 'transfer' && tx.feeMinor && tx.feeMinor > 0) {
+          setFeeText(minorToInputText(tx.feeMinor, lang));
+        }
         setCategoryId(tx.splits[0]?.categoryId ?? null);
         setDate(tx.date);
         setDescription(tx.description);
@@ -210,12 +216,19 @@ export default function EditTransactionScreen() {
     // different yearMonth bucket, which affects category_month_totals.
     // Goes through delete + recreate just like amount/account changes.
     const dateChanged = date !== loaded.date;
+    // Fee is a transfer-only financial field — changing it adjusts the
+    // source account's balance delta, so it has to go through the
+    // delete + recreate path like every other money-affecting edit.
+    const newFeeMinor = type === 'transfer' ? parseAmountInput(feeText, lang) : 0;
+    const oldFeeMinor = loaded.feeMinor ?? 0;
+    const feeChanged = type === 'transfer' && newFeeMinor !== oldFeeMinor;
     const financialChanged =
       type !== loaded.type
       || amount !== loaded.amount
       || accountId !== loaded.accountId
       || dateChanged
       || (type === 'transfer' && toAccountId !== loaded.toAccountId)
+      || feeChanged
       || (type !== 'transfer' && splitsChanged);
 
     // Detect non-financial changes (description / tags) so we can take
@@ -249,6 +262,7 @@ export default function EditTransactionScreen() {
           toAccountId: type === 'transfer' ? toAccountId : null,
           currency: sourceAccount?.currency ?? loaded.currency ?? 'IDR',
           amount,
+          ...(newFeeMinor > 0 ? { feeMinor: newFeeMinor } : {}),
           splits,
           description: description.trim(),
           tags: normalisedTags,
@@ -502,6 +516,34 @@ export default function EditTransactionScreen() {
               isDark={isDark}
               t={t}
             />
+          ) : null}
+
+          {/* Admin / transfer fee — same field as /transaction/new.
+              Pre-filled from the loaded tx when present; editing it
+              triggers the delete + recreate path so the source-balance
+              delta gets recomputed correctly. */}
+          {type === 'transfer' ? (
+            <View className="mb-5">
+              <Text
+                className="font-sans-medium text-xs uppercase tracking-wider mb-2"
+                style={{ color: mutedColor }}
+              >
+                {t('transactions:entry.fields.fee')}
+              </Text>
+              <TextField
+                label=""
+                value={feeText}
+                onChangeText={(text) => setFeeText(formatAmountInput(text, lang))}
+                placeholder={t('transactions:entry.fields.feePlaceholder')}
+                keyboardType="numeric"
+              />
+              <Text
+                className="font-sans text-xs mt-1.5"
+                style={{ color: mutedColor }}
+              >
+                {t('transactions:entry.fields.feeHint')}
+              </Text>
+            </View>
           ) : null}
 
           {type !== 'transfer' ? (

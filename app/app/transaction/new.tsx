@@ -114,6 +114,10 @@ export default function NewTransactionScreen() {
   const [amountText, setAmountText] = useState('');
   const [accountId, setAccountId] = useState<string | null>(null);
   const [toAccountId, setToAccountId] = useState<string | null>(null);
+  // Optional admin/transfer fee. Transfer-only — when type flips off
+  // 'transfer' we keep the value in state so it returns if the user
+  // toggles back, but it's only included in the payload for transfers.
+  const [feeText, setFeeText] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -367,6 +371,14 @@ export default function NewTransactionScreen() {
       // IDR if for any reason the account isn't yet in state — the UI
       // would have already blocked save by that point.
       const sourceAccount = accounts.find((a) => a.id === accountId);
+      // Parse the optional fee. parseAmountInput returns 0 for empty
+      // strings — perfect, the service ignores 0 fees defensively.
+      // Spread conditionally so the field is omitted entirely when 0
+      // (strict optional types reject `feeMinor: undefined` at the
+      // call boundary).
+      const feeMinor = type === 'transfer'
+        ? parseAmountInput(feeText, lang)
+        : 0;
       await createTransaction(wid, {
         type,
         date,
@@ -374,6 +386,7 @@ export default function NewTransactionScreen() {
         toAccountId: type === 'transfer' ? toAccountId : null,
         currency: sourceAccount?.currency ?? 'IDR',
         amount,
+        ...(feeMinor > 0 ? { feeMinor } : {}),
         splits,
         description: description.trim() || (nlpInput.trim() || ''),
         // Defensive normalisation at the boundary in case the chip
@@ -742,6 +755,39 @@ export default function NewTransactionScreen() {
               isDark={isDark}
               t={t}
             />
+          ) : null}
+
+          {/* Admin / transfer fee (transfer only, optional). Some banks
+              and e-wallets charge a small fee for inter-bank transfers
+              (e.g. Rp 6.500 BI-FAST, Rp 2.500 GoPay-to-bank). When
+              filled, the fee is deducted from the source account on
+              top of the transfer amount; the destination still
+              receives the full amount. Empty means no fee. */}
+          {type === 'transfer' ? (
+            <View className="mb-5">
+              <Text
+                className="font-sans-medium text-xs uppercase tracking-wider mb-2"
+                style={{ color: mutedColor }}
+              >
+                {t('transactions:entry.fields.fee')}
+              </Text>
+              <TextField
+                label=""
+                value={feeText}
+                onChangeText={(text) => {
+                  // Same locale-aware formatting as the main amount field.
+                  setFeeText(formatAmountInput(text, lang));
+                }}
+                placeholder={t('transactions:entry.fields.feePlaceholder')}
+                keyboardType="numeric"
+              />
+              <Text
+                className="font-sans text-xs mt-1.5"
+                style={{ color: mutedColor }}
+              >
+                {t('transactions:entry.fields.feeHint')}
+              </Text>
+            </View>
           ) : null}
 
           {/* Category (expense / income only). Single mode shows the

@@ -343,6 +343,24 @@ export type Transaction = {
    */
   amountIDR: number;
   splits: Split[];       // length 1 in v1; [] for transfers
+  /**
+   * OPTIONAL admin/transfer fee in `currency` minor units. Transfer-only.
+   * When present, the source account's balance is reduced by
+   * `amount + feeMinor` (the fee is gone — typical bank/wallet
+   * transfer charge). The destination account still receives `amount`
+   * unchanged.
+   *
+   * Stored on the tx so the user can see it on the detail screen and
+   * future reports can sum total fees paid. Not part of the
+   * `category_month_totals` rollup — fees are inherent transfer
+   * overhead, not categorisable spend in v1.
+   *
+   * Undefined or 0 for fee-less transfers (the common case for
+   * intra-bank transfers, e-wallet top-ups, etc.).
+   */
+  feeMinor?: number;
+  /** IDR-converted fee at the same FX snapshot as `amountIDR`. */
+  feeIDR?: number;
   description: string;
   /**
    * Free-text user tags (v2 / ADR-17). Always present, default `[]`.

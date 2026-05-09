@@ -74,6 +74,12 @@ export type CreateTransactionInput = {
    */
   currency?: Currency;
   amount: number;              // integer minor units in `currency`
+  /**
+   * Optional transfer admin fee in `currency` minor units. Only meaningful
+   * when type === 'transfer'; ignored for expense/income. Source balance
+   * is reduced by (amount + feeMinor); destination still receives amount.
+   */
+  feeMinor?: number;
   splits: Split[];             // length 1 in v1; [] for transfers; in `currency`
   description: string;
   /**
@@ -131,6 +137,15 @@ export async function createTransaction(
     destData = destSnap.data() as Account;
   }
 
+  // Transfer fee — optional. Only honoured for type === 'transfer'.
+  // Negative or non-integer values defensively coerced to 0 so the
+  // service never produces a malformed delta.
+  const feeMinor =
+    input.type === 'transfer' && typeof input.feeMinor === 'number' && input.feeMinor > 0
+      ? Math.round(input.feeMinor)
+      : 0;
+  const feeIDR = feeMinor > 0 ? convertToIDRMinor(feeMinor, currency) : 0;
+
   // Compute deltas with sign-flip semantics for liability accounts.
   let sourceDelta = 0;
   let destDelta = 0;
@@ -139,8 +154,10 @@ export async function createTransaction(
   } else if (input.type === 'income') {
     sourceDelta = balanceDelta(input.amount, sourceData.type, 'in');
   } else {
-    // transfer: outflow source + inflow dest
-    sourceDelta = balanceDelta(input.amount, sourceData.type, 'out');
+    // transfer: outflow source (amount + fee) + inflow dest (amount only).
+    // The fee is just gone — typical "Rp 6.5k admin fee" charged by the
+    // bank/wallet that doesn't land in any account.
+    sourceDelta = balanceDelta(input.amount + feeMinor, sourceData.type, 'out');
     if (destData) destDelta = balanceDelta(input.amount, destData.type, 'in');
   }
 
@@ -155,7 +172,9 @@ export async function createTransaction(
   }
 
   const batch = writeBatch(db);
-  batch.set(txRef, {
+  // Build the doc payload conditionally — Firestore rejects undefined
+  // fields, so we only include fee* keys when there's actually a fee.
+  const docPayload: Record<string, unknown> = {
     type: input.type,
     date: input.date,
     yearMonth,
@@ -172,7 +191,12 @@ export async function createTransaction(
     confidence: input.confidence,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+  if (feeMinor > 0) {
+    docPayload.feeMinor = feeMinor;
+    docPayload.feeIDR = feeIDR;
+  }
+  batch.set(txRef, docPayload);
 
   batch.update(accountRef(wid, input.accountId), {
     currentBalance: increment(sourceDelta),
@@ -352,8 +376,11 @@ export async function deleteTransaction(wid: string, id: string): Promise<void> 
     if (destSnap.exists()) destData = destSnap.data() as Account;
   }
 
-  // Reversal deltas — direction inverted vs createTransaction.
-  // create:expense → outflow, delete:expense → inflow (give back).
+  // Reversal deltas — direction inverted vs createTransaction. Fees
+  // were charged on the source side at create time (amount + fee),
+  // so the reversal must give back amount + fee too. Defensively
+  // coerce to number — older docs may not have feeMinor at all.
+  const reversalFeeMinor = typeof tx.feeMinor === 'number' && tx.feeMinor > 0 ? tx.feeMinor : 0;
   let sourceDelta = 0;
   let destDelta = 0;
   if (tx.type === 'expense') {
@@ -361,8 +388,9 @@ export async function deleteTransaction(wid: string, id: string): Promise<void> 
   } else if (tx.type === 'income') {
     sourceDelta = balanceDelta(tx.amount, sourceData.type, 'out');
   } else {
-    // transfer: original was out-of-source + into-dest; reverse both
-    sourceDelta = balanceDelta(tx.amount, sourceData.type, 'in');
+    // transfer: original was out-of-source (amount + fee) + into-dest
+    // (amount only). Reverse both with the same sign-flip semantics.
+    sourceDelta = balanceDelta(tx.amount + reversalFeeMinor, sourceData.type, 'in');
     if (destData) destDelta = balanceDelta(tx.amount, destData.type, 'out');
   }
 
