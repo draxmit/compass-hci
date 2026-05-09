@@ -264,6 +264,19 @@ export default function DashboardScreen() {
     [includedAccounts],
   );
 
+  // Vault math (per user's mental model): goals earmark a portion
+  // of total balance — money that's in the user's accounts but
+  // mentally committed elsewhere. "Free to spend" is the difference.
+  // We sum sinking-fund goals only (habit-streak goals don't track
+  // a money amount).
+  const totalInGoals = useMemo(
+    () => allGoals
+      .filter((g) => g.kind === 'sinking_fund')
+      .reduce((s, g) => s + g.currentMinor, 0),
+    [allGoals],
+  );
+  const freeToSpend = Math.max(0, netWorth - totalInGoals);
+
   const thisMonthSpent = useMemo(
     () => monthTotals.reduce((s, m) => s + m.totalIDR, 0),
     [monthTotals],
@@ -596,6 +609,55 @@ export default function DashboardScreen() {
                   context: includedAccounts.length === 1 ? 'one' : 'other',
                 })}
               </Text>
+              {/* Vault math — shows up only when at least one goal
+                  has a non-zero balance. "Free to spend" is the
+                  unreserved portion; "in goals" is the user's mental
+                  earmark across sinking funds. The total balance hero
+                  above stays unchanged because the money is still in
+                  the accounts — goals are vaults, not transfers. */}
+              {totalInGoals > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTopWidth: 1,
+                    borderTopColor: borderColor,
+                    gap: 16,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      className="font-sans-medium text-[10px] uppercase tracking-wider"
+                      style={{ color: mutedColor, marginBottom: 2 }}
+                    >
+                      {t('dashboard:vault.freeToSpendLabel')}
+                    </Text>
+                    <Text
+                      className="font-mono tabular-nums text-base"
+                      style={{ color: tokens.semantic.positive, fontWeight: '700' }}
+                      numberOfLines={1}
+                    >
+                      {maskAmount(formatIDR(freeToSpend, lang), balancesHidden)}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      className="font-sans-medium text-[10px] uppercase tracking-wider"
+                      style={{ color: mutedColor, marginBottom: 2 }}
+                    >
+                      {t('dashboard:vault.inGoalsLabel')}
+                    </Text>
+                    <Text
+                      className="font-mono tabular-nums text-base"
+                      style={{ color: fgColor }}
+                      numberOfLines={1}
+                    >
+                      {maskAmount(formatIDR(totalInGoals, lang), balancesHidden)}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
             </>
           )}
         </View>

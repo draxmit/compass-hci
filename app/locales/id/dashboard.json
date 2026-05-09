@@ -24,6 +24,10 @@
     "down": "↓ {{amount}} lebih hemat",
     "same": "tidak ada perubahan"
   },
+  "vault": {
+    "freeToSpendLabel": "Bisa dipakai",
+    "inGoalsLabel": "Di tujuan"
+  },
   "cashFlow": {
     "savedLabel": "TABUNGAN",
     "overspentLabel": "BOROS",

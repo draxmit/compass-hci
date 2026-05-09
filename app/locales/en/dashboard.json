@@ -24,6 +24,10 @@
     "down": "↓ {{amount}} less",
     "same": "no change"
   },
+  "vault": {
+    "freeToSpendLabel": "Free to spend",
+    "inGoalsLabel": "In goals"
+  },
   "cashFlow": {
     "savedLabel": "SAVED",
     "overspentLabel": "OVERSPENT",
