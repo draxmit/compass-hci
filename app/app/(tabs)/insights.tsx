@@ -878,80 +878,64 @@ function AskCompassCta({
 }) {
   void isDark;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={t('ask:entryCta')}
-      onPress={onPress}
-      style={({ hovered, pressed }) => ({
-        marginTop: 4,
-        marginBottom: 32,
-        // Half-pill geometry. With a 56px content area + 22px padding
-        // = ~100px total height, a 50px radius fully rounds the
-        // vertical edges so the card silhouette is a true rounded
-        // pill instead of "rectangle with rounded corners".
-        borderRadius: 50,
-        borderWidth: 1,
-        borderColor:
-          (hovered as boolean | undefined) || pressed
-            ? tokens.accent.dashboard + '88'
-            : tokens.accent.dashboard + '40',
-        overflow: 'hidden',
-        transform: [{ scale: pressed ? 0.99 : 1 }],
-      })}
-    >
-      {/* Diagonal accent gradient — mirrors the "AI feature" treatment
-          banks/fintech apps use for new ML-powered surfaces. */}
-      <RNLinearGradient
-        colors={[
-          tokens.accent.dashboard + '1a',
-          tokens.accent.dashboard + '0f',
-          tokens.accent.dashboard + '05',
-        ]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 16,
-          paddingVertical: 16,
-          paddingLeft: 16,
-          paddingRight: 22,
-        }}
+    <View style={{ marginTop: 4, marginBottom: 32 }}>
+      {/* Compact button-pill that ACTUALLY reads as a button — short
+          height + radius = full-rounded vertical edges + alignSelf
+          flex-start so it doesn't stretch full-width into rectangle
+          territory. Subtitle moved below as a separate caption row. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('ask:entryCta')}
+        onPress={onPress}
+        style={({ hovered, pressed }) => ({
+          alignSelf: 'flex-start',
+          // 999 always wins as a half-pill regardless of height
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor:
+            (hovered as boolean | undefined) || pressed
+              ? tokens.accent.dashboard + '99'
+              : tokens.accent.dashboard + '55',
+          overflow: 'hidden',
+          transform: [{ scale: pressed ? 0.97 : 1 }],
+        })}
       >
-        {/* Perfectly-circular icon avatar so the leftmost shape on
-            the row is a full circle — anchors the eye to a curved
-            silhouette rather than a square inside a rounded card. */}
-        <View
+        <RNLinearGradient
+          colors={[
+            tokens.accent.dashboard + '24',
+            tokens.accent.dashboard + '14',
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: 26,
-            backgroundColor: tokens.accent.dashboard + '22',
+            flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: 8,
+            paddingVertical: 10,
+            paddingHorizontal: 16,
           }}
         >
-          <Sparkles size={24} color={tokens.accent.dashboard} />
-        </View>
-        <View style={{ flex: 1 }}>
+          <Sparkles size={16} color={tokens.accent.dashboard} />
           <Text
-            className="font-sans-bold text-base"
-            style={{ color: fgColor }}
-            numberOfLines={1}
+            className="font-sans-bold text-sm"
+            style={{ color: tokens.accent.dashboard }}
           >
             {t('ask:entryCta')}
           </Text>
-          <Text
-            className="font-sans text-xs mt-0.5"
-            style={{ color: mutedColor }}
-            numberOfLines={2}
-          >
-            {t('ask:entrySubtitle')}
-          </Text>
-        </View>
-        <ChevronRight size={18} color={mutedColor} />
-      </RNLinearGradient>
-    </Pressable>
+          <ChevronRight size={14} color={tokens.accent.dashboard} />
+        </RNLinearGradient>
+      </Pressable>
+      {/* Caption underneath — kept as separate text, not bundled into
+          the button. Lets the button itself stay tight + obviously
+          tappable; caption explains what it does without making the
+          button feel like a full-bleed banner card. */}
+      <Text
+        className="font-sans text-xs mt-2"
+        style={{ color: mutedColor }}
+      >
+        {t('ask:entrySubtitle')}
+      </Text>
+    </View>
   );
 }
 
