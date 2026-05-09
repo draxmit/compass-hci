@@ -17,8 +17,10 @@ import type {
  * about side-by-side than threaded into the chat client.
  */
 
+// Same model as gemini.ts — see comment there. Stays in sync if
+// Google rolls model availability again.
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 /**
  * JSON-mode response schema for both parse-text and scan-receipt.

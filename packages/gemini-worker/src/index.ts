@@ -109,6 +109,11 @@ export default {
         const response: ParseTextResponse = { parsed, echoText: body.text };
         return jsonResponse(response);
       } catch (err) {
+        // Surface in wrangler tail so the deploy can be debugged
+        // without rebuilding the client. Gemini errors usually carry
+        // a useful 400/404/429 message that explains exactly what's
+        // wrong (model name, quota, malformed JSON).
+        console.error('[gemini-failed]', err instanceof Error ? err.message : err);
         return jsonResponse(
           {
             error: 'gemini-failed',
@@ -145,6 +150,11 @@ export default {
         const response: ScanReceiptResponse = { parsed, rawText };
         return jsonResponse(response);
       } catch (err) {
+        // Surface in wrangler tail so the deploy can be debugged
+        // without rebuilding the client. Gemini errors usually carry
+        // a useful 400/404/429 message that explains exactly what's
+        // wrong (model name, quota, malformed JSON).
+        console.error('[gemini-failed]', err instanceof Error ? err.message : err);
         return jsonResponse(
           {
             error: 'gemini-failed',
@@ -178,6 +188,11 @@ export default {
       try {
         result = await callGemini(env, history, body.userMessage, body.context);
       } catch (err) {
+        // Surface in wrangler tail so the deploy can be debugged
+        // without rebuilding the client. Gemini errors usually carry
+        // a useful 400/404/429 message that explains exactly what's
+        // wrong (model name, quota, malformed JSON).
+        console.error('[gemini-failed]', err instanceof Error ? err.message : err);
         return jsonResponse(
           {
             error: 'gemini-failed',

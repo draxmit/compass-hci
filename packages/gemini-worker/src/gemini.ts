@@ -14,8 +14,13 @@ import type {
  * generativelanguage.googleapis.com — plenty for a class-demo app.
  */
 
+// Free-tier model. Google rolled gemini-2.0-flash out of free tier in
+// mid-2026; the current free-tier flash variant is gemini-2.5-flash.
+// If Google rolls models again, swap this constant — everything else
+// in the Worker (system prompt, JSON schema, contents shape) is
+// model-agnostic.
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 const SYSTEM_PROMPT = `You are Compass, a personal financial assistant for Indonesian users.
 You have READ-ONLY access to the user's financial data via the snapshot below.
