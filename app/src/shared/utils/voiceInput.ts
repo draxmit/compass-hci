@@ -95,7 +95,15 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     }
     try {
       const rec = new Ctor();
-      rec.lang = locale === 'id' ? 'id-ID' : 'en-US';
+      // ALWAYS Indonesian — matches the native hardcode in
+      // voiceInput.native.ts. Compass is an Indonesian banking app;
+      // tying voice recognition to UI locale meant English-locale
+      // users (testing or toggle accidents) saw their Indonesian
+      // speech transcribed as garbled English ("makan" → "mark").
+      // The `locale` prop is still accepted for API parity with the
+      // native variant but intentionally ignored here.
+      void locale;
+      rec.lang = 'id-ID';
       rec.continuous = false;     // single-utterance mode
       rec.interimResults = false;  // we only consume the final transcript
       rec.onresult = (e: SpeechRecognitionEventLike) => {
