@@ -106,6 +106,11 @@ export default function InsightsScreen() {
   const [heatmapView, setHeatmapView] = useState<'month' | 'year'>('month');
   const [yearTxsByMonth, setYearTxsByMonth] = useState<Map<string, Transaction[]> | null>(null);
   const [yearTxsLoading, setYearTxsLoading] = useState(false);
+  // Tracks which months' parallel fetches have RESOLVED (regardless
+  // of whether they returned any transactions). Used to drive the
+  // per-month skeleton — `txs.length > 0` would incorrectly leave
+  // empty-spending months stuck in skeleton state forever.
+  const [yearResolvedMonths, setYearResolvedMonths] = useState<Set<string>>(new Set());
 
   // Compute the 6 yearMonths backwards from current. Memoised so the
   // useEffect deps are stable.
@@ -317,6 +322,7 @@ export default function InsightsScreen() {
     // the whole load. Each successful query updates state immediately
     // — that month's grid lights up as data arrives, no waiting for
     // siblings.
+    setYearResolvedMonths(new Set());
     let resolvedCount = 0;
     yearMonthsList.forEach((ym) => {
       const start = Date.now();
@@ -327,16 +333,31 @@ export default function InsightsScreen() {
             `[insights] year fetch ${ym}: ${txs.length} txs in ${Date.now() - start}ms`,
           );
           setYearTxsByMonth((prev) => {
-            // Defensive null-coalesce — `prev` is the seed Map at this
-            // point (we initialised it above), but a re-render race
-            // could in theory hand us null.
             const next = new Map(prev ?? []);
             next.set(ym, txs);
+            return next;
+          });
+          // Mark THIS month as resolved — regardless of whether it
+          // had transactions. Prevents empty-spending months getting
+          // stuck in skeleton state.
+          setYearResolvedMonths((prev) => {
+            const next = new Set(prev);
+            next.add(ym);
             return next;
           });
         })
         .catch((err: unknown) => {
           console.warn(`[insights] year fetch ${ym} failed`, err);
+          // Treat failure as resolved too — we don't want a single
+          // failed month to leave the user staring at an indefinite
+          // skeleton. They'll see the "no spending" state instead.
+          if (!cancelled) {
+            setYearResolvedMonths((prev) => {
+              const next = new Set(prev);
+              next.add(ym);
+              return next;
+            });
+          }
         })
         .finally(() => {
           if (cancelled) return;
@@ -386,11 +407,14 @@ export default function InsightsScreen() {
         daysInMonth,
         firstDow,
         dayTotals,
-        hasData: txs.length > 0,
+        // RESOLVED, not "has spending". A month with zero txs is
+        // still a fully-loaded month — should render as the empty
+        // calendar grid, not the loading skeleton.
+        hasData: yearResolvedMonths.has(ym),
       });
     }
     return { months, max };
-  }, [heatmapView, yearTxsByMonth, yearMonthsList]);
+  }, [heatmapView, yearTxsByMonth, yearMonthsList, yearResolvedMonths]);
 
   // ----- Day-of-week aggregation -----
   // Average per dow across all transactions in the trend window.
