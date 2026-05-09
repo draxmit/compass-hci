@@ -43,3 +43,7 @@ app/ios
 app/android
 packages/*/node_modules
 packages/*/dist
+
+# Runtime / IDE state
+.claude/scheduled_tasks.lock
+app/.claude/
