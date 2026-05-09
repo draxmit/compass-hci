@@ -1490,16 +1490,21 @@ function DailySparkline({
   const [chartW, setChartW] = useState(280);
   const W = chartW;
   const H = 50;
-  const padX = 6;
   const padTop = 8;
   const padBot = 8;
-  const usableX = W - 2 * padX;
   const usableY = H - padTop - padBot;
-  const stepX = totals.length > 1 ? usableX / (totals.length - 1) : 0;
+  // Each dot sits at the CENTER of its corresponding column. The
+  // labels below use `flex: 1` per column (so column 0 centre is at
+  // W/14, column 1 at 3W/14, etc.) and the dots have to track the
+  // same anchor — without this they hugged the chart's outer edges
+  // (padX = 6) while labels stayed column-centered, leaving the
+  // first/last dots ~15px off-axis from their label. Same alignment
+  // fix applied to the Insights TrendLineChart in commit 1cea8ed.
+  const colWidth = totals.length > 0 ? W / totals.length : 0;
   const todaysTotal = totals[totals.length - 1] ?? 0;
 
   const points = totals.map((total, i) => {
-    const x = padX + i * stepX;
+    const x = colWidth / 2 + i * colWidth;
     const y = padTop + (1 - total / max) * usableY;
     return { x, y, total };
   });
