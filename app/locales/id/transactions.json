@@ -121,7 +121,7 @@
     "deleteFailed": "Gagal menghapus transaksi."
   },
   "filters": {
-    "search": "Cari deskripsi, kategori, label, akun, atau jumlah…",
+    "search": "Cari transaksi…",
     "allTypes": "Semua",
     "thisMonth": "Bulan ini",
     "lastMonth": "Bulan lalu",

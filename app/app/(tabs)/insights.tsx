@@ -2319,81 +2319,81 @@ function Heatmap({
 
   return (
     <View>
-      {/* Weekday header */}
+      {/* Weekday header — width:'13%' matches the day-cell columns
+          below so labels stay vertically aligned with their column. */}
       <View className="flex-row" style={{ gap: 4, marginBottom: 4 }}>
         {weekdayShortNames.map((n, i) => (
           <Text
             key={i}
             className="font-sans-medium text-[10px]"
-            style={{ color: mutedColor, flex: 1, textAlign: 'center' }}
+            style={{ color: mutedColor, width: '13%', textAlign: 'center' }}
           >
             {n}
           </Text>
         ))}
       </View>
-      {/* Day cells in rows of 7 */}
+      {/* Day cells in rows of 7. Width-based layout (13% per cell)
+          instead of flex:1 — RN-Native's flex pass was choking on
+          aspectRatio inside flex-row siblings of mixed types,
+          producing "some cells huge, others inline" on Android. With
+          explicit width %, every cell sizes itself independently of
+          its siblings. 13% × 7 = 91%; the remaining 9% absorbs the
+          6 gaps × 4px and any rounding slop. */}
       <View style={{ gap: 4 }}>
         {chunk(cells, 7).map((row, rowIdx) => (
           <View key={rowIdx} className="flex-row" style={{ gap: 4 }}>
             {row.map((cell, i) => {
-              if (!cell) return <View key={i} style={{ flex: 1, aspectRatio: 1 }} />;
+              const cellLayoutStyle = { width: '13%' as const, aspectRatio: 1 };
+              if (!cell) return <View key={i} style={cellLayoutStyle} />;
               const intensity = max === 0 ? 0 : cell.total / max;
-              // Map intensity 0..1 to opacity 0..1 atop the muted base.
               const fillAlpha = intensity === 0 ? 0 : Math.max(0.15, intensity);
               const cellPressable = !!onDayPress && cell.total > 0;
-              // ALL cells render as a Pressable — even non-tappable ones.
-              // Mixing Pressable + View as siblings inside the same
-              // flex-row was confusing RN-Native's layout pass on
-              // some Android dev clients (the non-Pressable Views
-              // collapsed to text-content width while Pressables kept
-              // flex:1, producing the "huge box + inline text" bug).
-              // Static inner-View pattern matches the Ask Compass fix
-              // from commit d291c33.
-              return (
-                <Pressable
-                  key={i}
-                  accessibilityRole={cellPressable ? 'button' : undefined}
-                  accessibilityLabel={
-                    cellPressable
-                      ? `Day ${cell.day}, spent ${formatIDR(cell.total)}. Tap to see transactions.`
-                      : `Day ${cell.day}, no spending`
-                  }
-                  onPress={cellPressable ? () => onDayPress!(cell.day) : undefined}
-                  disabled={!cellPressable}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    aspectRatio: 1,
-                    opacity: cellPressable && pressed ? 0.7 : 1,
-                  })}
+              const visualStyle = {
+                flex: 1,
+                borderRadius: 6,
+                borderWidth: 1,
+                borderColor,
+                backgroundColor:
+                  intensity === 0 ? 'transparent' : accent + alphaHex(fillAlpha),
+                alignItems: 'center' as const,
+                justifyContent: 'center' as const,
+              };
+              const dayText = (
+                <Text
+                  className="font-sans text-[10px]"
+                  style={{
+                    color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
+                  }}
                 >
-                  <View
-                    style={{
-                      flex: 1,
-                      borderRadius: 6,
-                      borderWidth: 1,
-                      borderColor,
-                      backgroundColor:
-                        intensity === 0 ? 'transparent' : accent + alphaHex(fillAlpha),
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+                  {cell.day}
+                </Text>
+              );
+              if (cellPressable) {
+                return (
+                  <Pressable
+                    key={i}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Day ${cell.day}, spent ${formatIDR(cell.total)}. Tap to see transactions.`}
+                    onPress={() => onDayPress!(cell.day)}
+                    style={({ pressed }) => ({
+                      ...cellLayoutStyle,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
                   >
-                    <Text
-                      className="font-sans text-[10px]"
-                      style={{
-                        color: intensity > 0.5 ? '#fff' : intensity > 0 ? fgColor : mutedColor,
-                      }}
-                    >
-                      {cell.day}
-                    </Text>
-                  </View>
-                </Pressable>
+                    <View style={visualStyle}>{dayText}</View>
+                  </Pressable>
+                );
+              }
+              return (
+                <View key={i} style={cellLayoutStyle}>
+                  <View style={visualStyle}>{dayText}</View>
+                </View>
               );
             })}
             {/* Pad short final row to keep cells the same width */}
             {row.length < 7
               ? Array.from({ length: 7 - row.length }).map((_, i) => (
-                  <View key={`pad-${i}`} style={{ flex: 1, aspectRatio: 1 }} />
+                  <View key={`pad-${i}`} style={{ width: '13%' as const, aspectRatio: 1 }} />
                 ))
               : null}
           </View>
@@ -2440,7 +2440,13 @@ function YearMonthBoxes({
     <View className="flex-row flex-wrap" style={{ gap: 8 }}>
       {boxes.map((b) => {
         const monthDate = new Date(`${b.yearMonth}-01T00:00:00`);
-        const monthShort = formatDate(monthDate, 'long-month', lang).split(' ')[0];
+        // 3-char abbreviation so labels fit in the ~80px-wide
+        // mobile boxes without truncation. Locale-aware: "Jan" /
+        // "Feb" / "Mei" / "Jul" — both EN and ID first-3-chars
+        // produce universally recognisable month tokens.
+        const monthShort = formatDate(monthDate, 'long-month', lang)
+          .split(' ')[0]!
+          .slice(0, 3);
         const intensity = b.total === null || max === 0 ? 0 : b.total / max;
         const fillAlpha = intensity === 0 ? 0 : Math.max(0.18, intensity);
         return (
