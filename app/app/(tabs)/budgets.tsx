@@ -267,9 +267,21 @@ export default function BudgetsScreen() {
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
       <View className="self-center w-full max-w-md lg:max-w-3xl">
-        <Text className="font-sans-medium text-xs uppercase tracking-wider mb-1" style={{ color: mutedColor }}>
-          {t('budgets:subtitleMonth', { month: monthLabel })}
-        </Text>
+        {/* Month subtitle with accent dot — promotes the active month
+            to a hero label, matches the Dashboard TOTAL BALANCE treatment. */}
+        <View className="flex-row items-center mb-1" style={{ gap: 8 }}>
+          <View
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: tokens.accent.budgets,
+            }}
+          />
+          <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+            {t('budgets:subtitleMonth', { month: monthLabel })}
+          </Text>
+        </View>
 
         {/* Monthly report link — sits ABOVE the style selector since
             the report is style-independent (same numbers regardless
@@ -280,21 +292,40 @@ export default function BudgetsScreen() {
             accessibilityRole="link"
             accessibilityLabel={t('budgets:actions.viewReport')}
             onPress={() => router.push(`/report/${yearMonth}` as Href)}
-            style={{
+            style={({ hovered, pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
               paddingHorizontal: 14,
               paddingVertical: 12,
-              borderRadius: 10,
+              borderRadius: 12,
               borderWidth: 1,
-              borderColor,
+              borderColor:
+                (hovered as boolean | undefined) || pressed
+                  ? tokens.accent.budgets + '88'
+                  : borderColor,
+              backgroundColor:
+                (hovered as boolean | undefined) || pressed
+                  ? tokens.accent.budgets + '0d'
+                  : 'transparent',
               marginTop: 12,
               marginBottom: 8,
-            }}
+              transform: [{ scale: pressed ? 0.99 : 1 }],
+            })}
           >
-            <View className="flex-row items-center" style={{ gap: 8 }}>
-              <FileText size={16} color={tokens.accent.budgets} />
+            <View className="flex-row items-center" style={{ gap: 10 }}>
+              <View
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 7,
+                  backgroundColor: tokens.accent.budgets + '22',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <FileText size={14} color={tokens.accent.budgets} />
+              </View>
               <Text className="font-sans-medium text-sm" style={{ color: fgColor }}>
                 {t('budgets:actions.viewReport')}
               </Text>
@@ -303,20 +334,40 @@ export default function BudgetsScreen() {
           </Pressable>
         ) : null}
 
-        {/* Style selector strip — segmented buttons. Only monthly_limit is
-            tappable in v1; the other two show a 'Coming in v2' alert. */}
+        {/* Style selector strip — segmented buttons. Active style uses
+            a horizontal accent gradient (matches the rest of the app's
+            active-state treatment); inactive states stay transparent
+            with muted text. The container's borderRadius rounds to a
+            pill so the segmented control reads as a unified switch. */}
         <View
           className="flex-row mb-6 mt-3"
           style={{
             borderWidth: 1,
             borderColor,
-            borderRadius: 10,
+            borderRadius: 999,
             padding: 4,
             gap: 4,
           }}
         >
           {STYLES.map((style) => {
             const active = selectedStyle === style;
+            const inner = (
+              <Text
+                className="font-sans-medium text-xs"
+                style={{
+                  color: active ? '#fff' : mutedColor,
+                }}
+                numberOfLines={1}
+              >
+                {t(
+                  style === 'monthly_limit'
+                    ? 'budgets:styles.monthlyLimit'
+                    : style === 'envelope'
+                      ? 'budgets:styles.envelope'
+                      : 'budgets:styles.fiftyThirtyTwenty',
+                )}
+              </Text>
+            );
             return (
               <Pressable
                 key={style}
@@ -325,26 +376,34 @@ export default function BudgetsScreen() {
                 onPress={() => handleStylePress(style)}
                 style={{
                   flex: 1,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingVertical: 8,
-                  borderRadius: 8,
-                  backgroundColor: active ? tokens.accent.budgets + '22' : 'transparent',
+                  borderRadius: 999,
+                  overflow: 'hidden',
                 }}
               >
-                <Text
-                  className="font-sans-medium text-xs"
-                  style={{ color: active ? tokens.accent.budgets : mutedColor }}
-                  numberOfLines={1}
-                >
-                  {t(
-                    style === 'monthly_limit'
-                      ? 'budgets:styles.monthlyLimit'
-                      : style === 'envelope'
-                        ? 'budgets:styles.envelope'
-                        : 'budgets:styles.fiftyThirtyTwenty',
-                  )}
-                </Text>
+                {active ? (
+                  <LinearGradient
+                    colors={[tokens.accent.budgets, tokens.accent.budgets + 'd9']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      paddingVertical: 8,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {inner}
+                  </LinearGradient>
+                ) : (
+                  <View
+                    style={{
+                      paddingVertical: 8,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {inner}
+                  </View>
+                )}
               </Pressable>
             );
           })}
@@ -366,9 +425,19 @@ export default function BudgetsScreen() {
           <View>
             {/* Income header */}
             <Card padding="lg" className="mb-4">
-              <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
-                {t('budgets:fiftyThirtyTwenty.incomeLabel')}
-              </Text>
+              <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
+                <View
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: 2.5,
+                    backgroundColor: tokens.accent.budgets,
+                  }}
+                />
+                <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+                  {t('budgets:fiftyThirtyTwenty.incomeLabel')}
+                </Text>
+              </View>
               <Text
                 className="font-mono tabular-nums text-2xl"
                 style={{ color: fgColor }}
@@ -411,9 +480,19 @@ export default function BudgetsScreen() {
                 from monthly_limit. Only renders in envelope mode. */}
             {selectedStyle === 'envelope' ? (
               <Card padding="lg" className="mb-4">
-                <Text className="font-sans-medium text-xs uppercase tracking-wider mb-2" style={{ color: mutedColor }}>
-                  {t('budgets:envelope.totalAvailableLabel')}
-                </Text>
+                <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
+                  <View
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: 2.5,
+                      backgroundColor: tokens.accent.budgets,
+                    }}
+                  />
+                  <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+                    {t('budgets:envelope.totalAvailableLabel')}
+                  </Text>
+                </View>
                 {(() => {
                   const baseSum = budgets.reduce((s, b) => s + b.limitMinor, 0);
                   const rollSum = [...envelopeBalances.values()]
@@ -444,9 +523,19 @@ export default function BudgetsScreen() {
             {/* Budgeted section */}
             {budgetedCategories.length > 0 ? (
               <View className="mb-6">
-                <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
-                  {t('budgets:sections.budgeted')}
-                </Text>
+                <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
+                  <View
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: 2.5,
+                      backgroundColor: tokens.accent.budgets,
+                    }}
+                  />
+                  <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+                    {t('budgets:sections.budgeted')}
+                  </Text>
+                </View>
                 <Card padding="none">
                   {budgetedCategories.map((cat, idx) => (
                     <BudgetRow
@@ -511,9 +600,20 @@ export default function BudgetsScreen() {
             {/* Unbudgeted section — discovery surface. */}
             {unbudgetedCategories.length > 0 ? (
               <View className="mb-6">
-                <Text className="font-sans-medium text-xs uppercase tracking-wider mb-3" style={{ color: mutedColor }}>
-                  {t('budgets:sections.unbudgeted')}
-                </Text>
+                <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
+                  <View
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: 2.5,
+                      backgroundColor: mutedColor,
+                      opacity: 0.6,
+                    }}
+                  />
+                  <Text className="font-sans-medium text-xs uppercase tracking-wider" style={{ color: mutedColor }}>
+                    {t('budgets:sections.unbudgeted')}
+                  </Text>
+                </View>
                 <Card padding="none">
                   {unbudgetedCategories.map((cat, idx) => (
                     <UnbudgetedRow
