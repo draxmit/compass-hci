@@ -22,6 +22,7 @@ import { listCategories } from '@/services/firestore/categoriesService';
 import { listMonthTotals } from '@/services/firestore/categoryMonthTotalsService';
 import { listTransactions } from '@/services/firestore/transactionsService';
 import { useAuthUser } from '@/stores/authStore';
+import { useBreakpoint } from '@/shared/hooks/useBreakpoint';
 import type { Locale } from '@/shared/i18n';
 import { resolveCategoryColor } from '@/shared/theme/categoryColors';
 import { tokens } from '@/shared/theme/tokens';
@@ -914,11 +915,23 @@ function AskCompassCta({
   // like the input the user is about to type into, mimicking
   // ChatGPT mobile's home screen / Cursor's chat trigger. Same
   // target as before (router.push('/ask')) but reads as the
-  // beginning of a conversation, not a CTA. The "boxy" feedback
-  // the user kept giving was rejection of the entire button
-  // paradigm — once we frame it as an input, the rectangular
-  // textfield silhouette IS the right shape (textareas are
-  // rectangular by definition, that's their language).
+  // beginning of a conversation, not a CTA.
+  //
+  // Mobile-vs-web sizing: previous version used desktop dimensions
+  // verbatim on mobile and the user repeatedly flagged it as ugly +
+  // "too thick". `useBreakpoint()` lets the mobile variant collapse
+  // to a slimmer pill (smaller send circle, tighter padding, smaller
+  // glyphs) while web keeps its more spacious feel. Result: the
+  // mobile pill feels like a proper iOS/Android textfield instead
+  // of a chunky CTA chip.
+  const isMobile = useBreakpoint() === 'mobile';
+  const sendSize = isMobile ? 28 : 36;
+  const padLeft = isMobile ? 14 : 18;
+  const padRight = isMobile ? 6 : 8;
+  const padVert = isMobile ? 5 : 8;
+  const sparkleSize = isMobile ? 15 : 18;
+  const arrowSize = isMobile ? 15 : 18;
+  const gapPx = isMobile ? 8 : 10;
   return (
     <Pressable
       accessibilityRole="button"
@@ -937,10 +950,10 @@ function AskCompassCta({
           : tokens.surface['light-card'],
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
-        paddingVertical: 8,
-        paddingLeft: 18,
-        paddingRight: 8,
+        gap: gapPx,
+        paddingVertical: padVert,
+        paddingLeft: padLeft,
+        paddingRight: padRight,
         // Subtle elevation on web (boxShadow is the modern API; native
         // ignores it harmlessly). Gives the input a soft lift so it
         // reads as a contained surface, not floating elements.
@@ -953,10 +966,10 @@ function AskCompassCta({
       })}
     >
       {/* Sparkles glyph hints "this is the AI surface". */}
-      <Sparkles size={18} color={tokens.accent.dashboard} />
+      <Sparkles size={sparkleSize} color={tokens.accent.dashboard} />
       {/* Placeholder text — reads like a textfield's placeholder copy. */}
       <Text
-        className="font-sans text-sm"
+        className={isMobile ? 'font-sans text-xs' : 'font-sans text-sm'}
         style={{ color: mutedColor, flex: 1 }}
         numberOfLines={1}
       >
@@ -967,15 +980,15 @@ function AskCompassCta({
           textfield. */}
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
+          width: sendSize,
+          height: sendSize,
+          borderRadius: sendSize / 2,
           backgroundColor: tokens.accent.dashboard,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <ChevronRight size={18} color="#fff" />
+        <ChevronRight size={arrowSize} color="#fff" />
       </View>
     </Pressable>
   );
