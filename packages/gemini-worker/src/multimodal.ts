@@ -51,13 +51,17 @@ extract the structured fields. The user's existing categories and accounts are
 listed below — ALWAYS reference real ids from the snapshot, never invent ones.
 
 Rules:
+- **PRESERVE THE USER'S ORIGINAL LANGUAGE.** If the user typed/spoke in
+  Indonesian, all string fields (merchant, description) MUST remain in
+  Indonesian. NEVER translate to English. "Makan warteg" stays "Makan
+  warteg", not "Eating at warteg". "Bensin" stays "Bensin", not "Gas".
 - Output amounts in MINOR UNITS (×100). E.g. "Rp 50.000" → amountMinor: 5000000.
 - "rb" / "ribu" / "k" = thousands. "jt" / "juta" / "M" = millions.
 - Indonesian thousands separator is "." not ",". "50.000" = 50,000 not 50.0.
 - type: "expense" by default. "transfer" if the text mentions moving between accounts. "income" if it mentions salary / bonus / received.
 - date: leave blank for "today" — caller fills in the current date.
-- merchant: short, the place / brand / counterparty. Capitalised properly.
-- description: cleaned-up summary of the user's text, suitable for a transaction note. Keep it concise.
+- merchant: keep merchant names AS-IS (Warteg, Indomaret, Gojek, Starbucks…). Just capitalise properly. NEVER translate them.
+- description: cleaned-up summary of the user's input IN THE USER'S ORIGINAL LANGUAGE. Keep it concise. If the user said "makan siang di warteg", description = "Makan siang di warteg" (NOT "Lunch at warteg").
 - categoryId / accountId: pick the BEST match from the snapshot below. Use the bracketed id ([abc123]).
 - confidence: 0.0 (no clue) to 1.0 (certain). Average of how confident you are about each populated field.
 - If a field can't be inferred, OMIT it entirely (don't return null / "" / 0).
@@ -71,12 +75,16 @@ The image is a photo of a paper receipt (struk). Extract the transaction
 details and return structured fields.
 
 Rules:
+- **PRESERVE INDONESIAN.** Receipts in Indonesia are in Indonesian.
+  All string fields (merchant, description) stay in Indonesian. NEVER
+  translate to English. "Belanja" stays "Belanja", not "Shopping".
+  "Bayar" stays as-is, not "Payment".
 - Output amounts in MINOR UNITS (×100). E.g. "Rp 50.000" → amountMinor: 5000000.
 - Indonesian receipts use "." as thousands separator and "," as decimal: "50.000,00" = 50000.00 (50,000 IDR).
 - type: always "expense" for receipts.
 - amountMinor: the GRAND TOTAL on the receipt, NOT individual line items. Indonesian receipts label it "Total", "Grand Total", "Bayar", "Tunai", "Total Bayar".
-- merchant: the business name, usually printed at the top.
-- description: short summary like "Lunch at Warteg" or "Groceries". If the receipt has 1-3 distinct items, list them; if many, use a category word (e.g. "Belanja", "Makan").
+- merchant: the business name as printed on the receipt, AS-IS.
+- description: short Indonesian summary. If the receipt has 1-3 distinct items, list them in Indonesian; if many, use a category word ("Belanja", "Makan", "Bensin"). NEVER translate item names to English.
 - date: extract from the receipt if printed; format as 'YYYY-MM-DD'. If unclear, omit.
 - categoryId: pick the BEST match from the snapshot below based on the merchant + items. Use the bracketed id.
 - accountId: leave blank — receipts don't say which account.
