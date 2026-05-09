@@ -28,6 +28,7 @@ import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
+import { Skeleton, SkeletonCard } from '@/shared/ui/Skeleton';
 import { Text } from '@/shared/ui/Text';
 import { computeCashflowProjection } from '@/shared/utils/cashflowProjection';
 import { formatAmountForDisplay } from '@/shared/utils/formatAmountForDisplay';
@@ -51,6 +52,66 @@ import { maskAmount } from '@/shared/utils/maskBalance';
  * No charts library — simple capsule + horizontal bar Views handle v1's
  * visual needs. victory-native is deferred to v2 polish (per ADR-09 §3).
  */
+
+/**
+ * Cold-load silhouette for the Dashboard tab. Mirrors the real layout
+ * (Net Worth hero → Goal pill → This Month + sparkline → Top 3 → Recent)
+ * so the page has visible structure during the ~50–100 ms before
+ * Firestore's first emission lands. Each block uses Skeleton bars that
+ * pulse between 0.4 and 0.8 opacity so the page reads as live-loading.
+ */
+function DashboardSkeleton() {
+  return (
+    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+      <View className="self-center w-full max-w-md lg:max-w-3xl">
+        {/* Net Worth hero */}
+        <View className="mb-8">
+          <Skeleton width={140} height={10} radius={4} style={{ marginBottom: 14 }} />
+          <Skeleton width={'70%'} height={40} radius={8} style={{ marginBottom: 10 }} />
+          <Skeleton width={'40%'} height={12} radius={6} />
+        </View>
+        {/* This Month card */}
+        <View className="mb-8">
+          <Skeleton width={120} height={10} radius={4} style={{ marginBottom: 14 }} />
+          <SkeletonCard height={170}>
+            <Skeleton width={'55%'} height={32} radius={6} style={{ marginBottom: 8 }} />
+            <Skeleton width={'40%'} height={12} radius={4} style={{ marginBottom: 22 }} />
+            <Skeleton height={50} radius={6} />
+          </SkeletonCard>
+        </View>
+        {/* Top 3 categories */}
+        <View className="mb-8">
+          <Skeleton width={150} height={10} radius={4} style={{ marginBottom: 14 }} />
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+              <Skeleton width={36} height={36} radius={10} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <Skeleton width={'60%'} height={13} radius={4} />
+                <Skeleton height={6} radius={3} />
+              </View>
+              <Skeleton width={70} height={12} radius={4} />
+            </View>
+          ))}
+        </View>
+        {/* Recent transactions */}
+        <View className="mb-8">
+          <Skeleton width={130} height={10} radius={4} style={{ marginBottom: 14 }} />
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+              <Skeleton width={32} height={32} radius={8} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <Skeleton width={'70%'} height={13} radius={4} />
+                <Skeleton width={'40%'} height={11} radius={4} />
+              </View>
+              <Skeleton width={80} height={13} radius={4} />
+            </View>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation(['dashboard', 'transactions', 'goals', 'common']);
   const router = useRouter();
@@ -238,6 +299,13 @@ export default function DashboardScreen() {
   // ~50–100 ms loading window before Firestore's first emission.
   const trulyEmpty = allLoaded && includedAccounts.length === 0 && recentTxs.length === 0;
   const noTxsButHasAccounts = allLoaded && includedAccounts.length > 0 && recentTxs.length === 0;
+
+  // Cold-load silhouette. Mirrors the real Dashboard layout (Net Worth
+  // hero → Goals → This Month → Top 3 → Recent) so the page has visible
+  // structure within the first frame instead of a blank screen.
+  if (!allLoaded) {
+    return <DashboardSkeleton />;
+  }
 
   if (trulyEmpty) {
     return (

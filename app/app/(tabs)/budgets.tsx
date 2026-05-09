@@ -23,6 +23,7 @@ import { useTheme } from '@/shared/theme/useTheme';
 import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
+import { Skeleton, SkeletonCard } from '@/shared/ui/Skeleton';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatAmountInput, minorToInputText, parseAmountInput } from '@/shared/utils/amountInput';
@@ -49,6 +50,63 @@ const STYLES: readonly BudgetStyle[] = ['monthly_limit', 'envelope', 'fifty_thir
  *     Delete buttons. Only one row expanded at a time.
  *   - Empty-state branches gated on `allLoaded` to avoid flash on cold open.
  */
+
+/**
+ * Cold-load silhouette for the Budgets tab. Mirrors the month
+ * navigator + style pill + budgeted section + unbudgeted section so
+ * the page reads as live-loading instead of empty during the ~50–100 ms
+ * before the first realtime emission lands.
+ */
+function BudgetsSkeleton() {
+  return (
+    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+      <View className="self-center w-full max-w-md lg:max-w-3xl">
+        {/* Month navigator silhouette */}
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, minHeight: 44 }}
+        >
+          <Skeleton width={36} height={36} radius={18} />
+          <View style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+            <Skeleton width={120} height={20} radius={6} />
+            <Skeleton width={70} height={10} radius={4} />
+          </View>
+          <Skeleton width={36} height={36} radius={18} />
+        </View>
+        {/* Style selector pill */}
+        <Skeleton height={44} radius={999} style={{ marginBottom: 24 }} />
+        {/* Budgeted section header + 4 rows */}
+        <Skeleton width={130} height={10} radius={4} style={{ marginBottom: 14 }} />
+        {[0, 1, 2, 3].map((i) => (
+          <SkeletonCard key={i} height={72} style={{ marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Skeleton width={36} height={36} radius={10} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Skeleton width={'60%'} height={13} radius={4} />
+                <Skeleton height={6} radius={3} />
+              </View>
+              <Skeleton width={70} height={12} radius={4} />
+            </View>
+          </SkeletonCard>
+        ))}
+        {/* Unbudgeted section header + a few rows */}
+        <Skeleton width={150} height={10} radius={4} style={{ marginTop: 24, marginBottom: 14 }} />
+        {[0, 1, 2].map((i) => (
+          <View
+            key={i}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 }}
+          >
+            <Skeleton width={32} height={32} radius={8} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <Skeleton width={'55%'} height={13} radius={4} />
+            </View>
+            <Skeleton width={90} height={28} radius={999} />
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
 export default function BudgetsScreen() {
   const { t, i18n } = useTranslation(['budgets', 'common']);
   const router = useRouter();
@@ -293,6 +351,15 @@ export default function BudgetsScreen() {
       monthIncomeMinor, monthTotals, categories,
     );
   }, [selectedStyle, monthIncomeMinor, monthTotals, categories]);
+
+  // Cold-load silhouette — month navigator + style-pill + budgeted
+  // section + unbudgeted section. Without this the user sees the
+  // empty "no budgets yet" branch flash for ~50–100 ms before the
+  // realtime subscription's first emission lands.
+  const allBudgetsLoaded = budgetsLoaded && monthTotalsLoaded && categoriesLoaded;
+  if (!allBudgetsLoaded) {
+    return <BudgetsSkeleton />;
+  }
 
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>

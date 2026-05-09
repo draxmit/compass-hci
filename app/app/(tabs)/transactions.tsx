@@ -29,6 +29,7 @@ import { useAppAlert } from '@/shared/ui/AppAlert';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
 import { DateField } from '@/shared/ui/DateField';
+import { Skeleton } from '@/shared/ui/Skeleton';
 import { Text } from '@/shared/ui/Text';
 import { TextField } from '@/shared/ui/TextField';
 import { formatDate } from '@/shared/utils/formatDate';
@@ -53,6 +54,49 @@ type DateFilter =
  * Spark (50k reads/day budget). When a power user crosses that we
  * can swap in a paged 'load older' affordance.
  */
+
+/**
+ * Cold-load silhouette for the Transactions tab. Mirrors the search
+ * field + filter pill row + grouped transaction list. Each row uses a
+ * small CategoryIcon-sized box plus three Skeleton bars (description,
+ * meta, amount) so the eventual real rows slot in without layout shift.
+ */
+function TransactionsSkeleton() {
+  return (
+    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+      <View className="self-center w-full max-w-md lg:max-w-3xl">
+        {/* Search field silhouette */}
+        <Skeleton height={44} radius={12} style={{ marginBottom: 12 }} />
+        {/* Filter chip row */}
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+          {[80, 90, 70, 100].map((w, i) => (
+            <Skeleton key={i} width={w} height={32} radius={999} />
+          ))}
+        </View>
+        {/* Date group header + rows × 3 groups */}
+        {[0, 1, 2].map((g) => (
+          <View key={g} style={{ marginBottom: 24 }}>
+            <Skeleton width={120} height={10} radius={4} style={{ marginBottom: 12 }} />
+            {[0, 1, 2, 3].map((i) => (
+              <View
+                key={i}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 }}
+              >
+                <Skeleton width={36} height={36} radius={10} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Skeleton width={'70%'} height={13} radius={4} />
+                  <Skeleton width={'45%'} height={11} radius={4} />
+                </View>
+                <Skeleton width={80} height={13} radius={4} />
+              </View>
+            ))}
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
 export default function TransactionsScreen() {
   const { t, i18n } = useTranslation(['transactions', 'accounts', 'common']);
   const router = useRouter();
@@ -410,6 +454,13 @@ export default function TransactionsScreen() {
     { key: 'all_time', label: t('transactions:filters.allTime') },
     { key: 'custom', label: t('transactions:filters.custom') },
   ];
+
+  // Cold-load silhouette — search input + filter chip row + several
+  // grouped row stubs. Replaces the blank screen the user saw during
+  // the ~50–100 ms before the first transactions snapshot lands.
+  if (!txsLoaded) {
+    return <TransactionsSkeleton />;
+  }
 
   return (
     <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>

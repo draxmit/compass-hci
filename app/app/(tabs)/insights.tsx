@@ -29,6 +29,7 @@ import { tokens } from '@/shared/theme/tokens';
 import { useTheme } from '@/shared/theme/useTheme';
 import { Card } from '@/shared/ui/Card';
 import { CategoryIcon } from '@/shared/ui/CategoryIcon';
+import { Skeleton, SkeletonCard } from '@/shared/ui/Skeleton';
 import { Text } from '@/shared/ui/Text';
 import { formatDate } from '@/shared/utils/formatDate';
 import { formatIDR } from '@/shared/utils/formatIDR';
@@ -69,6 +70,88 @@ type AnomalyTransaction = {
   baseline: number;
 };
 type Anomaly = AnomalyCategory | AnomalyTransaction;
+
+/**
+ * Cold-load silhouette for the Insights tab. Mirrors the real layout
+ * (Ask CTA pill → Spending trend → What's notable → Heatmap) so the
+ * page has visible structure during the ~50–500 ms before Firestore's
+ * first emission lands. Each block is a Skeleton bar that pulses
+ * between 0.4 and 0.8 opacity so it reads as "loading", not broken.
+ */
+function InsightsSkeleton() {
+  return (
+    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+      <View className="self-center w-full max-w-md lg:max-w-3xl">
+        {/* Ask CTA pill silhouette */}
+        <View style={{ marginBottom: 36 }}>
+          <Skeleton height={48} radius={999} />
+        </View>
+        {/* Spending trend section: header + chart area + month labels */}
+        <View className="mb-8">
+          <Skeleton width={140} height={10} radius={4} style={{ marginBottom: 14 }} />
+          <Skeleton width={'40%'} height={14} radius={6} style={{ marginBottom: 6 }} />
+          <Skeleton width={'30%'} height={20} radius={6} style={{ marginBottom: 16 }} />
+          <Skeleton height={110} radius={12} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 }}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                <Skeleton width={'60%'} height={9} radius={4} />
+                <Skeleton width={'45%'} height={11} radius={4} />
+              </View>
+            ))}
+          </View>
+        </View>
+        {/* What's notable list — 3 anomaly card silhouettes */}
+        <View className="mb-8">
+          <Skeleton width={180} height={10} radius={4} style={{ marginBottom: 14 }} />
+          {[0, 1, 2].map((i) => (
+            <SkeletonCard key={i} height={84} style={{ marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Skeleton width={48} height={48} radius={10} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Skeleton width={'55%'} height={13} radius={4} />
+                  <Skeleton width={'85%'} height={11} radius={4} />
+                  <Skeleton width={'70%'} height={11} radius={4} />
+                </View>
+              </View>
+            </SkeletonCard>
+          ))}
+        </View>
+        {/* Budget Health silhouette */}
+        <View className="mb-8">
+          <Skeleton width={140} height={10} radius={4} style={{ marginBottom: 14 }} />
+          <SkeletonCard height={120}>
+            <Skeleton width={'100%'} height={8} radius={4} style={{ marginBottom: 16 }} />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{ flex: 1, gap: 6 }}>
+                  <Skeleton width={'60%'} height={11} radius={4} />
+                  <Skeleton width={'40%'} height={18} radius={4} />
+                </View>
+              ))}
+            </View>
+          </SkeletonCard>
+        </View>
+        {/* Calendar heatmap silhouette */}
+        <View className="mb-8">
+          <Skeleton width={160} height={10} radius={4} style={{ marginBottom: 14 }} />
+          <SkeletonCard height={180}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+              {Array.from({ length: 35 }).map((_, i) => (
+                <Skeleton
+                  key={i}
+                  width={'13%'}
+                  height={20}
+                  radius={4}
+                />
+              ))}
+            </View>
+          </SkeletonCard>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
 
 export default function InsightsScreen() {
   const { t, i18n } = useTranslation(['insights', 'common', 'ask']);
@@ -469,6 +552,14 @@ export default function InsightsScreen() {
         </View>
       </ScrollView>
     );
+  }
+
+  // Full-page skeleton during cold load — gives the page a complete
+  // structural silhouette (Ask CTA pill + trend chart + anomaly cards
+  // + budget pill + heatmap) before Firestore's first emission lands,
+  // so the user never sees a blank screen during the ~50–500 ms gap.
+  if (!loaded) {
+    return <InsightsSkeleton />;
   }
 
   if (totallyEmpty) {
@@ -1300,7 +1391,6 @@ function TrendLineChart({
   // visible on web at wide widths (Dec dot was ~70px left of the
   // "December" label at desktop width).
   const colWidth = ordered.length > 0 ? W / ordered.length : 0;
-  const stepX = colWidth;
 
   const points = ordered.map((m, i) => {
     const x = colWidth / 2 + i * colWidth;
