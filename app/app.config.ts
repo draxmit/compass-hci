@@ -7,6 +7,12 @@ const config: ExpoConfig = {
   slug: 'compass',
   version: '0.1.0',
   orientation: 'portrait',
+  // Main app icon — used by iOS launcher AND Android pre-Adaptive
+  // (Android 7.x and below) AND as the source Expo / EAS downscale
+  // for every other icon density. Generated from the Compass needle
+  // SVG by `scripts/generate-icons.mjs` — re-run that whenever the
+  // brand colour or geometry changes.
+  icon: './assets/icon.png',
   // App's deep-link scheme. Used by expo-router for typed routes,
   // notifications, share intents, etc. Google sign-in no longer
   // depends on URI schemes (we use @react-native-google-signin/
@@ -27,6 +33,12 @@ const config: ExpoConfig = {
   android: {
     package: 'com.compass.app',
     adaptiveIcon: {
+      // Foreground layer — Compass needle on transparent bg. Android
+      // composites this on top of `backgroundColor` and applies the
+      // OS-level mask (rounded square / circle / squircle depending on
+      // launcher). Built with extra safe-zone padding (scale=0.42 in
+      // generate-icons.mjs) so cropping doesn't clip the needle.
+      foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#000000',
     },
     googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
@@ -34,6 +46,8 @@ const config: ExpoConfig = {
   web: {
     bundler: 'metro',
     output: 'static',
+    // Browser tab icon. Same Compass needle, sized for favicon density.
+    favicon: './assets/favicon.png',
   },
   plugins: [
     'expo-router',
