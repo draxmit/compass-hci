@@ -10,7 +10,10 @@
     "ios": "expo run:ios",
     "test": "jest --watchAll",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:web": "expo export -p web",
+    "deploy:web": "pnpm build:web && firebase deploy --only hosting",
+    "build:apk": "eas build --profile preview --platform android"
   },
   "dependencies": {
     "@compass/shared-types": "workspace:*",
