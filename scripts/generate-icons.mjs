@@ -37,22 +37,27 @@ function logoSvg({ scale = 0.55, color = BRAND } = {}) {
     </svg>`;
 }
 
-// Favicon-specific design — adds an encircling compass face so the
-// icon fills the square frame at 16×16 / 32×32. Bare needle from
-// logoSvg() leaves huge horizontal margins (needle aspect ~0.4)
-// which read as 'tiny green sliver' at favicon sizes. Compass face
-// + tighter needle scale = unmistakable as a compass at any size.
+// Favicon-specific design — bare compass NEEDLE, no encircling face,
+// per user request. To make the tall+narrow needle still fill the
+// square frame instead of leaving wide horizontal margins, we use a
+// tighter viewBox cropped around the needle's bounding box (8→16
+// horizontally, 2→22 vertically) and let SVG's preserveAspectRatio
+// stretch slightly to fill. Brand emerald + transparent bg.
 function faviconSvg() {
+  // Bounding box of the needle paths: x [8, 16], y [2, 22]. We pad
+  // by 1 unit on each side so the tips of the needle aren't kissing
+  // the edge of the canvas.
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-      <!-- Outer compass face — thick stroke for visibility at 16px. -->
-      <circle cx="12" cy="12" r="10.5" fill="none" stroke="${BRAND}" stroke-width="2" />
+    <svg xmlns="http://www.w3.org/2000/svg"
+         viewBox="7 1 10 22"
+         preserveAspectRatio="xMidYMid meet"
+         fill="none">
       <!-- North needle (filled emerald). -->
-      <path d="M12 4 L15 12 L12 13 Z" fill="${BRAND}" />
+      <path d="M12 2 L16 12 L12 13 Z" fill="${BRAND}" />
       <!-- South needle (faded emerald). -->
-      <path d="M12 20 L9 12 L12 13 Z" fill="${BRAND}" fill-opacity="0.45" />
+      <path d="M12 22 L8 12 L12 13 Z" fill="${BRAND}" fill-opacity="0.45" />
       <!-- Center pivot. -->
-      <circle cx="12" cy="12.5" r="1.3" fill="${BRAND}" />
+      <circle cx="12" cy="12.5" r="1.4" fill="${BRAND}" />
     </svg>`;
 }
 
