@@ -4,16 +4,16 @@
   "netWorthLabel": "TOTAL SALDO · placeholder",
   "cards": {
     "netWorth": "Total saldo",
-    "acrossNAccounts_one": "Lewat {{count}} akun",
-    "acrossNAccounts_other": "Lewat {{count}} akun",
+    "acrossNAccounts_one": "Dari {{count}} akun",
+    "acrossNAccounts_other": "Dari {{count}} akun",
     "thisMonth": "Bulan ini",
     "spent": "Pengeluaran",
     "vsLastMonth": "vs bulan lalu",
     "topCategories": "Kategori teratas",
     "recent": "Terbaru",
     "seeAll": "Lihat semua",
-    "projection_one": "Dengan ritme ini: ~{{amount}} di akhir bulan ({{days}} hari lagi)",
-    "projection_other": "Dengan ritme ini: ~{{amount}} di akhir bulan ({{days}} hari lagi)"
+    "projection_one": "Dengan kecepatan ini: ~{{amount}} di akhir bulan ({{days}} hari lagi)",
+    "projection_other": "Dengan kecepatan ini: ~{{amount}} di akhir bulan ({{days}} hari lagi)"
   },
   "balancesHidden": {
     "hide": "Sembunyikan saldo",
@@ -26,11 +26,11 @@
   },
   "vault": {
     "freeToSpendLabel": "Bisa dipakai",
-    "inGoalsLabel": "Di tujuan"
+    "inGoalsLabel": "Untuk tujuan"
   },
   "cashFlow": {
     "savedLabel": "TABUNGAN",
-    "overspentLabel": "BOROS",
+    "overspentLabel": "DEFISIT",
     "income": "Pemasukan",
     "spent": "Pengeluaran"
   },

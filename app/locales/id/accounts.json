@@ -11,7 +11,7 @@
     "cta": "Tambahkan akun pertama"
   },
   "totalBalance": "Total saldo",
-  "liabilitiesNote": "Setelah {{amount}} utang kartu kredit",
+  "liabilitiesNote": "Sudah dikurangi {{amount}} utang kartu kredit",
   "row": {
     "owed": "utang"
   },
@@ -32,7 +32,7 @@
     "balanceHint": "Saldo awal akan menjadi saldo saat ini.",
     "balanceEditHint": "Mengatur saldo akan menimpa nilai saat ini.",
     "currency": "Mata uang",
-    "currencyHint": "Dipilih sekali saat akun dibuat. Saldo dan transaksi akun ini pakai mata uang ini.",
+    "currencyHint": "Pilih sekali saat akun dibuat. Saldo dan transaksi akan dicatat dalam mata uang ini.",
     "currencyLockedHint": "Mata uang akun terkunci setelah dibuat — mengubahnya akan membuat saldo yang ada jadi tidak valid.",
     "icon": "Ikon",
     "color": "Warna",

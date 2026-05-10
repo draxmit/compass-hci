@@ -13,8 +13,8 @@
     "daysUsing_one": "{{count}} hari",
     "daysUsing_other": "{{count}} hari",
     "transactionsLogged": "Transaksi tercatat",
-    "noTransactionsYet": "Belum ada transaksi. Tap + Transaksi baru untuk mulai.",
-    "achievementsBlurb": "Dapatkan badge saat kamu mencatat. Hadir di v2.",
+    "noTransactionsYet": "Belum ada transaksi. Tap tombol + untuk catat transaksi baru.",
+    "achievementsBlurb": "Dapatkan badge saat kamu mencatat. Segera hadir.",
     "settingsLink": "Pengaturan",
     "settingsLinkDescription": "Tema, bahasa, keluar",
     "you": "Kamu",
@@ -63,14 +63,14 @@
     },
     "display": {
       "idrLabel": "Tampilkan dalam IDR di semua tempat",
-      "idrHint": "Transaksi dan akun mata uang asing tampil dengan nilai IDR di baris utama, dan nilai asli di bawahnya. Default mati — hanya tampil dalam mata uang asli."
+      "idrHint": "Transaksi dan akun mata uang asing tampil dengan nilai IDR di baris utama, dan nilai asli di bawahnya. Awalnya mati — hanya tampil dalam mata uang asli."
     },
     "security": {
       "biometricLabel": "Buka pakai biometrik",
-      "biometricHint": "Wajibkan Face ID / Touch ID / sidik jari untuk membuka Compass di perangkat ini. Toggle ini diabaikan di web.",
+      "biometricHint": "Wajibkan Face ID / Touch ID / sidik jari untuk membuka Compass di perangkat ini. Pengaturan ini diabaikan di web.",
       "encryptedCacheLabel": "Cache terenkripsi",
       "encryptedCacheHint": "Enkripsi data lokal di perangkat ini.",
-      "comingInV3": "Hadir di v3.5"
+      "comingInV3": "Segera hadir"
     },
     "notifications": {
       "permissionDeniedTitle": "Notifikasi diblokir",
@@ -106,11 +106,11 @@
       "deleteLabel": "Hapus akun",
       "deleteHelp": "Hapus semua data Compass-mu secara permanen.",
       "deleteConfirmTitle": "Hapus akun selamanya?",
-      "deleteConfirmBody": "Semua akun, transaksi, budget, dan kategori akan terhapus. Sign-in juga dihapus. Tidak bisa dibatalkan.",
+      "deleteConfirmBody": "Semua akun, transaksi, budget, dan kategori akan terhapus. Akun login kamu juga dihapus. Tidak bisa dibatalkan.",
       "deleteConfirmAction": "Hapus selamanya",
       "deleting": "Menghapus akun…",
       "deleteFailedTitle": "Akun belum sepenuhnya terhapus",
-      "requiresRecentLoginBody": "Datamu sudah dihapus, tapi demi keamanan kami belum bisa hapus sign-in-mu. Silakan masuk sekali lagi dengan email yang sama, lalu tap Hapus akun lagi untuk menyelesaikan."
+      "requiresRecentLoginBody": "Datamu sudah dihapus, tapi demi keamanan kami belum bisa hapus akun login-mu. Masuk sekali lagi dengan email yang sama, lalu tap Hapus akun lagi untuk menyelesaikan."
     },
     "signOut": "Keluar",
     "signingOut": "Keluar…",

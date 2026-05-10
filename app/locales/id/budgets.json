@@ -34,7 +34,7 @@
   "fiftyThirtyTwenty": {
     "incomeLabel": "Pemasukan bulan ini",
     "incomeHint": "Target di bawah adalah 50 / 30 / 20 dari pemasukanmu.",
-    "incomeEmpty": "Catat transaksi pemasukan untuk mengatur target ember.",
+    "incomeEmpty": "Catat transaksi pemasukan untuk mengatur target tiap kelompok.",
     "groups": {
       "needs": "Kebutuhan",
       "wants": "Keinginan",

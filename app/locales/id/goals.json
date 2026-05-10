@@ -1,6 +1,6 @@
 {
   "title": "Tujuan",
-  "subtitle": "Hal-hal yang lagi kamu nabung",
+  "subtitle": "Hal-hal yang lagi kamu tabung",
   "addCta": "Tujuan baru",
   "empty": {
     "title": "Belum ada tujuan",
@@ -54,7 +54,7 @@
     "amountPlaceholder": "0",
     "fromAccount": "Dari akun",
     "noAccounts": "Tambah akun dulu untuk kontribusi.",
-    "trackingNote": "Hanya pelacakan — saldo akun kamu tetap.",
+    "trackingNote": "Cuma dicatat — saldo akun nggak berkurang.",
     "save": "Tambah",
     "saving": "Menyimpan…",
     "cancel": "Batal",

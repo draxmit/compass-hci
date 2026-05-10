@@ -5,7 +5,7 @@
   "sections": {
     "trend": "Pengeluaran 6 bulan terakhir",
     "anomalies": "Yang berbeda bulan ini",
-    "heatmap": "Kapan kamu paling banyak ngeluarin",
+    "heatmap": "Kapan kamu paling banyak ngeluarin uang",
     "weekday": "Pola pengeluaran mingguan",
     "budgetHealth": "Status budget",
     "recurring": "Pengeluaran berulang",
@@ -25,8 +25,8 @@
     "showAll": "Tampilkan {{count}} lainnya",
     "showLess": "Sembunyikan",
     "notifyTitle": "{{merchant}} akan ditagih",
-    "notifyBody_one": "Heads up: {{merchant}} ({{amount}}) diperkirakan {{days}} hari lagi.",
-    "notifyBody_other": "Heads up: {{merchant}} ({{amount}}) diperkirakan {{days}} hari lagi."
+    "notifyBody_one": "Pengingat: {{merchant}} ({{amount}}) diperkirakan {{days}} hari lagi.",
+    "notifyBody_other": "Pengingat: {{merchant}} ({{amount}}) diperkirakan {{days}} hari lagi."
   },
   "dayDetail": {
     "spentLabel_one": "{{count}} pengeluaran",
@@ -62,8 +62,8 @@
   "weekday": {
     "shortNames": ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
     "noData": "Butuh setidaknya 2 minggu data untuk lihat pola.",
-    "weekendHeavier": "Akhir pekan rata-rata {{ratio}} lebih boros dari weekday.",
-    "weekdayHeavier": "Hari kerja rata-rata {{ratio}} lebih boros dari weekend."
+    "weekendHeavier": "Akhir pekan rata-rata {{ratio}} lebih boros dari hari kerja.",
+    "weekdayHeavier": "Hari kerja rata-rata {{ratio}} lebih boros dari akhir pekan."
   },
   "empty": {
     "title": "Belum ada insight",
@@ -76,9 +76,9 @@
       "anomalyTitle": "Yang berbeda dari biasanya",
       "anomalyBody": "Kategori atau pengeluaran yang jauh lebih besar dari rata-rata.",
       "heatmapTitle": "Hari paling boros",
-      "heatmapBody": "Kalender warna-warna — semakin pekat, semakin banyak pengeluaran hari itu.",
+      "heatmapBody": "Kalender berwarna — semakin pekat warnanya, semakin banyak pengeluaran hari itu.",
       "weekdayTitle": "Pola harian",
-      "weekdayBody": "Hari apa kamu paling sering ngeluarin: weekday atau weekend?"
+      "weekdayBody": "Hari apa kamu paling sering ngeluarin: hari kerja atau akhir pekan?"
     }
   }
 }

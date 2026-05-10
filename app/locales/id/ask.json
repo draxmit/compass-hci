@@ -1,7 +1,7 @@
 {
   "title": "Tanya Compass",
   "entryCta": "Tanya Compass",
-  "entrySubtitle": "Insight pengeluaran kamu pakai AI — tanya apa aja.",
+  "entrySubtitle": "Pakai AI buat lihat pola pengeluaranmu — tanya apa aja.",
   "composerPlaceholder": "Tanya apa aja soal pengeluaran kamu…",
   "inputPlaceholder": "Tanya soal keuangan kamu…",
   "thinking": "Lagi mikir…",
@@ -10,7 +10,7 @@
     "start": "Mulai dikte",
     "stop": "Stop",
     "unavailableTitle": "Suara belum tersedia",
-    "unavailableBody": "HP ini belum dukung input suara. Coba ketik pertanyaannya."
+    "unavailableBody": "HP ini nggak mendukung input suara. Coba ketik pertanyaannya."
   },
   "actions": {
     "send": "Kirim",

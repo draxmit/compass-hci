@@ -35,21 +35,21 @@
   },
   "errors": {
     "title": "Ada yang salah",
-    "generic": "Terjadi kesalahan. Coba lagi sebentar lagi.",
+    "generic": "Terjadi kesalahan. Coba lagi.",
     "network": "Tidak bisa terhubung ke server. Periksa koneksi internet."
   },
   "quickPresets": {
     "title": "Preset cepat",
-    "subtitle": "Tap salah satu untuk catat instan.",
-    "empty": "Belum ada preset — buat dulu untuk skip form di transaksi yang sering kamu catat.",
+    "subtitle": "Tap salah satu untuk catat langsung.",
+    "empty": "Belum ada preset — buat dulu biar nggak perlu isi form untuk transaksi yang sering kamu catat.",
     "manageCta": "Kelola preset",
     "addCta": "Tambah preset",
     "incomeLabel": "Pemasukan",
     "expenseLabel": "Pengeluaran",
     "hint": "Tekan lama tombol + kapan pun untuk buka menu ini.",
-    "editorIntro": "Sampai {{max}} pintasan satu-tap untuk transaksi yang paling sering kamu catat.",
-    "editorEmptyTitle": "Skip form",
-    "editorEmptyBody": "Simpan kopi harian, Grab, atau makan siang sebagai preset — lalu tekan lama tombol + untuk catat dengan satu tap.",
+    "editorIntro": "Hingga {{max}} pintasan sekali-tap untuk transaksi yang paling sering kamu catat.",
+    "editorEmptyTitle": "Catat tanpa form",
+    "editorEmptyBody": "Simpan kopi harian, Grab, atau makan siang sebagai preset — lalu tekan lama tombol + untuk catat dengan sekali tap.",
     "editTitle": "Ubah preset",
     "maxReached": "Sudah mencapai batas {{max}} preset. Hapus salah satu untuk menambah baru.",
     "deleteConfirmTitle": "Hapus preset ini?",
@@ -70,7 +70,7 @@
       "description": "Catatan default",
       "descriptionPlaceholder": "Opsional"
     },
-    "editorHint": "Cukup label yang wajib. Kosongkan field lain untuk diisi saat preset dipakai.",
+    "editorHint": "Cukup label yang wajib. Kosongkan kolom lain untuk diisi saat preset dipakai.",
     "needsDetails": "Perlu detail",
     "tapToFill": "Tap untuk isi"
   }

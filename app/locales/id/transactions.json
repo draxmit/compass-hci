@@ -24,7 +24,7 @@
       "toAccount": "Ke akun",
       "fee": "Biaya admin (opsional)",
       "feePlaceholder": "0",
-      "feeHint": "Dipotong di atas nominal transfer — misal Rp 6.500 untuk antar bank, Rp 2.500 untuk tarik tunai e-wallet.",
+      "feeHint": "Dipotong terpisah dari nominal transfer — misal Rp 6.500 untuk antar bank, Rp 2.500 untuk tarik tunai e-wallet.",
       "category": "Kategori",
       "description": "Catatan",
       "descriptionPlaceholder": "Opsional",
@@ -65,7 +65,7 @@
       "buttonActive": "Stop",
       "listening": "Mendengarkan… ngomong aja, Compass akan ketik buat kamu.",
       "unavailableTitle": "Suara belum bisa di sini",
-      "unavailableNative": "Input suara untuk sementara hanya di versi web. Versi mobile hadir di v2.5.",
+      "unavailableNative": "Input suara untuk sementara hanya di versi web. Versi mobile sudah tersedia.",
       "unavailableBrowser": "Browser ini belum dukung input suara. Coba pakai Chrome, Edge, atau Safari."
     },
     "scanReceipt": {
