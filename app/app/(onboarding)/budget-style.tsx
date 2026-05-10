@@ -14,14 +14,8 @@ import { Text } from '@/shared/ui/Text';
 
 type StyleKey = 'monthlyLimit' | 'envelope' | 'fiftyThirtyTwenty';
 
-// All three styles selectable as of v2 (ADR-21). Kept the `enabled`
-// flag in the table since the OnboardingShell layout still references
-// it; just true now.
-const STYLES: { readonly key: StyleKey; readonly enabled: boolean }[] = [
-  { key: 'monthlyLimit',      enabled: true },
-  { key: 'envelope',          enabled: true },
-  { key: 'fiftyThirtyTwenty', enabled: true },
-];
+// All three styles shipped (ADR-21).
+const STYLES: readonly StyleKey[] = ['monthlyLimit', 'envelope', 'fiftyThirtyTwenty'];
 
 const STYLE_KEY_TO_DOC: Record<StyleKey, 'monthly_limit' | 'envelope' | 'fifty_thirty_twenty'> = {
   monthlyLimit: 'monthly_limit',
@@ -30,12 +24,13 @@ const STYLE_KEY_TO_DOC: Record<StyleKey, 'monthly_limit' | 'envelope' | 'fifty_t
 };
 
 /**
- * Step 2 — Pick budget style. v1 only `monthlyLimit` is selectable; the
- * other two are visible-but-disabled so the user knows what's coming.
+ * Step 2 — Pick budget style. All three styles selectable; user choice
+ * persisted to userDoc.budgetStyle and read back by /budgets to render
+ * the matching view.
  *
  * Per ADR-11 §8: large segmented cards stacked vertically, each with
- * title + sub-hint copy. Tap selects (or shows alert for greyed cards).
- * Default selection is `monthlyLimit` so Skip / Next are always valid.
+ * title + sub-hint copy. Default selection is `monthlyLimit` so Skip /
+ * Next are always valid.
  */
 export default function BudgetStyleStep() {
   const { t } = useTranslation(['onboarding']);
@@ -49,17 +44,6 @@ export default function BudgetStyleStep() {
 
   const [selected, setSelected] = useState<StyleKey>('monthlyLimit');
   const [busy, setBusy] = useState(false);
-
-  const handleStylePress = (key: StyleKey, enabled: boolean) => {
-    if (enabled) {
-      setSelected(key);
-      return;
-    }
-    appAlert(
-      t(`onboarding:budgetStyle.${key}`),
-      t('onboarding:budgetStyle.comingSoonNote'),
-    );
-  };
 
   const handleNext = async () => {
     if (busy) return;
@@ -89,21 +73,20 @@ export default function BudgetStyleStep() {
       primaryBusy={busy}
     >
       <View style={{ gap: 12 }}>
-        {STYLES.map(({ key, enabled }) => {
-          const active = enabled && selected === key;
+        {STYLES.map((key) => {
+          const active = selected === key;
           return (
             <Pressable
               key={key}
               accessibilityRole="button"
-              accessibilityState={{ selected: active, disabled: !enabled }}
-              onPress={() => handleStylePress(key, enabled)}
+              accessibilityState={{ selected: active }}
+              onPress={() => setSelected(key)}
               style={{
                 borderWidth: 1,
                 borderColor: active ? tokens.accent.dashboard : borderColor,
                 borderRadius: 12,
                 padding: 16,
                 backgroundColor: active ? tokens.accent.dashboard + '14' : 'transparent',
-                opacity: enabled ? 1 : 0.55,
               }}
             >
               <View className="flex-row items-center justify-between">
@@ -120,20 +103,6 @@ export default function BudgetStyleStep() {
                   >
                     <Check size={14} color="#fff" strokeWidth={3} />
                   </View>
-                ) : !enabled ? (
-                  <Text
-                    className="font-sans-medium text-xs"
-                    style={{
-                      color: mutedColor,
-                      backgroundColor: borderColor,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
-                      borderRadius: 8,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {t('onboarding:budgetStyle.comingSoonNote')}
-                  </Text>
                 ) : null}
               </View>
               <Text

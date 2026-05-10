@@ -68,7 +68,7 @@
       "biometricHint": "Require Face ID / Touch ID / fingerprint to open Compass on this device. Web ignores the toggle.",
       "encryptedCacheLabel": "Encrypted cache",
       "encryptedCacheHint": "Encrypt local data on this device.",
-      "comingInV3": "Coming in v3.5"
+      "comingInV3": "Coming soon"
     },
     "notifications": {
       "permissionDeniedTitle": "Notifications blocked",

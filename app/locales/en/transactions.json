@@ -65,7 +65,7 @@
       "buttonActive": "Stop",
       "listening": "Listening… speak naturally, Compass will type for you.",
       "unavailableTitle": "Voice not available here",
-      "unavailableNative": "Voice input is web-only for now. Mobile support arrives in v2.5.",
+      "unavailableNative": "Voice input is now supported on mobile.",
       "unavailableBrowser": "This browser doesn't support voice input. Try Chrome, Edge, or Safari."
     },
     "scanReceipt": {

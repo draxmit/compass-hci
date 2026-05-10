@@ -33,7 +33,7 @@
     "nativeUnsupportedTitle": "Tersedia di web",
     "nativeUnsupportedBody": "Ekspor Word baru tersedia di aplikasi web. Buka Compass di browser dan coba lagi dari halaman Ringkasan.",
     "sharingUnavailable": "Fitur berbagi tidak tersedia di perangkat ini. Coba simpan file dari share sheet atau gunakan aplikasi web.",
-    "devClientStale": "Dev-client APK kamu belum punya modul {{module}}. Rebuild APK dengan `eas build --profile development --platform android` lalu install ulang, atau pakai aplikasi web untuk ekspor.",
+    "devClientStale": "Versi Compass ini belum bisa ekspor {{module}}. Buka Compass di web untuk ekspor, atau update ke versi aplikasi terbaru.",
     "totalLabel": "Total",
     "noDescription": "(tanpa deskripsi)",
     "unknownCategory": "(tanpa kategori)",

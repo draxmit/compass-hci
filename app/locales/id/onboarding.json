@@ -26,8 +26,7 @@
     "envelope": "Amplop",
     "envelopeHint": "Sisihkan dana per kategori di awal bulan.",
     "fiftyThirtyTwenty": "50 / 30 / 20",
-    "fiftyThirtyTwentyHint": "50% kebutuhan, 30% keinginan, 20% tabungan.",
-    "comingSoonNote": "Hadir di v2"
+    "fiftyThirtyTwentyHint": "50% kebutuhan, 30% keinginan, 20% tabungan."
   },
   "account": {
     "title": "Tambah akun pertama",

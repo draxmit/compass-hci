@@ -26,8 +26,7 @@
     "envelope": "Envelope",
     "envelopeHint": "Pre-allocate cash per category at the start of the month.",
     "fiftyThirtyTwenty": "50 / 30 / 20",
-    "fiftyThirtyTwentyHint": "50% needs, 30% wants, 20% savings.",
-    "comingSoonNote": "Coming in v2"
+    "fiftyThirtyTwentyHint": "50% needs, 30% wants, 20% savings."
   },
   "account": {
     "title": "Add your first account",
