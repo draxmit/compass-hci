@@ -7,18 +7,26 @@ const config: ExpoConfig = {
   slug: 'compass',
   version: '0.1.0',
   orientation: 'portrait',
-  // Two schemes:
-  //  - 'compass'         → app's own deep links (notification taps, share
-  //                        intents, etc.). Used by expo-router's typed routes.
-  //  - 'com.compass.app' → required by expo-auth-session/providers/google
-  //                        which builds the OAuth redirect URI as
-  //                        `<applicationId>:/oauthredirect`. Without this
-  //                        intent filter, Android can't route the OAuth
-  //                        redirect back to the app and the browser ends
-  //                        up on a Google search page instead.
+  // Two schemes — ORDER MATTERS:
+  //  - 'com.compass.app' → PRIMARY scheme. Required by Google OAuth on
+  //                        Android (Custom URI Scheme registered with
+  //                        the Android OAuth Client ID must match the
+  //                        package name). expo-auth-session sends the
+  //                        OAuth request with redirect_uri=<this>:/
+  //                        oauthredirect, and the response URL must
+  //                        match expo-linking's PRIMARY scheme for the
+  //                        URL listener to recognise it as a callback.
+  //  - 'compass'         → app's own deep links (notifications, share
+  //                        intents, etc.). Kept for backward-compat
+  //                        with anything using compass:// schema —
+  //                        but no source-code references currently
+  //                        hardcode it (verified via grep).
   // Both schemes are registered as Android intent filters at native build
-  // time — changing this requires `eas build --profile development`.
-  scheme: ['compass', 'com.compass.app'],
+  // time. Reordering may require `eas build --profile development` if
+  // the order is baked into the AndroidManifest at build time; try a
+  // Metro reload first and rebuild only if Linking still picks the
+  // wrong primary scheme.
+  scheme: ['com.compass.app', 'compass'],
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   // The legacy top-level `splash` field is deprecated in SDK 54 and
