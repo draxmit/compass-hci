@@ -5,8 +5,7 @@
     "section": {
       "identity": "IDENTITAS",
       "goal": "TUJUAN",
-      "activity": "AKTIVITAS",
-      "achievements": "PENCAPAIAN"
+      "activity": "AKTIVITAS"
     },
     "memberSince": "Bergabung sejak",
     "daysUsing": "Hari pakai Compass",
@@ -14,7 +13,6 @@
     "daysUsing_other": "{{count}} hari",
     "transactionsLogged": "Transaksi tercatat",
     "noTransactionsYet": "Belum ada transaksi. Tap tombol + untuk catat transaksi baru.",
-    "achievementsBlurb": "Dapatkan badge saat kamu mencatat. Segera hadir.",
     "settingsLink": "Pengaturan",
     "settingsLinkDescription": "Tema, bahasa, keluar",
     "you": "Kamu",

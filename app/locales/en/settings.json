@@ -5,8 +5,7 @@
     "section": {
       "identity": "IDENTITY",
       "goal": "GOAL",
-      "activity": "ACTIVITY",
-      "achievements": "ACHIEVEMENTS"
+      "activity": "ACTIVITY"
     },
     "memberSince": "Member since",
     "daysUsing": "Days using Compass",
@@ -14,7 +13,6 @@
     "daysUsing_other": "{{count}} days",
     "transactionsLogged": "Transactions logged",
     "noTransactionsYet": "No transactions yet. Tap + New transaction to start.",
-    "achievementsBlurb": "Earn badges as you track. Coming in v2.",
     "settingsLink": "Settings",
     "settingsLinkDescription": "Theme, language, sign out",
     "you": "You",

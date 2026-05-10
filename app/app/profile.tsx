@@ -1,6 +1,6 @@
 import { BackHandler, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Sparkles, Tag, Wallet, X } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, Pencil, Settings as SettingsIcon, Tag, Wallet, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -314,26 +314,10 @@ export default function ProfileScreen() {
         ) : null}
       </Card>
 
-      {/* Achievements placeholder */}
-      <Card padding="lg" className="mb-4 w-full">
-        <View className="flex-row items-center mb-2">
-          <Sparkles size={16} color={tokens.accent.insights} />
-          <Text
-            className={`${sectionLabelClass.replace('mb-3', 'mb-0')} ml-2`}
-            style={{ color: mutedColor }}
-          >
-            {t('settings:profile.section.achievements')}
-          </Text>
-        </View>
-        <Text className="font-sans text-sm" style={{ color: mutedColor }}>
-          {t('settings:profile.achievementsBlurb')}
-        </Text>
-      </Card>
-
-      {/* Link cluster — Accounts / Goals / Categories / Import CSV /
-          Settings consolidated into a single Card with internal
-          dividers, iOS Settings list-section style. Replaces the prior
-          5-separate-cards pattern that read as blocky on mobile. */}
+      {/* Link cluster — Accounts / Goals / Categories / Settings
+          consolidated into a single Card with internal dividers, iOS
+          Settings list-section style. Replaces the prior 5-separate-
+          cards pattern that read as blocky on mobile. */}
       <Card padding="none" className="w-full">
         <ProfileLinkRow
           icon={<Wallet size={20} color={mutedColor} />}
