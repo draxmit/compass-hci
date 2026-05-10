@@ -1,4 +1,4 @@
-# compass-aol-hci-lec
+# compass-hci
 
 **Compass** — Indonesian-first personal finance tracker. Bilingual (Bahasa Indonesia / English), cross-platform (Web + Android APK + iOS PWA), shipped on a $0 stack.
 
@@ -109,8 +109,8 @@ DOCX exports of the user-facing docs (tech doc, user guide, HCI eval, persona, j
 ### Setup
 
 ```bash
-git clone https://github.com/draxmit/aol-hci-lec.git compass-aol-hci-lec
-cd compass-aol-hci-lec
+git clone https://github.com/draxmit/compass-hci.git
+cd compass-hci
 pnpm install
 
 # Wire your Firebase project
@@ -174,7 +174,7 @@ mmdc -i docs/architecture/sequences/budget-progress-update.md -o seq-budget-prog
 ## Monorepo layout
 
 ```
-compass-aol-hci-lec/
+compass-hci/
   app/                            # Expo Universal app (SDK 54, Router 6, RN 0.81 + RN Web)
     app/                          # Expo Router file routes
     src/
