@@ -1,10 +1,23 @@
 import { Slot, Tabs } from 'expo-router';
 import { ArrowLeftRight, Home, Lightbulb, PieChart } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import { Platform } from 'react-native';
 
 import { useIsDesktop } from '@/shared/hooks/useBreakpoint';
 import { CustomTabBar } from '@/shared/ui/CustomTabBar';
 import { MobileTopBar } from '@/shared/ui/MobileTopBar';
+
+// Platform-conditional lazy/freezeOnBlur:
+//   - Native: lazy:false + freezeOnBlur:false → all tabs eager-mounted
+//     and never frozen, so switches are instant with no one-frame
+//     flash (this was the original goal back in T2).
+//   - Web: lazy:true + freezeOnBlur:true → only the active tab is
+//     mounted/visible; inactive tabs get display:none via React
+//     Navigation. Without these, all four tab screens render stacked
+//     on top of each other at <1024px widths because RN-Web doesn't
+//     auto-hide inactive screens when freezeOnBlur is false.
+const TAB_LAZY = Platform.OS === 'web';
+const TAB_FREEZE_ON_BLUR = Platform.OS === 'web';
 
 /**
  * Adaptive tabs layout.
@@ -36,14 +49,12 @@ export default function TabsLayout() {
         headerShown: true,
         header: (props) => <MobileTopBar {...props} />,
         sceneStyle: { backgroundColor: 'transparent' },
-        // Pre-mount all four tabs at app start. Default lazy mount caused a
-        // one-frame flash on first visit to each tab as the screen tree was
-        // built. Eager mount trades a slightly heavier cold-start for instant
-        // tab switches throughout the session. We also set lazy:false per
-        // Tabs.Screen because expo-router 4 has historically been finicky
-        // about which level of options is honoured for native-stack tabs.
-        lazy: false,
-        freezeOnBlur: false,
+        // See TAB_LAZY / TAB_FREEZE_ON_BLUR above for the platform split.
+        // We also set lazy per Tabs.Screen because expo-router 4 has
+        // historically been finicky about which level of options is
+        // honoured for native-stack tabs.
+        lazy: TAB_LAZY,
+        freezeOnBlur: TAB_FREEZE_ON_BLUR,
       }}
     >
       <Tabs.Screen
@@ -51,7 +62,7 @@ export default function TabsLayout() {
         options={{
           title: t('common:nav.dashboard'),
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
-          lazy: false,
+          lazy: TAB_LAZY,
         }}
       />
       <Tabs.Screen
@@ -59,7 +70,7 @@ export default function TabsLayout() {
         options={{
           title: t('common:nav.transactions'),
           tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size} />,
-          lazy: false,
+          lazy: TAB_LAZY,
         }}
       />
       <Tabs.Screen
@@ -67,7 +78,7 @@ export default function TabsLayout() {
         options={{
           title: t('common:nav.budgets'),
           tabBarIcon: ({ color, size }) => <PieChart color={color} size={size} />,
-          lazy: false,
+          lazy: TAB_LAZY,
         }}
       />
       <Tabs.Screen
@@ -75,7 +86,7 @@ export default function TabsLayout() {
         options={{
           title: t('common:nav.insights'),
           tabBarIcon: ({ color, size }) => <Lightbulb color={color} size={size} />,
-          lazy: false,
+          lazy: TAB_LAZY,
         }}
       />
     </Tabs>
