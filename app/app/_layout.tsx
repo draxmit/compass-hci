@@ -285,19 +285,24 @@ export default function RootLayout() {
     void hydratePersistedLocale();
   }, []);
 
-  // Diagnostic: log every deep link the OS hands us. Critical for
-  // debugging Google sign-in (commit 8586057): if the OAuth redirect
-  // never appears here, the issue is at the Android intent layer
-  // (the redirect isn't routing back to Compass at all). If it DOES
-  // appear here but [google-signin] logs don't fire, the issue is in
-  // expo-auth-session's URL listener not picking it up. Two very
-  // different fix paths.
+  // Diagnostic: surface every deep link the OS hands us via on-device
+  // Alert (bypassing Metro log forwarding which has been unreliable
+  // for this debug round). Use console.warn (more visible in Metro
+  // than console.log) AND Alert so we get the URL no matter what.
+  // Critical for debugging Google sign-in: if the OAuth redirect URL
+  // never shows up here, the issue is at the Android intent layer.
+  // Once we've confirmed the deep link path, this diagnostic block
+  // should be removed.
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Alert } = require('react-native') as { Alert: { alert: (t: string, b?: string) => void } };
     void Linking.getInitialURL().then((url) => {
-      if (url) console.log('[deeplink] initial URL:', url);
+      console.warn('[deeplink] initial URL:', url ?? 'null');
+      if (url) Alert.alert('DEEP LINK (initial)', url);
     });
     const sub = Linking.addEventListener('url', ({ url }) => {
-      console.log('[deeplink] received:', url);
+      console.warn('[deeplink] received:', url);
+      Alert.alert('DEEP LINK (event)', url);
     });
     return () => sub.remove();
   }, []);
