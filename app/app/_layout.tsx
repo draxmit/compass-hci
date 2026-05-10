@@ -8,7 +8,6 @@ import {
 } from '@expo-google-fonts/inter';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import * as Linking from 'expo-linking';
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
@@ -285,27 +284,6 @@ export default function RootLayout() {
     void hydratePersistedLocale();
   }, []);
 
-  // Diagnostic: surface every deep link the OS hands us via on-device
-  // Alert (bypassing Metro log forwarding which has been unreliable
-  // for this debug round). Use console.warn (more visible in Metro
-  // than console.log) AND Alert so we get the URL no matter what.
-  // Critical for debugging Google sign-in: if the OAuth redirect URL
-  // never shows up here, the issue is at the Android intent layer.
-  // Once we've confirmed the deep link path, this diagnostic block
-  // should be removed.
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Alert } = require('react-native') as { Alert: { alert: (t: string, b?: string) => void } };
-    void Linking.getInitialURL().then((url) => {
-      console.warn('[deeplink] initial URL:', url ?? 'null');
-      if (url) Alert.alert('DEEP LINK (initial)', url);
-    });
-    const sub = Linking.addEventListener('url', ({ url }) => {
-      console.warn('[deeplink] received:', url);
-      Alert.alert('DEEP LINK (event)', url);
-    });
-    return () => sub.remove();
-  }, []);
 
   // Surface font load errors in dev — `null` would leave a permanently blank
   // screen. Render fallback children once we've either loaded or errored.

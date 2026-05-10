@@ -7,26 +7,12 @@ const config: ExpoConfig = {
   slug: 'compass',
   version: '0.1.0',
   orientation: 'portrait',
-  // Two schemes — ORDER MATTERS:
-  //  - 'com.compass.app' → PRIMARY scheme. Required by Google OAuth on
-  //                        Android (Custom URI Scheme registered with
-  //                        the Android OAuth Client ID must match the
-  //                        package name). expo-auth-session sends the
-  //                        OAuth request with redirect_uri=<this>:/
-  //                        oauthredirect, and the response URL must
-  //                        match expo-linking's PRIMARY scheme for the
-  //                        URL listener to recognise it as a callback.
-  //  - 'compass'         → app's own deep links (notifications, share
-  //                        intents, etc.). Kept for backward-compat
-  //                        with anything using compass:// schema —
-  //                        but no source-code references currently
-  //                        hardcode it (verified via grep).
-  // Both schemes are registered as Android intent filters at native build
-  // time. Reordering may require `eas build --profile development` if
-  // the order is baked into the AndroidManifest at build time; try a
-  // Metro reload first and rebuild only if Linking still picks the
-  // wrong primary scheme.
-  scheme: ['com.compass.app', 'compass'],
+  // App's deep-link scheme. Used by expo-router for typed routes,
+  // notifications, share intents, etc. Google sign-in no longer
+  // depends on URI schemes (we use @react-native-google-signin/
+  // google-signin which talks to Play Services natively, no browser
+  // round-trip and no redirect URI dance).
+  scheme: 'compass',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   // The legacy top-level `splash` field is deprecated in SDK 54 and
@@ -53,6 +39,11 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-font',
     'expo-localization',
+    // Native Google Sign-in via Play Services. Required for the
+    // @react-native-google-signin/google-signin module to wire its
+    // native module at build time. Configure via the iOS URL scheme
+    // for the iOS Client ID (we don't ship iOS native, so omitted).
+    '@react-native-google-signin/google-signin',
     // SDK-54 splash screen replacement for the legacy `splash` field.
     // The plugin generates `drawable/splashscreen_logo` regardless of
     // config — even when `image` is omitted — so we MUST point it at

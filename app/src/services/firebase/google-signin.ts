@@ -1,14 +1,13 @@
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import {
+  GoogleSignin,
+  isErrorWithCode,
+  isSuccessResponse,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { auth } from './client';
-
-// Required by expo-auth-session — closes the in-app browser session if
-// it's still in flight on app focus. Must run at module load (not inside
-// the hook) so the side-effect registers BEFORE any auth attempt.
-WebBrowser.maybeCompleteAuthSession();
 
 export type GoogleSignInResult =
   | { type: 'success' }
@@ -21,127 +20,112 @@ export type UseGoogleSignIn = {
 };
 
 /**
- * Native Google sign-in via expo-auth-session/providers/google.
+ * Native Google sign-in via @react-native-google-signin/google-signin.
  *
- * v3 update: handle the Firebase credential exchange in the useEffect
- * watching `response` directly, NOT inside a promise wrapper. The
- * earlier wrapper held the resolve callback in component state — if
- * Android remounted the sign-in screen during the in-app browser
- * (common with low-memory devices), the resolver was lost and the
- * useEffect short-circuited at `if (!resolver) return`. Result was
- * "browser closes, app foregrounds, user is back on the sign-in
- * screen with no error and no signed-in session" — exactly the
- * symptom we hit on the dev client.
+ * This is the SDK Google officially blesses for Android — it uses
+ * Play Services' native account-picker modal instead of the in-app
+ * browser + custom URI scheme dance that expo-auth-session does.
  *
- * The new flow: the useEffect ALWAYS handles a successful response by
- * calling signInWithCredential — Firebase Auth's `onAuthStateChanged`
- * listener (wired in the auth store) propagates the signed-in user
- * to AuthGate which redirects to /tabs. The promise from promptAsync
- * still resolves for callers that want to surface errors locally,
- * but the actual sign-in side-effect doesn't depend on that promise
- * surviving a remount.
+ * Why we switched:
+ *   The expo-auth-session/providers/google flow is officially
+ *   deprecated and increasingly hostile to recent Google policy
+ *   changes. We hit FIVE different gotchas trying to make it work:
+ *   custom URI scheme disabled by default, scheme mismatch with
+ *   Linking primary scheme, schemes order baked into native build,
+ *   400 invalid_request on non-package-name schemes, and a silent
+ *   credential-exchange failure. The official SDK sidesteps all of
+ *   these by talking to Google Play Services directly — no browser
+ *   round-trip, no URL parsing, no intent filter intricacies.
  *
- * Diagnostic logs emit to Metro / console so a dev can see exactly
- * which step fails when debugging the OAuth round-trip.
+ * Setup requirements (one-time):
+ *   1. Web Client ID registered in Google Cloud Console (already done)
+ *   2. Android Client ID with package name + SHA-1 (already done)
+ *   3. SHA-1 added to Firebase Console (already done)
+ *   4. The package's Expo plugin in app.config.ts (added in this commit)
+ *   5. Rebuild the dev client APK to bake in the native module
+ *
+ * Sign-in flow:
+ *   - GoogleSignin.configure({ webClientId }) — call once at module load
+ *   - GoogleSignin.signIn() — opens native account picker
+ *   - Returns idToken — exchange for Firebase credential
+ *   - signInWithCredential(auth, credential) — completes Firebase auth
+ *   - onAuthStateChanged in the auth store fires → AuthGate redirects
  */
+
+// Configure once at module load. Web Client ID is the audience the
+// returned id_token should target — Firebase Auth verifies this matches
+// the Web Client ID it has configured for the Google provider. The
+// Android Client ID is implicitly used by Play Services to actually
+// authenticate the calling app (matched by package + SHA-1).
+const webClientId = process.env.EXPO_PUBLIC_GOOGLE_OAUTH_WEB_CLIENT_ID;
+if (webClientId) {
+  GoogleSignin.configure({
+    webClientId,
+    // We don't need extra scopes — basic profile + email come by default.
+    // offlineAccess: true would give us a serverAuthCode for backend
+    // token exchange, but we don't have a backend that needs it.
+  });
+}
+
 export function useGoogleSignIn(): UseGoogleSignIn {
-  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_OAUTH_WEB_CLIENT_ID;
-  const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_OAUTH_ANDROID_CLIENT_ID;
-
-  // Build request config — only include keys whose value is non-empty so we
-  // satisfy `exactOptionalPropertyTypes: true` (no explicit `undefined`).
-  // Let expo-auth-session use its default redirect URI on native:
-  // `${applicationId}:/oauthredirect` = `com.compass.app:/oauthredirect`.
-  // For this to round-trip correctly, `com.compass.app` MUST be the
-  // primary scheme in app.config.ts so expo-linking's URL listener
-  // recognises the OAuth callback. (We tried 'compass:/oauthredirect'
-  // first but Google's Android OAuth client rejects custom URI schemes
-  // that don't match the package name.)
-  const requestConfig: Parameters<typeof Google.useAuthRequest>[0] = {};
-  if (webClientId) requestConfig.webClientId = webClientId;
-  if (androidClientId) requestConfig.androidClientId = androidClientId;
-
-  const [request, response, promptHook] = Google.useAuthRequest(requestConfig);
-
   const [isPending, setIsPending] = useState(false);
-  // Resolver lives in a ref, not state — survives a remount IF the
-  // hook instance is the same. Plus we no longer depend on it for the
-  // actual sign-in side-effect (the useEffect below runs regardless),
-  // so a lost resolver no longer means a lost sign-in.
-  const resolverRef = useRef<((result: GoogleSignInResult) => void) | null>(null);
 
-  // Process every response that arrives from useAuthRequest. Runs on
-  // every response state change including re-mounts (since the hook is
-  // wired fresh and Linking re-delivers any pending auth result).
+  // Defensive: if webClientId never resolved (env var missing in this
+  // build), surface a clear error instead of silently failing.
   useEffect(() => {
-    if (!response) return;
-    void (async () => {
-      console.log('[google-signin] response received:', response.type);
-
-      try {
-        if (response.type === 'success') {
-          const idToken = response.authentication?.idToken;
-          const accessToken = response.authentication?.accessToken;
-          console.log('[google-signin] success — idToken present:', !!idToken,
-            'accessToken present:', !!accessToken);
-
-          if (!idToken) {
-            // Auto-code-exchange may not have populated id_token if the
-            // OAuth client config returned only an access token. Try to
-            // fall back to access-token-only credential (Firebase accepts
-            // either when the audience matches).
-            if (accessToken) {
-              console.log('[google-signin] no idToken, trying accessToken credential');
-              const credential = GoogleAuthProvider.credential(null, accessToken);
-              await signInWithCredential(auth, credential);
-              console.log('[google-signin] signInWithCredential ok (accessToken)');
-              resolverRef.current?.({ type: 'success' });
-            } else {
-              console.warn('[google-signin] no idToken AND no accessToken in response',
-                JSON.stringify(response.authentication));
-              resolverRef.current?.({
-                type: 'error',
-                message: 'No ID token or access token returned from Google.',
-              });
-            }
-          } else {
-            const credential = GoogleAuthProvider.credential(idToken, accessToken);
-            await signInWithCredential(auth, credential);
-            console.log('[google-signin] signInWithCredential ok (idToken)');
-            resolverRef.current?.({ type: 'success' });
-          }
-        } else if (response.type === 'dismiss' || response.type === 'cancel') {
-          console.log('[google-signin] user dismissed');
-          resolverRef.current?.({ type: 'dismiss' });
-        } else {
-          const message =
-            'error' in response && response.error
-              ? response.error.message
-              : 'Google sign-in failed.';
-          console.warn('[google-signin] non-success response:', message, response);
-          resolverRef.current?.({ type: 'error', message });
-        }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Google sign-in failed.';
-        console.error('[google-signin] threw during credential exchange:', err);
-        resolverRef.current?.({ type: 'error', message });
-      } finally {
-        setIsPending(false);
-        resolverRef.current = null;
-      }
-    })();
-  }, [response]);
+    if (!webClientId) {
+      console.warn('[google-signin] EXPO_PUBLIC_GOOGLE_OAUTH_WEB_CLIENT_ID is not set');
+    }
+  }, []);
 
   const promptAsync = async (): Promise<GoogleSignInResult> => {
-    if (!request) {
-      console.warn('[google-signin] promptAsync called before request was ready');
-      return { type: 'error', message: 'Google sign-in is not ready yet.' };
+    if (!webClientId) {
+      return {
+        type: 'error',
+        message: 'Google sign-in is not configured (missing web client id).',
+      };
     }
     setIsPending(true);
-    return new Promise<GoogleSignInResult>((resolve) => {
-      resolverRef.current = resolve;
-      void promptHook();
-    });
+    try {
+      // Ensure Play Services is available — Android-only check; iOS no-ops.
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const result = await GoogleSignin.signIn();
+
+      if (!isSuccessResponse(result)) {
+        // User cancelled the picker.
+        return { type: 'dismiss' };
+      }
+
+      const idToken = result.data.idToken;
+      if (!idToken) {
+        console.warn('[google-signin] no idToken in response', result);
+        return { type: 'error', message: 'No ID token returned from Google.' };
+      }
+
+      const credential = GoogleAuthProvider.credential(idToken);
+      await signInWithCredential(auth, credential);
+      console.log('[google-signin] signInWithCredential ok');
+      return { type: 'success' };
+    } catch (err: unknown) {
+      if (isErrorWithCode(err)) {
+        // Map native error codes to user-readable messages.
+        switch (err.code) {
+          case statusCodes.SIGN_IN_CANCELLED:
+            return { type: 'dismiss' };
+          case statusCodes.IN_PROGRESS:
+            return { type: 'error', message: 'Sign-in already in progress.' };
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            return { type: 'error', message: 'Google Play Services is not available on this device.' };
+          default:
+            return { type: 'error', message: `Google sign-in failed (${err.code}).` };
+        }
+      }
+      const message = err instanceof Error ? err.message : 'Google sign-in failed.';
+      console.error('[google-signin] threw', err);
+      return { type: 'error', message };
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return { promptAsync, isPending };
