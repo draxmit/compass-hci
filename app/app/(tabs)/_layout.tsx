@@ -63,6 +63,7 @@ export default function TabsLayout() {
           title: t('common:nav.dashboard'),
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
           lazy: TAB_LAZY,
+          freezeOnBlur: TAB_FREEZE_ON_BLUR,
         }}
       />
       <Tabs.Screen
@@ -71,6 +72,7 @@ export default function TabsLayout() {
           title: t('common:nav.transactions'),
           tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size} />,
           lazy: TAB_LAZY,
+          freezeOnBlur: TAB_FREEZE_ON_BLUR,
         }}
       />
       <Tabs.Screen
@@ -79,6 +81,7 @@ export default function TabsLayout() {
           title: t('common:nav.budgets'),
           tabBarIcon: ({ color, size }) => <PieChart color={color} size={size} />,
           lazy: TAB_LAZY,
+          freezeOnBlur: TAB_FREEZE_ON_BLUR,
         }}
       />
       <Tabs.Screen
@@ -87,6 +90,7 @@ export default function TabsLayout() {
           title: t('common:nav.insights'),
           tabBarIcon: ({ color, size }) => <Lightbulb color={color} size={size} />,
           lazy: TAB_LAZY,
+          freezeOnBlur: TAB_FREEZE_ON_BLUR,
         }}
       />
     </Tabs>
