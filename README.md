@@ -89,9 +89,6 @@ All documentation lives in `docs/`:
 | ERD | `docs/architecture/data-model.md` |
 | System Architecture | `docs/architecture/system-architecture.md` |
 | Sequence Diagrams | `docs/architecture/sequences/{log-transaction,sign-in,budget-progress-update}.md` |
-| Architecture Decision Records | `docs/decisions/ADR-01..24.md` |
-| Per-task change history | `docs/changes/T1-summary.md` … `T11-summary.md` |
-| Chronological merge log | `docs/CHANGELOG.md` |
 
 DOCX exports of the user-facing docs (tech doc, user guide, HCI eval, persona, journey map) are also available alongside their markdown sources after running `pnpm docs:export` (see "Generating DOCX + diagrams" below).
 
