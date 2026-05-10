@@ -47,17 +47,19 @@ The demo workspace is pre-populated with multiple accounts (BCA / GoPay / Tunai 
 
 ## Features
 
-- **Multi-account tracking** — bank, e-wallet, credit card, cash, investment, in any of 10 currencies (IDR primary)
-- **Transactions** — manual entry, NLP quick-entry ("nongki di Starbucks 65rb pakai gopay"), voice input, receipt OCR via camera, AI-suggested categories, multi-category splits, transfer fees
-- **Budgets** — three styles: Monthly Limit, Envelope (with rollover), 50/30/20
-- **Insights** — 6-month trend, anomaly detection, spending heatmap, weekday patterns, recurring-expense detector, category donut chart, budget health pill
-- **Goals** — sinking funds and habit tracking with milestone celebrations and pinning
-- **Reports** — monthly summary screen with Word/PDF export
-- **Ask Compass** — Gemini-powered conversational chat over your finances ("how much did I spend on coffee last month?")
-- **Onboarding wizard** — 4 steps: pick a goal, pick a budget style, add first account, set first budget
-- **Quick-add presets** — long-press the FAB for one-tap transaction entry
-- **Settings** — light/dark/auto theme, ID/EN switcher, IDR-everywhere display toggle, biometric app lock, daily reminders, budget alerts, goal deadline reminders, account deletion
-- **Multi-currency** — live FX rates with 24h cache + offline fallback snapshot
+| Feature | Details |
+|---|---|
+| **Multi-account tracking** | Bank, e-wallet, credit card, cash, investment — in any of 10 currencies (IDR primary) |
+| **Transactions** | Manual entry, NLP quick-entry ("nongki di Starbucks 65rb pakai gopay"), voice input, receipt OCR via camera, AI-suggested categories, multi-category splits, transfer fees |
+| **Budgets** | Three styles: Monthly Limit, Envelope (with rollover), 50/30/20 |
+| **Insights** | 6-month trend, anomaly detection, spending heatmap, weekday patterns, recurring-expense detector, category donut chart, budget health pill |
+| **Goals** | Sinking funds and habit tracking with milestone celebrations and pinning |
+| **Reports** | Monthly summary screen with Word/PDF export |
+| **Ask Compass** | Gemini-powered conversational chat over your finances ("how much did I spend on coffee last month?") |
+| **Onboarding wizard** | 4 steps: pick a goal, pick a budget style, add first account, set first budget |
+| **Quick-add presets** | Long-press the FAB for one-tap transaction entry |
+| **Settings** | Light/dark/auto theme, ID/EN switcher, IDR-everywhere display toggle, biometric app lock, daily reminders, budget alerts, goal deadline reminders, account deletion |
+| **Multi-currency** | Live FX rates with 24h cache + offline fallback snapshot |
 
 ---
 
