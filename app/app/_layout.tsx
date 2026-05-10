@@ -8,6 +8,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import * as Linking from 'expo-linking';
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
@@ -282,6 +283,23 @@ export default function RootLayout() {
     // AsyncStorage hydration only matters on native first launch — web's sync
     // localStorage read in initI18n() already returned the persisted choice.
     void hydratePersistedLocale();
+  }, []);
+
+  // Diagnostic: log every deep link the OS hands us. Critical for
+  // debugging Google sign-in (commit 8586057): if the OAuth redirect
+  // never appears here, the issue is at the Android intent layer
+  // (the redirect isn't routing back to Compass at all). If it DOES
+  // appear here but [google-signin] logs don't fire, the issue is in
+  // expo-auth-session's URL listener not picking it up. Two very
+  // different fix paths.
+  useEffect(() => {
+    void Linking.getInitialURL().then((url) => {
+      if (url) console.log('[deeplink] initial URL:', url);
+    });
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      console.log('[deeplink] received:', url);
+    });
+    return () => sub.remove();
   }, []);
 
   // Surface font load errors in dev — `null` would leave a permanently blank
