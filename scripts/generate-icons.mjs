@@ -76,17 +76,20 @@ async function main() {
     // Transparent: Android composites on top of adaptiveIcon.backgroundColor.
   });
 
-  // 3. favicon.png — browser tab icon. Renders at 16×16 / 32×32 in
-  //    most tabs, so the dark-on-dark approach used for the launcher
-  //    icon is unreadable here. Inverted treatment: emerald square
-  //    background with a WHITE needle so it pops against any tab
-  //    chrome (light or dark theme). 64×64 source — Expo / browsers
-  //    downscale crisply.
+  // 3. favicon.png — browser tab icon. Transparent background + the
+  //    emerald compass needle filling the canvas. User-tested
+  //    treatment: solid square backgrounds (whether black or
+  //    emerald) end up looking like coloured boxes at 16×16 with
+  //    the needle invisible. Letting the tab chrome show through
+  //    AND scaling the needle to ~85% of the canvas makes the
+  //    silhouette unmistakable on both light and dark themes.
+  //    64×64 source — modern browsers prefer PNG to ICO and
+  //    downscale to 16×16 / 32×32 internally.
   await renderToPng({
     size: 64,
-    svg: logoSvg({ scale: 0.62, color: '#ffffff' }),
+    svg: logoSvg({ scale: 0.85, color: BRAND }),
     out: join(OUT_DIR, 'favicon.png'),
-    background: BRAND,
+    // Transparent — no background flatten.
   });
 
   console.log('Done.');
