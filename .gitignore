@@ -66,3 +66,13 @@ scripts/export-docs.mjs
 docs/decisions/
 docs/changes/
 docs/CHANGELOG.md
+# LaTeX → PDF tooling for class submission (local only)
+latex/
+# pdflatex auxiliary files (created in CWD if pdflatex is invoked manually)
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
