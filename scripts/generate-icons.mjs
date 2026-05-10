@@ -37,29 +37,33 @@ function logoSvg({ scale = 0.55, color = BRAND } = {}) {
     </svg>`;
 }
 
-// Favicon-specific design — classic two-tone compass needle in
-// emerald + WHITE (per user feedback: 'use white and green not
-// black and green'). The previous fill-opacity:0.45 south needle
-// rendered as dark/almost-black against most tab backgrounds,
-// which is what the user was reading as 'black'. Solid white
-// solves that — but needs a non-white background or it disappears
-// on light tab themes. Solid emerald fill behind the needle so
-// white is always visible AND the icon fills the square frame.
+// Favicon-specific design — classic two-tone compass needle: solid
+// emerald NORTH half + white SOUTH half, transparent background, no
+// surrounding circle (per user feedback through several iterations).
+//
+// Visibility trick: white-on-transparent disappears on white tab
+// themes, so the white south half gets a thin emerald stroke around
+// it. On dark tabs the white fill carries; on white tabs the
+// emerald outline still describes the shape. Either way the
+// compass reads as 'green and white', never 'green and black'.
 function faviconSvg() {
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-      <!-- Solid emerald square background, rounded corners so it
-           reads as an iOS-style app icon at favicon sizes. -->
-      <rect x="0" y="0" width="24" height="24" rx="4.5" fill="${BRAND}" />
-      <!-- North half of the needle — WHITE, solid. -->
-      <path d="M12 4 L15.5 12 L12 13 Z" fill="#ffffff" />
-      <!-- South half of the needle — WHITE, solid (same colour as
-           north so the whole needle reads as one element; the brand
-           contrast comes from the emerald background, not from
-           splitting the needle into two opacities). -->
-      <path d="M12 20 L8.5 12 L12 13 Z" fill="#ffffff" fill-opacity="0.7" />
-      <!-- Center pivot — solid white dot. -->
-      <circle cx="12" cy="12.5" r="1.5" fill="#ffffff" />
+    <svg xmlns="http://www.w3.org/2000/svg"
+         viewBox="7 1 10 22"
+         preserveAspectRatio="xMidYMid meet"
+         fill="none">
+      <!-- North half — solid emerald triangle. -->
+      <path d="M12 2 L16 12 L12 13 Z" fill="${BRAND}" />
+      <!-- South half — WHITE fill with an emerald stroke so it's
+           visible on both light and dark tab backgrounds. -->
+      <path d="M12 22 L8 12 L12 13 Z"
+            fill="#ffffff"
+            stroke="${BRAND}"
+            stroke-width="0.6"
+            stroke-linejoin="round" />
+      <!-- Center pivot — solid emerald (matches the north half so
+           the centre reads as the 'anchored' point of the needle). -->
+      <circle cx="12" cy="12.5" r="1.4" fill="${BRAND}" />
     </svg>`;
 }
 
