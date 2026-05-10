@@ -54,3 +54,11 @@ packages/*/dist
 # Runtime / IDE state
 .claude/scheduled_tasks.lock
 app/.claude/
+
+# Internal tooling not part of the shipped app:
+# .claude/  → Claude Code orchestrator memory + agent prompts
+# legacy/   → archived Vite prototype (kept locally as reference, never deployed)
+# scripts/export-docs.mjs → class-deliverable DOCX/PNG generator (run locally for submission)
+.claude/
+legacy/
+scripts/export-docs.mjs
