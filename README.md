@@ -74,26 +74,6 @@ The demo workspace is pre-populated with multiple accounts (BCA / GoPay / Tunai 
 
 ---
 
-## Documentation
-
-All documentation lives in `docs/`:
-
-| Document | Files |
-|---|---|
-| Technical Documentation | `docs/tech-doc.{en,id}.md` |
-| User Guide | `docs/user-guide.{en,id}.md` |
-| HCI Heuristic Evaluation | `docs/hci/heuristic-evaluation.{en,id}.md` |
-| Persona | `docs/hci/persona.{en,id}.md` |
-| Journey Map | `docs/hci/journey-map.{en,id}.md` |
-| Wireframes | `docs/hci/wireframes.md` |
-| ERD | `docs/architecture/data-model.md` |
-| System Architecture | `docs/architecture/system-architecture.md` |
-| Sequence Diagrams | `docs/architecture/sequences/{log-transaction,sign-in,budget-progress-update}.md` |
-
-DOCX exports of the user-facing docs (tech doc, user guide, HCI eval, persona, journey map) are also available alongside their markdown sources after running `pnpm docs:export` (see "Generating DOCX + diagrams" below).
-
----
-
 ## Local development
 
 ### Prerequisites
@@ -119,8 +99,6 @@ cp app/.env.example app/.env.local
 pnpm seed:demo
 ```
 
-See `docs/tech-doc.en.md` § "Firebase setup" for a step-by-step Firebase Console walkthrough.
-
 ### Run
 
 ```bash
@@ -140,31 +118,6 @@ pnpm app:lint        # ESLint
 | iOS PWA | The deployed web URL → Safari → "Add to Home Screen" | $0; no Apple Developer fee |
 | Android Play Store | `eas build -p android --profile production` | Optional **$25 one-time** Play Console fee |
 | iOS TestFlight | `eas build -p ios --profile preview` | Optional **$99/yr** Apple Developer fee |
-
-### Generating DOCX + diagrams
-
-For class submission, the markdown sources can be converted to DOCX (via [pandoc](https://pandoc.org/)) and Mermaid diagrams to PNG (via [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli)):
-
-```bash
-# One-off DOCX conversion
-pandoc docs/tech-doc.en.md -o tech-doc-EN.docx
-pandoc docs/tech-doc.id.md -o tech-doc-ID.docx
-pandoc docs/user-guide.en.md -o user-guide-EN.docx
-pandoc docs/user-guide.id.md -o user-guide-ID.docx
-pandoc docs/hci/heuristic-evaluation.en.md -o heuristic-evaluation-EN.docx
-pandoc docs/hci/heuristic-evaluation.id.md -o heuristic-evaluation-ID.docx
-pandoc docs/hci/persona.en.md -o persona-EN.docx
-pandoc docs/hci/persona.id.md -o persona-ID.docx
-pandoc docs/hci/journey-map.en.md -o journey-map-EN.docx
-pandoc docs/hci/journey-map.id.md -o journey-map-ID.docx
-
-# Render Mermaid diagrams to PNG
-mmdc -i docs/architecture/data-model.md -o data-model.png
-mmdc -i docs/architecture/system-architecture.md -o system-architecture.png
-mmdc -i docs/architecture/sequences/log-transaction.md -o seq-log-transaction.png
-mmdc -i docs/architecture/sequences/sign-in.md -o seq-sign-in.png
-mmdc -i docs/architecture/sequences/budget-progress-update.md -o seq-budget-progress-update.png
-```
 
 ---
 
@@ -187,8 +140,6 @@ compass-hci/
   scripts/
     seed-demo.mjs                 # Demo-data seeder
     generate-icons.mjs            # Brand icon generator (SVG → PNG)
-  docs/                           # Class deliverables (see Documentation section)
-  legacy/                         # Archived Vite prototype (reference only)
   firestore.rules                 # Owner-only access via auth.uid
 ```
 

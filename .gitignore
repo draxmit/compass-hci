@@ -59,13 +59,11 @@ app/.claude/
 # .claude/  → Claude Code orchestrator memory + agent prompts
 # legacy/   → archived Vite prototype (kept locally as reference, never deployed)
 # scripts/export-docs.mjs → class-deliverable DOCX/PNG generator (run locally for submission)
-# docs/decisions/, docs/changes/, docs/CHANGELOG.md → internal dev-process notes (ADRs + per-task summaries + merge log)
+# docs/    → class-deliverable markdown sources (kept locally, PDFs submitted separately)
 .claude/
 legacy/
 scripts/export-docs.mjs
-docs/decisions/
-docs/changes/
-docs/CHANGELOG.md
+docs/
 # LaTeX → PDF tooling for class submission (local only)
 latex/
 # pdflatex auxiliary files (created in CWD if pdflatex is invoked manually)
