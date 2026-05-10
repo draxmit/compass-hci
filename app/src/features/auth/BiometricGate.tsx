@@ -1,3 +1,4 @@
+import { useSegments } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Fingerprint, LogOut } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
@@ -23,6 +24,12 @@ import { Text } from '@/shared/ui/Text';
  * The gate short-circuits to render-children on:
  *   - web (no biometric hardware)
  *   - the user being signed-out (nothing to gate)
+ *   - the user being inside an (auth) or (onboarding) flow (we'd
+ *     otherwise double-prompt: once when isAuthed flips to true on
+ *     the sign-in screen, then again when AuthGate's <Redirect> to
+ *     /(tabs) unmounts + remounts BiometricGate fresh, resetting
+ *     autoPromptedRef. Wait for the user to land on a real auth-
+ *     required route before firing the prompt.)
  *   - the userDoc still loading (so we don't prompt before AuthGate has
  *     decided whether the user is even past sign-in)
  *   - biometricEnabled === false in the user doc
@@ -40,6 +47,14 @@ export function BiometricGate({ children }: { children: ReactNode }) {
   const isAuthed = useIsAuthed();
   const userDoc = useUserDoc();
   const enabled = userDoc?.biometricEnabled === true;
+  // Skip the prompt while the user is still inside the auth or
+  // onboarding flow. Without this, when isAuthed flips to true on the
+  // sign-in screen, BiometricGate prompts once, then AuthGate's
+  // <Redirect href="/(tabs)" /> unmounts BiometricGate. The remount on
+  // /(tabs) resets autoPromptedRef and prompts again — two prompts
+  // in a row from the user's perspective.
+  const segments = useSegments();
+  const inFocusedFlow = segments[0] === '(auth)' || segments[0] === '(onboarding)';
 
   // Web has no biometric hardware — start unlocked so we never paint
   // the lock screen on browser cold-start. Native starts locked and
@@ -81,6 +96,9 @@ export function BiometricGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (Platform.OS === 'web') return;
     if (!isAuthed) return;
+    // Wait until the user has navigated past the (auth) / (onboarding)
+    // groups — see the docblock above for why double-prompts otherwise.
+    if (inFocusedFlow) return;
     if (!supportChecked) return;
     if (!enabled || !hasHardware) {
       setUnlocked(true);
@@ -92,7 +110,7 @@ export function BiometricGate({ children }: { children: ReactNode }) {
     autoPromptedRef.current = true;
     void prompt();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthed, supportChecked, enabled, hasHardware, unlocked, attempting]);
+  }, [isAuthed, inFocusedFlow, supportChecked, enabled, hasHardware, unlocked, attempting]);
 
   const prompt = async () => {
     setAttempting(true);
@@ -127,6 +145,10 @@ export function BiometricGate({ children }: { children: ReactNode }) {
     }
   };
 
+  // Pass through the children (sign-in screen, onboarding, etc.) while
+  // the user hasn't entered the protected area yet. The lock screen
+  // would otherwise shadow those flows, which is wrong.
+  if (inFocusedFlow) return <>{children}</>;
   if (unlocked) return <>{children}</>;
 
   return <LockScreen onUnlock={prompt} onSignOut={handleSignOut} attempting={attempting} t={t} />;
