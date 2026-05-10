@@ -9,6 +9,7 @@ import {
 import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Redirect, Stack, useSegments } from 'expo-router';
+import Head from 'expo-router/head';
 import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 
@@ -293,6 +294,16 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
+      {/* expo-router auto-injects react-helmet titles per Stack.Screen.
+          Our screens don't set explicit titles, so helmet was setting
+          an EMPTY title which then overrode the static <title> in
+          +html.tsx — browser fell back to showing the URL as the tab
+          name. Setting a non-empty default here means every route
+          inherits 'Compass — Personal Finance' unless a child <Head>
+          overrides. */}
+      <Head>
+        <title>Compass — Personal Finance</title>
+      </Head>
       <NavigationLayer>
         {/* AppAlertProvider sits inside ThemeProvider (so it can read
             resolvedScheme for token colours) and ABOVE AuthGate so
