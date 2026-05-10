@@ -121,6 +121,29 @@ async function main() {
     // Transparent — no background flatten.
   });
 
+  // 4. splash-icon.png — INTENTIONALLY INVISIBLE. The user explicitly
+  //    didn't want the native splash icon visible because the in-app
+  //    Splash (src/shared/ui/Splash.tsx) shows the Compass logo
+  //    immediately after, and double-logos felt redundant.
+  //
+  //    expo-splash-screen REQUIRES a real PNG file on disk (its plugin
+  //    generates `drawable/splashscreen_logo` regardless of config) but
+  //    the file can be a 1×1 transparent pixel — at imageWidth=200 the
+  //    upscaled transparent square renders as nothing visible. The
+  //    user sees a brief black screen (from the configured backgroundColor
+  //    in app.config.ts) → in-app Splash with the real logo → app.
+  await sharp({
+    create: {
+      width: 1,
+      height: 1,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .png()
+    .toFile(join(OUT_DIR, 'splash-icon.png'));
+  console.log(`  wrote ${join(OUT_DIR, 'splash-icon.png')} (1×1 transparent — splash icon intentionally invisible)`);
+
   console.log('Done.');
 }
 
