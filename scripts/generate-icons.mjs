@@ -37,6 +37,25 @@ function logoSvg({ scale = 0.55, color = BRAND } = {}) {
     </svg>`;
 }
 
+// Favicon-specific design — adds an encircling compass face so the
+// icon fills the square frame at 16×16 / 32×32. Bare needle from
+// logoSvg() leaves huge horizontal margins (needle aspect ~0.4)
+// which read as 'tiny green sliver' at favicon sizes. Compass face
+// + tighter needle scale = unmistakable as a compass at any size.
+function faviconSvg() {
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+      <!-- Outer compass face — thick stroke for visibility at 16px. -->
+      <circle cx="12" cy="12" r="10.5" fill="none" stroke="${BRAND}" stroke-width="2" />
+      <!-- North needle (filled emerald). -->
+      <path d="M12 4 L15 12 L12 13 Z" fill="${BRAND}" />
+      <!-- South needle (faded emerald). -->
+      <path d="M12 20 L9 12 L12 13 Z" fill="${BRAND}" fill-opacity="0.45" />
+      <!-- Center pivot. -->
+      <circle cx="12" cy="12.5" r="1.3" fill="${BRAND}" />
+    </svg>`;
+}
+
 async function renderToPng({ size, svg, out, background }) {
   let pipeline = sharp(Buffer.from(svg), { density: Math.max(72, size) })
     .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } });
@@ -76,18 +95,17 @@ async function main() {
     // Transparent: Android composites on top of adaptiveIcon.backgroundColor.
   });
 
-  // 3. favicon.png — browser tab icon. Transparent background + the
-  //    emerald compass needle filling the canvas. User-tested
-  //    treatment: solid square backgrounds (whether black or
-  //    emerald) end up looking like coloured boxes at 16×16 with
-  //    the needle invisible. Letting the tab chrome show through
-  //    AND scaling the needle to ~85% of the canvas makes the
-  //    silhouette unmistakable on both light and dark themes.
+  // 3. favicon.png — browser tab icon. Transparent bg, compass FACE
+  //    (circle outline) + needle inside, scaled to fill the frame.
+  //    The bare-needle approach left big horizontal margins because
+  //    the needle is tall+narrow (aspect ~0.4); adding the encircling
+  //    face fills the square AND makes the icon read as a proper
+  //    compass at small sizes, not just a green sliver.
   //    64×64 source — modern browsers prefer PNG to ICO and
   //    downscale to 16×16 / 32×32 internally.
   await renderToPng({
     size: 64,
-    svg: logoSvg({ scale: 0.85, color: BRAND }),
+    svg: faviconSvg(),
     out: join(OUT_DIR, 'favicon.png'),
     // Transparent — no background flatten.
   });
