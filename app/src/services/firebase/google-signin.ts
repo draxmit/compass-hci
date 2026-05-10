@@ -2,6 +2,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { auth } from './client';
 
@@ -53,6 +54,19 @@ export function useGoogleSignIn(): UseGoogleSignIn {
   const requestConfig: Parameters<typeof Google.useAuthRequest>[0] = {};
   if (webClientId) requestConfig.webClientId = webClientId;
   if (androidClientId) requestConfig.androidClientId = androidClientId;
+  // Override the redirect URI on Android. By default expo-auth-session uses
+  // `${applicationId}:/oauthredirect` = `com.compass.app:/oauthredirect`, BUT
+  // Linking (which expo-auth-session uses to parse incoming URLs) is
+  // configured with `compass` as the primary scheme — so URLs starting with
+  // `com.compass.app:` get ignored by the URL listener, even though Android
+  // delivers them. Telling Google to redirect to `compass:/oauthredirect`
+  // matches Linking's default scheme so the URL parses correctly and the
+  // listener fires. Google's Android OAuth client accepts custom URI
+  // schemes other than the package name (Custom URI Scheme toggle is on),
+  // and the SHA-1 + package validation still proves we're the right app.
+  if (Platform.OS === 'android') {
+    requestConfig.redirectUri = 'compass:/oauthredirect';
+  }
 
   const [request, response, promptHook] = Google.useAuthRequest(requestConfig);
 
