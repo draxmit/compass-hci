@@ -38,6 +38,9 @@ app/node_modules
 app/.expo
 app/dist
 app/web-build
+
+# Firebase CLI cache (per-machine deploy state, never commit)
+.firebase/
 app/.env.local
 app/ios
 app/android
