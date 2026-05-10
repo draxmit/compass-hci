@@ -12,9 +12,12 @@ import { Text } from './Text';
  * Mobile-only top bar shown above tab content. Renders the active tab's
  * title on the left and the avatar (tap → /profile) on the right.
  *
- * Lives in (tabs)/_layout.tsx via Tabs.screenOptions.header so it's
- * persistent across all tab screens. Receives `BottomTabHeaderProps` so it
- * can read each screen's `title` from its `Tabs.Screen` options.
+ * Two call sites:
+ *   - Native: rendered by Tabs.screenOptions.header — receives
+ *     BottomTabHeaderProps with the active screen's title baked in.
+ *   - Web mobile (commit 2057cb2's tab-stacking workaround): rendered
+ *     standalone above <Slot/>, no props passed. Title is derived
+ *     from useSegments() + i18n in that mode.
  *
  * Avatar tap uses `replace` rather than `push`: replacing the (tabs) entry
  * removes the layered Stack composition that was causing a one-frame
@@ -22,13 +25,25 @@ import { Text } from './Text';
  * 'none' + opaque contentStyle. Back from /profile lands on Dashboard via
  * profile.tsx's canGoBack-fallback (no stack remembers which tab we left).
  */
-export function MobileTopBar({ options }: BottomTabHeaderProps) {
+type MobileTopBarProps = Partial<BottomTabHeaderProps>;
+
+export function MobileTopBar({ options }: MobileTopBarProps = {}) {
   const { t } = useTranslation(['common']);
   const router = useRouter();
   const segments = useSegments();
   const user = useAuthUser();
 
-  const title = typeof options.title === 'string' ? options.title : '';
+  // Native mode: use the title baked into the screen options. Web Slot
+  // mode: derive from the active segment + i18n.
+  const titleFromOptions = typeof options?.title === 'string' ? options.title : '';
+  const tabSeg = segments[1] ?? 'index';
+  const labelKey = (
+    tabSeg === 'transactions' ? 'transactions'
+    : tabSeg === 'budgets' ? 'budgets'
+    : tabSeg === 'insights' ? 'insights'
+    : 'dashboard'
+  ) as 'dashboard' | 'transactions' | 'budgets' | 'insights';
+  const title = titleFromOptions || t(`common:nav.${labelKey}`);
 
   // Pass the current tab as `?from=...` so the profile screen's back
   // button can route back to the right tab. The (tabs) group emits
