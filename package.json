@@ -17,9 +17,11 @@
     "app:typecheck": "pnpm --filter ./app typecheck",
     "types:build": "pnpm --filter ./packages/shared-types build",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "docs:export": "node scripts/export-docs.mjs",
     "clean": "pnpm -r exec rimraf node_modules dist .expo"
   },
   "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.14.0",
     "rimraf": "^5.0.5"
   }
 }

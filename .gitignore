@@ -41,6 +41,10 @@ app/web-build
 
 # Firebase CLI cache (per-machine deploy state, never commit)
 .firebase/
+
+# Generated DOCX/PNG outputs from `pnpm docs:export` — regenerated
+# on demand, not source of truth.
+dist-docs/
 app/.env.local
 app/ios
 app/android
