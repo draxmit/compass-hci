@@ -20,7 +20,7 @@ Works on desktop, mobile browsers, and tablets. Sign in with Google or create an
 
 Download and install:
 
-> **<https://expo.dev/accounts/draxmit/projects/compass/builds/fb5feea3-fee9-4704-840c-241dfcb3da61>**
+> **<https://expo.dev/accounts/draxmit/projects/compass/builds/5a30e4ad-3b82-4767-9bcd-1529f7cbced3>**
 
 On your Android device:
 1. Tap the link above → "Install"

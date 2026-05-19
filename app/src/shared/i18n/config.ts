@@ -110,12 +110,9 @@ export function initI18n(): typeof i18next {
     interpolation: { escapeValue: false },
     react: { useSuspense: false },
     returnNull: false,
-    // Our locale JSONs use v3 suffix-style plurals (e.g. `daysUsing_one`,
-    // `daysUsing_other`). i18next v23 defaults to v4 which expects
-    // Intl.PluralRules — Hermes ships partial Intl support and prints a
-    // noisy console warning. Pinning v3 silences the warning AND keeps
-    // resolution deterministic across JS engines.
-    compatibilityJSON: 'v3',
+    // Locale JSONs use v4-style plural suffixes (`key_one`, `key_other`,
+    // etc.) — i18next v23 default. Hermes in RN 0.81 / Expo SDK 54 has
+    // working Intl.PluralRules so v4 resolves correctly.
   });
 
   return i18next;

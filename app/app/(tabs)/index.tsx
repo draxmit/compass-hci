@@ -1307,10 +1307,12 @@ function SavingsRatePill({
                 ? t('dashboard:savingsRate.headlineOk', { pct, lng: lang })
                 : t('dashboard:savingsRate.headlineLow', { pct, lng: lang })}
           </Text>
-          <Text className="font-sans text-xs" style={{ color: mutedColor }}>
-            {t('dashboard:savingsRate.subtitle')}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline' }}>
+            <Text className="font-sans text-xs" style={{ color: mutedColor }}>
+              {t('dashboard:savingsRate.subtitle')}
+            </Text>
             {deltaLine}
-          </Text>
+          </View>
         </View>
       </View>
     </View>
